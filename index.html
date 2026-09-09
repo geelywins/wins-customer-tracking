@@ -200,6 +200,16 @@ tbody tr:hover{background:#FAFBFE;}
 .chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:var(--muted);}
 .chip input{margin:0;}
 .chip.on{background:#EDF1FB;border-color:var(--blue);color:var(--blue);}
+
+/* Growth Tools */
+.growth-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.growth-tab{all:unset;cursor:pointer;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;background:#fff;color:var(--muted);border:1px solid var(--line);}
+.growth-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.growth-panel{display:none;}
+.growth-panel.active{display:block;}
+.pill.score-hot{background:#FDEAEA;color:var(--red);}
+.pill.score-medium{background:#FFF4E0;color:var(--amber);}
+.pill.score-low{background:#EDF1FB;color:var(--blue);}
 .rem-more{text-align:center;margin-top:10px;}
 
 .btn.whatsapp{background:#25D366;color:#fff;}
@@ -247,6 +257,7 @@ tbody tr:hover{background:#FAFBFE;}
       <button data-view="progress"><span class="nav-ico">📋</span> Delivery Progress</button>
       <button data-view="reports"><span class="nav-ico">▤</span> Reports</button>
       <button data-view="contacts"><span class="nav-ico">📇</span> Contacts</button>
+      <button data-view="growth"><span class="nav-ico">🚀</span> Growth Tools</button>
       <button data-view="settings"><span class="nav-ico">⚙</span> Settings</button>
     </div>
     <div class="sidebar-foot">Single-user workspace<br>Data stored privately in this app<br><span style="opacity:.8">Dibuat oleh Wins Geely</span></div>
@@ -775,6 +786,132 @@ tbody tr:hover{background:#FAFBFE;}
       </div>
     </div>
 
+    <!-- GROWTH TOOLS -->
+    <div class="view" id="view-growth">
+      <div class="growth-tabs" id="growthTabs">
+        <button class="growth-tab active" data-gtab="priority">🎯 Prioritas Leads</button>
+        <button class="growth-tab" data-gtab="cicilan">🧮 Simulasi Cicilan</button>
+        <button class="growth-tab" data-gtab="broadcast">📣 WA Broadcast</button>
+      </div>
+
+      <!-- PRIORITY LEADS -->
+      <div class="growth-panel active" id="gpanel-priority">
+        <div class="card" style="margin-bottom:16px">
+          <h2>Kenapa Ini Penting <span class="muted">skor otomatis per lead</span></h2>
+          <p style="font-size:13px;color:var(--muted);margin:0">Setiap lead yang belum SPK diberi skor berdasarkan kategori (Hot/Warm/Cold), seberapa baru leadnya, dan kapan terakhir di-follow up. Leads dengan skor tinggi paling layak dikejar duluan.</p>
+        </div>
+        <div class="stat-grid" id="priorityStats"></div>
+        <div class="toolbar">
+          <select id="priorityFilterTier">
+            <option value="">Semua prioritas</option>
+            <option value="hot">🔥 Prioritas Tinggi</option>
+            <option value="medium">⚡ Prioritas Sedang</option>
+            <option value="low">🌥️ Prioritas Rendah</option>
+          </select>
+          <div class="spacer"></div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Skor</th><th>Nama</th><th>Kategori</th><th>Kendaraan</th><th>Terakhir Dihubungi</th><th>Alasan</th><th>Aksi</th>
+              </tr></thead>
+              <tbody id="priorityTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CICILAN CALCULATOR -->
+      <div class="growth-panel" id="gpanel-cicilan">
+        <div class="card">
+          <h2>Kalkulator Simulasi Cicilan <span class="muted">berdasarkan pricelist leasing terbaru</span></h2>
+          <div class="form-grid">
+            <div class="field"><label>Leasing</label><select id="cc_leasing">
+              <option value="">— Pilih leasing —</option>
+              <option value="manual">Manual (hitung sendiri / leasing lain)</option>
+            </select></div>
+            <div class="field" id="cc_vehicleField" style="display:none"><label>Kendaraan</label><select id="cc_vehicle"></select></div>
+            <div class="field full" id="cc_packageField" style="display:none"><label>Paket</label><select id="cc_package"></select></div>
+            <div class="field" id="cc_tenorField" style="display:none"><label>Tenor</label><select id="cc_tenor_lookup"></select></div>
+          </div>
+          <div id="cc_periodNote" style="font-size:11.5px;color:var(--muted);margin-top:2px"></div>
+        </div>
+
+        <div class="card" id="cc_manualCard" style="display:none">
+          <h2>Hitung Manual</h2>
+          <div class="form-grid">
+            <div class="field"><label>Kendaraan</label><select id="cc_kendaraan"></select></div>
+            <div class="field"><label>Harga OTR (Rp)</label><input type="text" inputmode="numeric" id="cc_otr" placeholder="e.g. 350000000"></div>
+            <div class="field"><label>DP (Rp)</label><input type="text" inputmode="numeric" id="cc_dp" placeholder="e.g. 70000000"></div>
+            <div class="field"><label>DP (%) <span style="font-weight:400">(otomatis mengisi DP Rp)</span></label><input type="text" inputmode="numeric" id="cc_dp_pct" placeholder="e.g. 20"></div>
+            <div class="field"><label>Tenor</label><select id="cc_tenor">
+              <option value="12">12 bulan</option>
+              <option value="23">23 bulan</option>
+              <option value="35" selected>35 bulan</option>
+              <option value="47">47 bulan</option>
+              <option value="59">59 bulan</option>
+            </select></div>
+            <div class="field"><label>Bunga Flat / Tahun (%)</label><input type="text" inputmode="numeric" id="cc_rate" value="6.5"></div>
+          </div>
+          <div class="toolbar" style="margin-top:4px">
+            <button class="btn" id="btnCalcCicilan">Hitung Simulasi</button>
+            <button class="btn ghost" id="btnResetCicilan">Reset</button>
+          </div>
+        </div>
+
+        <div class="card" id="cicilanResultCard" style="display:none">
+          <h2>Hasil Simulasi</h2>
+          <div id="cicilanResult"></div>
+          <div class="form-grid" style="margin-top:12px">
+            <div class="field"><label>Nama Customer (opsional)</label><input id="cc_customer" placeholder="e.g. Budi Santoso"></div>
+            <div class="field"><label>No. WhatsApp Customer (opsional)</label><input id="cc_phone" placeholder="08xx xxxx xxxx"></div>
+          </div>
+          <div class="toolbar" style="margin-top:10px">
+            <button class="btn whatsapp" id="btnSendCicilanWa">💬 Kirim Simulasi via WhatsApp</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- WA BROADCAST -->
+      <div class="growth-panel" id="gpanel-broadcast">
+        <div class="card">
+          <h2>WA Broadcast Tersegmentasi</h2>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 14px">Filter leads sesuai minat, lalu buka WhatsApp satu per satu dengan pesan yang sudah otomatis terisi nama & kendaraan. (Tidak mengirim otomatis — kamu tetap yang menekan tombol Kirim di WhatsApp, sesuai kebijakan WhatsApp.)</p>
+          <div class="form-grid">
+            <div class="field"><label>Kendaraan</label><select id="bc_kendaraan"><option value="">Semua kendaraan</option></select></div>
+            <div class="field"><label>Kategori</label><select id="bc_kategori"><option value="">Semua kategori</option></select></div>
+            <div class="field"><label>Sumber Lead</label><select id="bc_sumber"><option value="">Semua sumber</option></select></div>
+            <div class="field"><label>Status</label><select id="bc_status">
+              <option value="">Lead & SPK</option>
+              <option value="lead" selected>Lead saja (belum SPK)</option>
+              <option value="spk">Sudah SPK</option>
+            </select></div>
+            <div class="field full"><label>Template Pesan <span style="font-weight:400">gunakan {nama} dan {kendaraan}</span></label>
+              <textarea id="bc_template" rows="4">Halo {nama}, perkenalkan saya Wins dari Geely. Ada promo terbaru untuk {kendaraan} bulan ini, apakah Bapak/Ibu masih berminat untuk informasi lebih lanjut? 🙏</textarea>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="btn" id="btnFilterBroadcast">Tampilkan Leads</button>
+            <div class="spacer"></div>
+            <span id="bcSelectedCount" style="font-size:12.5px;color:var(--muted)"></span>
+          </div>
+        </div>
+        <div class="card" id="broadcastResultCard" style="display:none">
+          <div class="toolbar" style="margin-bottom:0">
+            <label class="chip" style="cursor:pointer"><input type="checkbox" id="bc_selectAll" style="display:inline;margin:0"> Pilih semua</label>
+            <div class="spacer"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th></th><th>Nama</th><th>Kendaraan</th><th>Kategori</th><th>Aksi</th></tr></thead>
+              <tbody id="broadcastTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- SETTINGS -->
     <div class="view" id="view-settings">
       <div class="card">
@@ -1084,6 +1221,7 @@ const titles = {
   progress:['Delivery Progress','STNK, wall charging, complaints and accessories after DO'],
   reports:['Reports','Monthly performance, conversion charts and exports'],
   contacts:['Contacts','Leasing CMO and insurance contacts, one tap to WhatsApp'],
+  growth:['Growth Tools','Lead prioritas, simulasi cicilan, dan WhatsApp broadcast tersegmentasi'],
   settings:['Settings','Manage dropdown lists and reminder rules']
 };
 document.getElementById('navList').addEventListener('click', (e)=>{
@@ -1106,6 +1244,7 @@ function goTo(view){
   if(view==='progress') renderProgress();
   if(view==='reports') renderReports();
   if(view==='contacts') renderContacts();
+  if(view==='growth') renderGrowth();
   if(view==='settings') renderSettings();
 }
 document.getElementById('bellBtn').addEventListener('click', ()=>goTo('dashboard'));
@@ -3611,6 +3750,363 @@ function calcManualIncentive(){
       <div style="flex:1"><div class="rem-title">Grand Total</div><div class="rem-sub">Rp ${grandTotal.toLocaleString('id-ID')}</div></div>
     </div>
   `;
+}
+
+/* ============================= GROWTH TOOLS ============================= */
+document.getElementById('growthTabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.growth-tab');
+  if(!btn) return;
+  const tab = btn.dataset.gtab;
+  document.querySelectorAll('.growth-tab').forEach(b=>b.classList.toggle('active', b===btn));
+  document.querySelectorAll('.growth-panel').forEach(p=>p.classList.toggle('active', p.id==='gpanel-'+tab));
+});
+function renderGrowth(){
+  renderPriorityLeads();
+  populateCicilanKendaraan();
+  populateBroadcastFilters();
+}
+
+/* ---- 1) LEAD SCORING & PRIORITAS ---- */
+function leadScore(lead){
+  const catWeight = { Hot:50, Warm:30, Cold:10, Lost:-1000 };
+  let score = (catWeight[lead.kategori] !== undefined ? catWeight[lead.kategori] : 20);
+  const reasons = [];
+  if(lead.kategori) reasons.push(`Kategori ${lead.kategori}`);
+
+  const daysSinceAdded = diffDays(todayDate(), parseDate(lead.createdAt) || todayDate());
+  if(daysSinceAdded<=3){ score += 15; reasons.push('Lead baru (≤3 hari)'); }
+  else if(daysSinceAdded<=7){ score += 8; reasons.push('Lead cukup baru (≤7 hari)'); }
+
+  const fus = getFollowupsByLead(lead.id);
+  let lastContactLabel = 'Belum pernah';
+  if(fus.length===0){
+    score += 10;
+    reasons.push('Belum pernah di-follow up');
+  } else {
+    const daysSinceFu = diffDays(todayDate(), parseDate(fus[0].createdAt));
+    lastContactLabel = daysSinceFu<=0 ? 'Hari ini' : `${daysSinceFu} hari lalu`;
+    if(daysSinceFu>=30){ score += 25; reasons.push('Dingin, 30+ hari tanpa follow up'); }
+    else if(daysSinceFu>=14){ score += 18; reasons.push('14+ hari tanpa follow up'); }
+    else if(daysSinceFu>=7){ score += 8; reasons.push('7+ hari tanpa follow up'); }
+  }
+  return { score, reasons, lastContactLabel };
+}
+function scoreTier(score){
+  if(score>=65) return { key:'hot', label:'🔥 Tinggi', cls:'score-hot' };
+  if(score>=35) return { key:'medium', label:'⚡ Sedang', cls:'score-medium' };
+  return { key:'low', label:'🌥️ Rendah', cls:'score-low' };
+}
+function renderPriorityLeads(){
+  const filterSel = document.getElementById('priorityFilterTier');
+  const candidates = state.leads
+    .filter(l=>l.status!=='spk' && l.kategori!=='Lost')
+    .map(l=>{
+      const s = leadScore(l);
+      return { lead:l, ...s, tier: scoreTier(s.score) };
+    })
+    .sort((a,b)=>b.score-a.score);
+
+  const filterVal = filterSel.value;
+  const shown = filterVal ? candidates.filter(c=>c.tier.key===filterVal) : candidates;
+
+  const hotCount = candidates.filter(c=>c.tier.key==='hot').length;
+  const medCount = candidates.filter(c=>c.tier.key==='medium').length;
+  const lowCount = candidates.filter(c=>c.tier.key==='low').length;
+  document.getElementById('priorityStats').innerHTML = `
+    ${statCard('Total Leads Aktif', candidates.length, 'var(--blue)')}
+    ${statCard('🔥 Prioritas Tinggi', hotCount, 'var(--red)')}
+    ${statCard('⚡ Prioritas Sedang', medCount, 'var(--amber)')}
+    ${statCard('🌥️ Prioritas Rendah', lowCount, 'var(--muted)')}
+  `;
+
+  document.getElementById('priorityTbody').innerHTML = shown.length ? shown.map(c=>`
+    <tr>
+      <td><span class="pill ${c.tier.cls}">${c.tier.label}</span></td>
+      <td>${escapeHtml(displayName(c.lead))}</td>
+      <td>${escapeHtml(c.lead.kategori||'—')}</td>
+      <td>${escapeHtml(vehicleLabel(c.lead))}</td>
+      <td>${c.lastContactLabel}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.reasons.join(' · ')}</td>
+      <td>${c.lead.noTlpn ? `<button class="btn whatsapp sm" onclick="priorityWaFollowUp('${c.lead.id}')">💬 Follow Up</button>` : '—'}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="7"><div class="empty">Tidak ada leads pada kategori prioritas ini.</div></td></tr>`;
+}
+document.getElementById('priorityFilterTier').addEventListener('change', renderPriorityLeads);
+function priorityWaFollowUp(leadId){
+  const l = getLead(leadId);
+  if(!l || !l.noTlpn) return;
+  const msg = `Halo ${displayName(l)}, saya Wins dari Geely. Mau menanyakan kabar terkait rencana ${vehicleLabel(l)} — apakah masih ada yang bisa saya bantu? 🙏`;
+  window.open(waLink(l.noTlpn, msg), '_blank');
+}
+
+/* ---- 2) KALKULATOR SIMULASI CICILAN ---- */
+const LEASING_DATA = {"cimb": {"label": "CIMB Niaga Finance", "period": "Juni 2026", "vehicles": {"GEELY EX2 PRO": {"otr": 239900000, "addb": [[12, 18380000, 54078000], [24, 9605000, 55671000], [36, 6606000, 57281000], [48, 5290000, 59038000], [60, 4858000, 60843000], [72, 4349000, 65504000]], "addm": [[11, 18290000, 72368000], [23, 9515000, 65186000], [35, 6516000, 63797000], [47, 5200000, 64238000], [59, 4769000, 65612000], [71, 4259000, 69763000]]}, "GEELY EX2 MAX": {"otr": 269900000, "addb": [[12, 20678000, 59754000], [24, 10806000, 61526000], [36, 7432000, 63195000], [48, 5952000, 65127000], [60, 5466000, 67099000], [72, 4892000, 72180000]], "addm": [[11, 20577000, 80331000], [23, 10705000, 72231000], [35, 7331000, 70526000], [47, 5851000, 70978000], [59, 5365000, 72464000], [71, 4791000, 76971000]]}, "GEELY EX5 PRO": {"otr": 465000000, "addb": [[12, 35625000, 89500000], [24, 18617000, 92538000], [36, 12804000, 95398000], [48, 10254000, 98371000], [60, 9417000, 101355000], [72, 8429000, 107108000]], "addm": [[11, 35451000, 124951000], [23, 18442000, 110980000], [35, 12630000, 108028000], [47, 10079000, 108450000], [59, 9242000, 110597000], [71, 8254000, 115362000]]}, "GEELY EX5 MAX": {"otr": 505000000, "addb": [[12, 38690000, 95891000], [24, 20218000, 98580000], [36, 13906000, 101636000], [48, 11136000, 104795000], [60, 10227000, 107959000], [72, 9154000, 110925000]], "addm": [[11, 38500000, 134391000], [23, 20029000, 118609000], [35, 13716000, 115352000], [47, 10946000, 115741000], [59, 10037000, 117996000], [71, 8964000, 119889000]]}, "STARRAY EM-i": {"otr": 499000000, "addb": [[12, 38230000, 94772000], [24, 19978000, 97429000], [36, 13740000, 100448000], [48, 11003000, 103572000], [60, 10105000, 106702000], [72, 9045000, 109633000]], "addm": [[11, 38043000, 132815000], [23, 19791000, 117220000], [35, 13553000, 114001000], [47, 10816000, 114388000], [59, 9918000, 116620000], [71, 8858000, 118491000]]}}}, "imfi": {"label": "IMFI (Indomobil Finance)", "period": "April 2026", "vehicles": {"EX2 PRO": {"otr": 239900000, "kombinasi_bunga_ringan": [[11, 102319170, 14511000], [23, 96505346, 7580000], [35, 95216375, 5301000], [47, 94984257, 4206000], [59, 95150566, 3573000]], "kombinasi_dp_ringan": [[12, 48230000, 18232000], [24, 48230000, 9790000], [36, 48480000, 7003000], [48, 48480000, 5624000], [60, 48480000, 4951000]], "comp_bunga_ringan": [[11, 102319170, 14511000], [23, 100900314, 7580000], [35, 103456940, 5301000], [47, 106521048, 4206000], [59, 109708897, 3573000]], "comp_dp_ringan": [[12, 48230000, 18232000], [24, 48230000, 9998000], [36, 48480000, 7280000], [48, 48480000, 5934000], [60, 48480000, 5294000]], "bunga_0": [[5, 106041070, 29988000], [11, 94645570, 14994000]], "potongan2_kombinasi": [[12, 48230000, 21796000, 10], [24, 48230000, 10704000, 22], [36, 48480000, 7473000, 34], [48, 48480000, 5944000, 46], [60, 48480000, 5203000, 58]], "potongan2_comp": [[12, 48230000, 21796000, 10], [24, 48230000, 10931000, 22], [36, 48480000, 7769000, 34], [48, 48480000, 6272000, 46], [60, 48480000, 5564000, 58]]}, "EX2 MAX": {"otr": 269900000, "kombinasi_bunga_ringan": [[11, 114283170, 16326000], [23, 107492034, 8528000], [35, 106028363, 5963000], [47, 105755645, 4732000], [59, 105930404, 4020000]], "kombinasi_dp_ringan": [[12, 54230000, 20442000], [24, 54480000, 10965000], [36, 54480000, 7843000], [48, 54480000, 6298000], [60, 54480000, 5544000]], "comp_bunga_ringan": [[11, 114283170, 16326000], [23, 111832026, 8528000], [35, 114694852, 5963000], [47, 118130560, 4732000], [59, 121704709, 4020000]], "comp_dp_ringan": [[12, 54230000, 20442000], [24, 54480000, 11170000], [36, 54480000, 8134000], [48, 54480000, 6631000], [60, 54480000, 5916000]], "bunga_0": [[5, 118470070, 33738000], [11, 105649570, 16869000]], "potongan2_kombinasi": [[12, 54230000, 24437000, 10], [24, 54480000, 11989000, 22], [36, 54480000, 8369000, 34], [48, 54480000, 6656000, 46], [60, 54480000, 5826000, 58]], "potongan2_comp": [[12, 54230000, 24437000, 10], [24, 54480000, 12213000, 22], [36, 54480000, 8680000, 34], [48, 54480000, 7008000, 46], [60, 54480000, 6217000, 58]]}, "EX5 PRO": {"otr": 475000000, "kombinasi_bunga_ringan": [[11, 192143500, 28731000], [23, 180115500, 15007000], [35, 177100000, 10495000], [47, 176229000, 8327000], [59, 176173250, 7074000]], "kombinasi_dp_ringan": [[12, 95500000, 35175000], [24, 95500000, 18865000], [36, 95500000, 13480000], [48, 95900000, 10816000], [60, 95900000, 9514000]], "comp_bunga_ringan": [[11, 192143500, 28731000], [23, 187753500, 15007000], [35, 191421250, 10495000], [47, 196278750, 8327000], [59, 201474125, 7074000]], "comp_dp_ringan": [[12, 95500000, 35175000], [24, 95500000, 19226000], [36, 95900000, 13962000], [48, 95900000, 11355000], [60, 95900000, 10111000]], "bunga_0": [[5, 199512500, 59375000], [11, 176950500, 29688000]], "potongan2_kombinasi": [[12, 95500000, 42049000, 10], [24, 95500000, 20627000, 22], [36, 95500000, 14386000, 34], [48, 95900000, 11431000, 46], [60, 95900000, 9998000, 58]], "potongan2_comp": [[12, 95500000, 42049000, 10], [24, 95500000, 21022000, 22], [36, 95900000, 14900000, 34], [48, 95900000, 12001000, 46], [60, 95900000, 10625000, 58]]}, "EX5 MAX": {"otr": 515000000, "kombinasi_bunga_ringan": [[11, 207743500, 31151000], [23, 194199500, 16271000], [35, 190920600, 11378000], [47, 189968400, 9028000], [59, 189900050, 7670000]], "kombinasi_dp_ringan": [[12, 103500000, 38089000], [24, 103500000, 20405000], [36, 103900000, 14580000], [48, 103900000, 11698000], [60, 103900000, 10290000]], "comp_bunga_ringan": [[11, 207743500, 31151000], [23, 199349500, 16271000], [35, 203316650, 11378000], [47, 208575350, 9028000], [59, 214200325, 7670000]], "comp_dp_ringan": [[12, 103500000, 38089000], [24, 103500000, 20648000], [36, 103900000, 14997000], [48, 103900000, 12199000], [60, 103900000, 10863000]], "bunga_0": [[5, 215732500, 64375000], [11, 191270500, 32188000]], "potongan2_kombinasi": [[12, 103500000, 45533000, 10], [24, 103500000, 22311000, 22], [36, 103900000, 15559000, 34], [48, 103900000, 12364000, 46], [60, 103900000, 10813000, 58]], "potongan2_comp": [[12, 103500000, 45533000, 10], [24, 103500000, 22577000, 22], [36, 103900000, 16004000, 34], [48, 103900000, 12893000, 46], [60, 103900000, 11415000, 58]]}, "STARRAY EM-i": {"otr": 499000000, "kombinasi_bunga_ringan": [[11, 201503500, 30183000], [23, 188863140, 15766000], [35, 185689200, 11025000], [47, 184769680, 8748000], [59, 184706370, 7432000]], "kombinasi_dp_ringan": [[12, 100300000, 36923000], [24, 100300000, 19803000], [36, 100700000, 14150000], [48, 100700000, 11353000], [60, 100700000, 9986000]], "comp_bunga_ringan": [[11, 201503500, 30183000], [23, 196887060, 15766000], [35, 200734050, 11025000], [47, 205832470, 8748000], [59, 211285605, 7432000]], "comp_dp_ringan": [[12, 100300000, 36923000], [24, 100300000, 20182000], [36, 100700000, 14656000], [48, 100700000, 11920000], [60, 100700000, 10613000]], "bunga_0": [[5, 209244500, 62375000], [11, 185542500, 31188000]], "potongan2_kombinasi": [[12, 100300000, 44140000, 10], [24, 100300000, 21653000, 22], [36, 100700000, 15100000, 34], [48, 100700000, 11999000, 46], [60, 100700000, 10494000, 58]], "potongan2_comp": [[12, 100300000, 44140000, 10], [24, 100300000, 22067000, 22], [36, 100700000, 15641000, 34], [48, 100700000, 12598000, 46], [60, 100700000, 11153000, 58]]}}}, "skbf": {"label": "SKBF (Sunindo Kookmin Best Finance)", "period": "Juni 2026", "vehicles": {"EX2 PRO": {"otr": 239900000, "low_dp": [[12, 18374900, 41030100], [24, 10054800, 41053000], [36, 7307500, 41077200], [48, 5974100, 41098500], [60, 5280400, 41119700]], "low_rate": [[11, 15687600, 88351100], [23, 8271900, 85526300], [35, 5876900, 87971700], [47, 4649600, 90992300], [59, 4006300, 94596900]], "balloon": [[12, 6336300, 75362400, 119950000], [24, 3958800, 79953300, 119950000], [36, 3663100, 84793700, 134950000]], "p5050": [133238300, 133238300], "zero_interest": [[11, 11995000, 124242000]]}, "EX2 MAX": {"otr": 269900000, "low_dp": [[12, 20671600, 45660700], [24, 11310900, 45686500], [36, 8191900, 45709400], [48, 6697200, 45733200], [60, 5919600, 45757100]], "low_rate": [[11, 17649300, 98886800], [23, 9306300, 95696300], [35, 6611900, 97593000], [47, 5231000, 100978700], [59, 4507200, 105021500]], "balloon": [[12, 7128700, 84273900, 134950000], [24, 4453900, 89426400, 134950000], [36, 3663100, 94017500, 134950000]], "p5050": [149387300, 149387300], "zero_interest": [[11, 13495000, 139266000]]}, "EX5 PRO": {"otr": 465000000, "low_dp": [[12, 35248200, 75754700], [24, 19114300, 75780300], [36, 13846200, 75819500], [48, 11288000, 75853800], [60, 9950300, 75888200]], "low_rate": [[11, 30407500, 163312300], [23, 16033400, 154060400], [35, 11391300, 157255900], [47, 9012200, 161747200], [59, 7765700, 167370700]], "balloon": [[12, 12281700, 138136300, 232500000], [24, 7673400, 143258300, 232500000], [36, 6310900, 151095900, 232500000]], "p5050": [251480000, 251480000], "zero_interest": [[11, 23250000, 232880000]]}, "EX5 MAX": {"otr": 505000000, "low_dp": [[12, 38279500, 81927100], [24, 20757800, 81954900], [36, 14917400, 81979600], [48, 12162700, 82016900], [60, 10722500, 82054100]], "low_rate": [[11, 33023000, 177008000], [23, 17412600, 166951600], [35, 12371200, 166858200], [47, 9787500, 171727300], [59, 8433300, 177825900]], "balloon": [[12, 13338200, 149666300, 252500000], [24, 8333400, 155220300, 252500000], [36, 6853800, 160168300, 252500000]], "p5050": [272760000, 272760000], "zero_interest": [[11, 25250000, 252560000]]}, "STARRAY EM-i": {"otr": 499000000, "low_dp": [[12, 37824800, 81001200], [24, 20613100, 81028700], [36, 14964600, 81070700], [48, 12112600, 81107500], [60, 10677500, 81144400]], "low_rate": [[11, 32630600, 174953600], [23, 17205700, 165017900], [35, 12224200, 168439800], [47, 9671200, 173252200], [59, 8333100, 179279600]], "balloon": [[12, 13179700, 147936800, 249500000], [24, 8234400, 153426000, 249500000], [36, 6772300, 161829400, 249500000]], "p5050": [269568000, 269568000], "zero_interest": [[11, 24950000, 249608000]]}}}};
+
+const LEASING_PACKAGE_LABELS = {
+  cimb: { addb:'ADDB - Asuransi Kombinasi', addm:'ADDM - Asuransi Kombinasi' },
+  imfi: {
+    kombinasi_bunga_ringan:'Asuransi Kombinasi - Bunga Ringan',
+    kombinasi_dp_ringan:'Asuransi Kombinasi - DP Ringan',
+    comp_bunga_ringan:'Asuransi Comprehensive - Bunga Ringan',
+    comp_dp_ringan:'Asuransi Comprehensive - DP Ringan',
+    bunga_0:'Bunga 0% (Asuransi All Risk)',
+    potongan2_kombinasi:'Potongan 2 Angsuran - Kombinasi',
+    potongan2_comp:'Potongan 2 Angsuran - Comprehensive'
+  },
+  skbf: {
+    low_dp:'Paket Low DP (mulai 15%)',
+    low_rate:'Paket Low Rate (mulai 0%)',
+    balloon:'Paket Balloon',
+    p5050:'Paket 50:50',
+    zero_interest:'0% Interest (11X)'
+  }
+};
+
+function populateCicilanKendaraan(){
+  const sel = document.getElementById('cc_kendaraan');
+  if(sel.dataset.filled) return;
+  sel.innerHTML = state.settings.kendaraan.map(k=>`<option>${escapeHtml(k)}</option>`).join('');
+  sel.dataset.filled = '1';
+}
+function parseRupiah(str){ return Number(String(str||'').replace(/[^0-9]/g,''))||0; }
+function fmtRupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+
+/* -- Leasing pricelist lookup flow -- */
+const ccLeasingSel = document.getElementById('cc_leasing');
+Object.keys(LEASING_DATA).forEach(key=>{
+  const opt = document.createElement('option');
+  opt.value = key;
+  opt.textContent = `${LEASING_DATA[key].label} (${LEASING_DATA[key].period})`;
+  ccLeasingSel.insertBefore(opt, ccLeasingSel.querySelector('option[value="manual"]'));
+});
+ccLeasingSel.addEventListener('change', ()=>{
+  const val = ccLeasingSel.value;
+  document.getElementById('cc_vehicleField').style.display = 'none';
+  document.getElementById('cc_packageField').style.display = 'none';
+  document.getElementById('cc_tenorField').style.display = 'none';
+  document.getElementById('cc_manualCard').style.display = 'none';
+  document.getElementById('cicilanResultCard').style.display = 'none';
+  document.getElementById('cc_periodNote').textContent = '';
+  if(val==='manual'){
+    populateCicilanKendaraan();
+    document.getElementById('cc_manualCard').style.display = 'block';
+    return;
+  }
+  if(!val) return;
+  const leasing = LEASING_DATA[val];
+  document.getElementById('cc_periodNote').textContent = `Pricelist ${leasing.label} periode ${leasing.period}. Harga dapat berubah sewaktu-waktu, cek ulang sebelum ditawarkan ke customer.`;
+  const vSel = document.getElementById('cc_vehicle');
+  vSel.innerHTML = Object.keys(leasing.vehicles).map(v=>`<option>${escapeHtml(v)}</option>`).join('');
+  document.getElementById('cc_vehicleField').style.display = 'block';
+  populateCicilanPackages();
+});
+document.getElementById('cc_vehicle').addEventListener('change', populateCicilanPackages);
+function populateCicilanPackages(){
+  const leasingKey = ccLeasingSel.value;
+  if(!leasingKey || leasingKey==='manual') return;
+  const leasing = LEASING_DATA[leasingKey];
+  const vehicleKey = document.getElementById('cc_vehicle').value;
+  const vehicle = leasing.vehicles[vehicleKey];
+  const pkgSel = document.getElementById('cc_package');
+  const labels = LEASING_PACKAGE_LABELS[leasingKey];
+  const pkgKeys = Object.keys(vehicle).filter(k=>k!=='otr');
+  pkgSel.innerHTML = pkgKeys.map(k=>`<option value="${k}">${escapeHtml(labels[k]||k)}</option>`).join('');
+  document.getElementById('cc_packageField').style.display = 'block';
+  populateCicilanTenors();
+}
+document.getElementById('cc_package').addEventListener('change', populateCicilanTenors);
+function populateCicilanTenors(){
+  const leasingKey = ccLeasingSel.value;
+  const leasing = LEASING_DATA[leasingKey];
+  const vehicleKey = document.getElementById('cc_vehicle').value;
+  const vehicle = leasing.vehicles[vehicleKey];
+  const pkgKey = document.getElementById('cc_package').value;
+  const rows = vehicle[pkgKey];
+  const tenorSel = document.getElementById('cc_tenor_lookup');
+  if(pkgKey==='p5050'){
+    tenorSel.innerHTML = `<option value="0">Skema 50:50 (tanpa angsuran bulanan)</option>`;
+  } else {
+    tenorSel.innerHTML = rows.map((r,i)=>`<option value="${i}">${r[0]} bulan</option>`).join('');
+  }
+  document.getElementById('cc_tenorField').style.display = 'block';
+  renderLookupResult();
+}
+document.getElementById('cc_tenor_lookup').addEventListener('change', renderLookupResult);
+function renderLookupResult(){
+  const leasingKey = ccLeasingSel.value;
+  const leasing = LEASING_DATA[leasingKey];
+  const vehicleKey = document.getElementById('cc_vehicle').value;
+  const vehicle = leasing.vehicles[vehicleKey];
+  const pkgKey = document.getElementById('cc_package').value;
+  const pkgLabel = LEASING_PACKAGE_LABELS[leasingKey][pkgKey];
+  const resultCard = document.getElementById('cicilanResultCard');
+  let html = '';
+  let waSummary = '';
+
+  if(pkgKey==='p5050'){
+    const [tdp, pelunasan] = vehicle.p5050;
+    html = `
+      <div class="stat-grid">
+        ${statCard('Harga OTR', fmtRupiah(vehicle.otr), 'var(--blue)')}
+        ${statCard('Total Down Payment', fmtRupiah(tdp), 'var(--cyan)')}
+        ${statCard('Pelunasan (bulan ke-12)', fmtRupiah(pelunasan), 'var(--green)')}
+      </div>
+      <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">*Skema 50:50: 50% dibayar di muka, tanpa angsuran bulanan, sisanya dilunasi di akhir periode.</p>`;
+    waSummary = `Skema: ${pkgLabel}\nDP Awal: ${fmtRupiah(tdp)}\nPelunasan akhir: ${fmtRupiah(pelunasan)}`;
+  } else {
+    const idx = Number(document.getElementById('cc_tenor_lookup').value);
+    const row = vehicle[pkgKey][idx];
+    const [tenor, angsuran, tdp, extra] = row;
+    const isBalloon = pkgKey==='balloon';
+    const isPotongan2 = pkgKey.startsWith('potongan2');
+    html = `
+      <div class="stat-grid">
+        ${statCard('Harga OTR', fmtRupiah(vehicle.otr), 'var(--blue)')}
+        ${statCard('DP / TDP (Total Bayar Pertama)', fmtRupiah(tdp), 'var(--cyan)')}
+        ${statCard('Angsuran / Bulan', fmtRupiah(angsuran), 'var(--green)')}
+        ${isBalloon ? statCard('Pelunasan Akhir (Balloon)', fmtRupiah(extra), 'var(--purple)') : ''}
+      </div>
+      <div class="rem-item do" style="border-color:var(--blue);margin-top:4px">
+        <div style="flex:1"><div class="rem-title">${escapeHtml(vehicleKey)} — ${escapeHtml(pkgLabel)}</div>
+        <div class="rem-sub">Tenor ${tenor} bulan${isPotongan2 ? ` (gratis 2 angsuran, hanya bayar ${extra}x)` : ''}${isBalloon ? ' + pelunasan di akhir tenor' : ''}</div></div>
+      </div>
+      <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">*Simulasi dari pricelist ${escapeHtml(leasing.label)} (${escapeHtml(leasing.period)}). Angka final tergantung hasil approval &amp; survey leasing.</p>`;
+    waSummary = `Paket: ${pkgLabel}\nTenor: ${tenor} bulan${isPotongan2 ? ` (gratis 2 angsuran)` : ''}\nDP/TDP: ${fmtRupiah(tdp)}\nAngsuran/bulan: ${fmtRupiah(angsuran)}${isBalloon ? `\nPelunasan akhir: ${fmtRupiah(extra)}` : ''}`;
+  }
+  document.getElementById('cicilanResult').innerHTML = html;
+  resultCard.style.display = 'block';
+  resultCard.dataset.mode = 'lookup';
+  resultCard.dataset.vehicle = vehicleKey;
+  resultCard.dataset.waSummary = waSummary;
+}
+
+/* -- Manual calculator (fallback / other leasing) -- */
+document.getElementById('cc_dp_pct').addEventListener('input', ()=>{
+  const otr = parseRupiah(document.getElementById('cc_otr').value);
+  const pct = Number(document.getElementById('cc_dp_pct').value)||0;
+  if(otr>0 && pct>0){
+    document.getElementById('cc_dp').value = Math.round(otr*pct/100);
+  }
+});
+document.getElementById('btnCalcCicilan').addEventListener('click', ()=>{
+  const kendaraan = document.getElementById('cc_kendaraan').value;
+  const otr = parseRupiah(document.getElementById('cc_otr').value);
+  const dp = parseRupiah(document.getElementById('cc_dp').value);
+  const tenor = Number(document.getElementById('cc_tenor').value);
+  const rate = Number(document.getElementById('cc_rate').value)||0;
+  const resultCard = document.getElementById('cicilanResultCard');
+
+  if(otr<=0 || dp<0 || dp>=otr){
+    document.getElementById('cicilanResult').innerHTML = `<div class="empty">Isi Harga OTR dan DP yang valid (DP harus lebih kecil dari OTR).</div>`;
+    resultCard.style.display = 'block';
+    return;
+  }
+  const principal = otr - dp;
+  const flatInterestTotal = principal * (rate/100) * (tenor/12);
+  const totalPayment = principal + flatInterestTotal;
+  const monthly = totalPayment / tenor;
+  const dpPct = (dp/otr*100).toFixed(1);
+
+  document.getElementById('cicilanResult').innerHTML = `
+    <div class="stat-grid">
+      ${statCard('Harga OTR', fmtRupiah(otr), 'var(--blue)')}
+      ${statCard('DP ('+dpPct+'%)', fmtRupiah(dp), 'var(--cyan)')}
+      ${statCard('Pokok Pinjaman', fmtRupiah(principal), 'var(--purple)')}
+      ${statCard('Cicilan / Bulan', fmtRupiah(monthly), 'var(--green)')}
+    </div>
+    <div class="rem-item do" style="border-color:var(--blue);margin-top:4px">
+      <div style="flex:1"><div class="rem-title">${escapeHtml(kendaraan)} — Tenor ${tenor} bulan (hitungan manual)</div>
+      <div class="rem-sub">Bunga flat ${rate}%/tahun · Total bunga ${fmtRupiah(flatInterestTotal)} · Total pembayaran ${fmtRupiah(totalPayment)}</div></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">*Simulasi kasar (bukan dari pricelist leasing), angka aktual tergantung kebijakan leasing/bank dan hasil survey.</p>
+  `;
+  resultCard.style.display = 'block';
+  resultCard.dataset.mode = 'manual';
+  resultCard.dataset.vehicle = kendaraan;
+  resultCard.dataset.waSummary = `Tenor: ${tenor} bulan\nOTR: ${fmtRupiah(otr)}\nDP: ${fmtRupiah(dp)}\nCicilan/bulan: ${fmtRupiah(monthly)}`;
+});
+document.getElementById('btnResetCicilan').addEventListener('click', ()=>{
+  ['cc_otr','cc_dp','cc_dp_pct'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cc_tenor').value = '35';
+  document.getElementById('cc_rate').value = '6.5';
+  document.getElementById('cicilanResultCard').style.display = 'none';
+});
+document.getElementById('btnSendCicilanWa').addEventListener('click', ()=>{
+  const rc = document.getElementById('cicilanResultCard');
+  const phone = document.getElementById('cc_phone').value.trim();
+  const customer = document.getElementById('cc_customer').value.trim();
+  if(!phone){ toast('Isi nomor WhatsApp customer dulu','err'); return; }
+  if(!rc.dataset.waSummary){ toast('Hitung simulasi dulu','err'); return; }
+  const msg = `Halo ${customer||'Bapak/Ibu'}, berikut simulasi cicilan untuk ${rc.dataset.vehicle}:\n${rc.dataset.waSummary}\n\n*Simulasi, angka final mengikuti approval leasing. Ada yang bisa saya bantu lagi? 🙏`;
+  window.open(waLink(phone, msg), '_blank');
+});
+
+/* ---- 3) WA BROADCAST TERSEGMENTASI ---- */
+function populateBroadcastFilters(){
+  const kSel = document.getElementById('bc_kendaraan');
+  const cSel = document.getElementById('bc_kategori');
+  const sSel = document.getElementById('bc_sumber');
+  if(!kSel.dataset.filled){
+    kSel.innerHTML += state.settings.kendaraan.map(k=>`<option>${escapeHtml(k)}</option>`).join('');
+    kSel.dataset.filled='1';
+  }
+  if(!cSel.dataset.filled){
+    cSel.innerHTML += CUSTOMER_CATEGORIES.map(k=>`<option>${escapeHtml(k)}</option>`).join('');
+    cSel.dataset.filled='1';
+  }
+  if(!sSel.dataset.filled){
+    sSel.innerHTML += state.settings.sumberList.map(k=>`<option>${escapeHtml(k)}</option>`).join('');
+    sSel.dataset.filled='1';
+  }
+}
+let broadcastFiltered = [];
+document.getElementById('btnFilterBroadcast').addEventListener('click', ()=>{
+  const k = document.getElementById('bc_kendaraan').value;
+  const c = document.getElementById('bc_kategori').value;
+  const s = document.getElementById('bc_sumber').value;
+  const st = document.getElementById('bc_status').value;
+  broadcastFiltered = state.leads.filter(l=>{
+    if(k && l.jenisKendaraan!==k) return false;
+    if(c && l.kategori!==c) return false;
+    if(s && l.sumber!==s) return false;
+    if(st && l.status!==st) return false;
+    if(!l.noTlpn) return false;
+    return true;
+  });
+  renderBroadcastTable();
+  document.getElementById('broadcastResultCard').style.display = 'block';
+});
+function renderBroadcastTable(){
+  const tbody = document.getElementById('broadcastTbody');
+  tbody.innerHTML = broadcastFiltered.length ? broadcastFiltered.map(l=>`
+    <tr>
+      <td><input type="checkbox" class="bc-check" data-id="${l.id}" checked></td>
+      <td>${escapeHtml(displayName(l))}</td>
+      <td>${escapeHtml(vehicleLabel(l))}</td>
+      <td>${escapeHtml(l.kategori||'—')}</td>
+      <td><button class="btn whatsapp sm" onclick="sendBroadcastOne('${l.id}')">💬 Kirim</button></td>
+    </tr>
+  `).join('') : `<tr><td colspan="5"><div class="empty">Tidak ada leads yang cocok dengan filter ini.</div></td></tr>`;
+  updateBroadcastCount();
+  document.querySelectorAll('.bc-check').forEach(cb=>cb.addEventListener('change', updateBroadcastCount));
+}
+function updateBroadcastCount(){
+  const total = document.querySelectorAll('.bc-check').length;
+  const checked = document.querySelectorAll('.bc-check:checked').length;
+  document.getElementById('bcSelectedCount').textContent = total ? `${checked} dari ${total} dipilih` : '';
+}
+document.getElementById('bc_selectAll').addEventListener('change', (e)=>{
+  document.querySelectorAll('.bc-check').forEach(cb=>cb.checked = e.target.checked);
+  updateBroadcastCount();
+});
+function fillTemplate(tpl, lead){
+  return tpl.replace(/\{nama\}/g, displayName(lead)).replace(/\{kendaraan\}/g, vehicleLabel(lead));
+}
+function sendBroadcastOne(leadId){
+  const l = getLead(leadId);
+  if(!l || !l.noTlpn) return;
+  const tpl = document.getElementById('bc_template').value;
+  window.open(waLink(l.noTlpn, fillTemplate(tpl, l)), '_blank');
 }
 
 /* ============================= INIT ============================= */
