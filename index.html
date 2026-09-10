@@ -168,6 +168,7 @@ tbody tr:hover{background:#FAFBFE;}
 .field textarea{resize:vertical;min-height:60px;}
 .radio-row{display:flex;gap:14px;flex-wrap:wrap;}
 .radio-opt{display:flex;align-items:center;gap:6px;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;cursor:pointer;}
+.radio-opt.sm{padding:5px 9px;font-size:12px;white-space:nowrap;}
 .radio-opt.checked{border-color:var(--blue);background:#EDF1FB;}
 .conditional{border-left:3px solid var(--blue);padding-left:12px;margin-top:6px;background:#FAFBFE;border-radius:0 8px 8px 0;padding:10px 12px;}
 .modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
@@ -594,12 +595,30 @@ tbody tr:hover{background:#FAFBFE;}
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Customer</th><th>Vehicle</th><th>DO Date</th><th>STNK</th><th>Wall Charging</th><th>Complaints</th><th>Accessories</th><th>Actions</th>
+              <th>Customer</th><th>Vehicle</th><th>DO Date</th><th>STNK</th><th>BPKB</th><th>Wall Charging</th><th>Complaints</th><th>Accessories</th><th>Actions</th>
             </tr></thead>
             <tbody id="progressTbody"></tbody>
           </table>
         </div>
         <div class="pagination" id="progressPagination"></div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar" style="margin-bottom:0">
+          <h2 style="margin:0">📜 Riwayat Selesai <span class="muted">delivery yang semua prosesnya sudah lengkap — data tetap tersimpan di sini</span></h2>
+          <div class="spacer"></div>
+          <button class="btn ghost sm" id="btnToggleProgressHistory">Tampilkan (<span id="progressHistoryCount">0</span>)</button>
+        </div>
+        <div id="progressHistoryWrap" style="display:none;margin-top:14px">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Customer</th><th>Vehicle</th><th>DO Date</th><th>STNK</th><th>BPKB</th><th>Wall Charging</th><th>Complaints</th><th>Accessories</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="progressHistoryTbody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1066,6 +1085,33 @@ function getInsuranceCurrentProvider(s){
   return s.insuranceProviderInitial || '';
 }
 
+/* ---- Accessories/Bonus fixed checklist, STNK receipt & BPKB helpers ---- */
+const DEFAULT_ACCESSORIES = ['Talang Air','Tong Sampah','Voucher Coating','Voucher PPF','Voucher Facial','Karpet 4D Matt'];
+function ensureDefaultAccessories(s){
+  s.accessories = s.accessories || [];
+  DEFAULT_ACCESSORIES.forEach(name=>{
+    if(!s.accessories.some(a=>a.isDefault && a.name===name)){
+      s.accessories.push({ id: uid(), name, notes:'', given:false, isDefault:true, createdAt: new Date().toISOString(), givenAt:'' });
+    }
+  });
+}
+function bpkbDueDate(s){
+  // BPKB jatuh tempo dihitung 3 bulan setelah STNK diserahkan ke customer.
+  if(!s.stnkReceived || !s.stnkReceivedAt) return null;
+  return addMonths(parseDate(s.stnkReceivedAt), 3);
+}
+function isDeliveryComplete(s){
+  const stnkOk = (s.stnkStatus||'pending')==='done' && !!s.stnkReceived;
+  const bpkbOk = (s.bpkbStatus||'pending')==='done';
+  const wc = s.wallChargingStatus||'pending';
+  const wcOk = wc==='done' || wc==='not_taken';
+  const complaints = s.complaints||[];
+  const noOpenComplaints = !complaints.some(c=>c.status!=='resolved');
+  const accessoriesOk = !!s.accessoriesDone;
+  return stnkOk && bpkbOk && wcOk && noOpenComplaints && accessoriesOk;
+}
+
+
 /* ============================= STORAGE ============================= */
 /* Uses window.storage when running inside Claude (claude.ai/app).
    Falls back to the browser's own localStorage when the file is opened
@@ -1367,12 +1413,14 @@ function computeReminders(){
             spkId: s.id, name: displayName(lead)});
         }
       }
-      (s.accessories||[]).forEach(a=>{
-        if(!a.given){
-          items.push({type:'accessory', urgent:false, sortDate: base, label:`Accessory/bonus belum diberikan — ${displayName(lead)}`,
-            sub: `${a.name}${a.notes ? ' · '+a.notes : ''}`, emoji:'🎁', phone: lead.noTlpn, name: displayName(lead)});
-        }
-      });
+      if(!s.accessoriesDone){
+        (s.accessories||[]).forEach(a=>{
+          if(!a.given){
+            items.push({type:'accessory', urgent:false, sortDate: base, label:`Accessory/bonus belum diberikan — ${displayName(lead)}`,
+              sub: `${a.name}${a.notes ? ' · '+a.notes : ''}`, emoji:'🎁', phone: lead.noTlpn, name: displayName(lead)});
+          }
+        });
+      }
       (s.complaints||[]).forEach(c=>{
         if(c.status!=='resolved'){
           const slaDays = state.settings.complaintSlaDays || 3;
@@ -1450,6 +1498,82 @@ function waStnkAdmin(spkId){
   const l = s ? getLead(s.leadId) : null;
   const msg = `Halo Bu Lita, mohon info perihal STNK untuk customer atas nama:\nNama: ${l?displayName(l):'-'}\nNo. SPK: ${s?.noSPK||'-'}\nKendaraan: ${l?vehicleLabel(l):'-'}\nNo. Rangka: ${s?.noRangka||'-'}\nTanggal DO: ${s?fmtDate(s.tglRealisasi):'-'}\nSudah lebih dari 1 bulan sejak delivery, mohon info update STNK-nya. Terima kasih — Edwin Sowita S.`;
   window.open(waLink(ADMIN_WA_NUMBER, msg), '_blank');
+}
+function generateStnkTandaTerima(spkId){
+  const s = getSpk(spkId);
+  if(!s){ toast('SPK not found','err'); return; }
+  const l = getLead(s.leadId) || {};
+  const noPolisi = (s.stnkNoPolisi||'').trim();
+  if(!noPolisi){ toast('Isi No. Polisi terlebih dahulu','err'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ toast('PDF library belum siap, coba lagi','err'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+
+  try{
+    const logoImg = document.querySelector('.dash-brand-banner img');
+    if(logoImg && logoImg.src){
+      const maxW = 28, maxH = 18;
+      let drawW = maxW, drawH = maxH;
+      if(logoImg.naturalWidth && logoImg.naturalHeight){
+        const ratio = logoImg.naturalWidth / logoImg.naturalHeight;
+        drawW = maxW; drawH = maxW / ratio;
+        if(drawH > maxH){ drawH = maxH; drawW = maxH * ratio; }
+      }
+      doc.addImage(logoImg.src, 'PNG', 15, 12, drawW, drawH);
+    }
+  }catch(e){ /* logo optional, continue without it if it fails */ }
+
+  doc.setFont(undefined,'bold'); doc.setFontSize(15);
+  doc.text('SURAT TANDA TERIMA STNK', pageW/2, 22, { align:'center' });
+  doc.setFont(undefined,'normal'); doc.setFontSize(10);
+  doc.text('Geely — Authorized Sales', pageW/2, 28, { align:'center' });
+  doc.setDrawColor(180); doc.line(15, 36, pageW-15, 36);
+
+  let y = 48;
+  doc.setFontSize(11);
+  const rows = [
+    ['Nama Customer', displayName(l)],
+    ['No. Telepon', l.noTlpn || '-'],
+    ['Kendaraan', vehicleLabel(l)],
+    ['No. Polisi', noPolisi],
+    ['No. Rangka', s.noRangka || '-'],
+    ['No. Mesin', s.noMesin || '-'],
+    ['Tanggal Delivery (DO)', fmtDate(s.tglRealisasi)],
+    ['Tanggal Terima STNK', fmtDate(todayISO())],
+  ];
+  rows.forEach(([k,v])=>{
+    doc.setFont(undefined,'bold'); doc.text(k, 15, y);
+    doc.setFont(undefined,'normal'); doc.text(':', 70, y); doc.text(String(v), 74, y);
+    y += 8;
+  });
+
+  y += 8;
+  doc.setFontSize(10);
+  const bodyText = 'Dengan ini menyatakan bahwa STNK (Surat Tanda Nomor Kendaraan) atas unit tersebut di atas telah diserahterimakan dalam keadaan baik dan lengkap.';
+  const bodyLines = doc.splitTextToSize(bodyText, pageW-30);
+  doc.text(bodyLines, 15, y);
+  y += bodyLines.length*6 + 20;
+
+  const colW = (pageW-30)/2;
+  doc.setFontSize(10);
+  doc.text('Yang Menyerahkan,', 15, y);
+  doc.text('Yang Menerima,', 15+colW, y);
+  y += 26;
+  doc.setDrawColor(80);
+  doc.line(15, y, 15+colW-25, y);
+  doc.line(15+colW, y, 15+colW+colW-25, y);
+  y += 6;
+  doc.setFont(undefined,'bold');
+  doc.text('Edwin Sowita S.', 15, y);
+  doc.text(displayName(l), 15+colW, y);
+  doc.setFont(undefined,'normal'); doc.setFontSize(9);
+  y += 5;
+  doc.text('Sales Consultant — Geely', 15, y);
+  doc.text('Customer', 15+colW, y);
+
+  const safeName = (l.nama||'customer').replace(/[^a-z0-9]+/gi,'_');
+  doc.save(`Tanda_Terima_STNK_${safeName}.pdf`);
 }
 function openInsuranceModal(spkId){
   const s = getSpk(spkId);
@@ -2986,30 +3110,60 @@ function filteredProgress(){
     return true;
   }).sort((a,b)=>parseDate(b.tglRealisasi)-parseDate(a.tglRealisasi));
 }
+function progressRowHtml(s, today){
+  const l = getLead(s.leadId) || {nama:'(deleted)'};
+  const stnkDone = (s.stnkStatus||'pending')==='done';
+  const daysSince = diffDays(today, parseDate(s.tglRealisasi));
+  const complaints = s.complaints||[];
+  const openComplaints = complaints.filter(c=>c.status!=='resolved').length;
+  const accessories = s.accessories||[];
+  const pendingAcc = accessories.filter(a=>!a.given).length;
+  const bpkbDone = (s.bpkbStatus||'pending')==='done';
+  const dueDate = bpkbDueDate(s);
+  let bpkbCell;
+  if(bpkbDone){
+    bpkbCell = `<span class="pill st-done">Diterima</span>`;
+  } else if(dueDate){
+    const dLeft = diffDays(dueDate, today);
+    const dueStr = fmtDate(dueDate.toISOString().slice(0,10));
+    bpkbCell = dLeft<0 ? `<span class="pill st-overdue">Belum — jatuh tempo ${dueStr} (lewat ${-dLeft}d)</span>` : `<span class="pill ${dLeft<=14?'st-pending':'st-pending'}">Belum — jatuh tempo ${dueStr}</span>`;
+  } else {
+    bpkbCell = `<span class="pill st-pending">Belum</span>`;
+  }
+  return `<tr>
+    <td><strong>${escapeHtml(displayName(l))}</strong></td>
+    <td>${escapeHtml(vehicleLabel(l))}</td>
+    <td>${fmtDate(s.tglRealisasi)}</td>
+    <td>${stnkDone ? `<span class="pill st-done">Done — ${escapeHtml(s.stnkNoPolisi||'')}${s.stnkReceived?' ✅':''}</span>` : (daysSince>=30 ? `<span class="pill st-overdue">Overdue (${daysSince}d)</span>` : `<span class="pill st-pending">${daysSince}d since DO</span>`)}</td>
+    <td>${bpkbCell}</td>
+    <td>${wallChargingPill(s.wallChargingStatus, daysSince)}</td>
+    <td>${complaints.length ? `<span class="pill ${openComplaints?'st-open':'st-resolved'} clickable-pill" onclick="openProgressModal('${s.id}','complaints')" title="Click to view complaints">${openComplaints ? openComplaints+' open' : 'All resolved'} (${complaints.length})</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+    <td>${s.accessoriesDone ? `<span class="pill st-done clickable-pill" onclick="openProgressModal('${s.id}','accessories')" title="Click to view accessories">Selesai (${accessories.filter(a=>a.given).length}/${accessories.length})</span>` : (accessories.length ? `<span class="pill ${pendingAcc?'st-pending':'st-done'} clickable-pill" onclick="openProgressModal('${s.id}','accessories')" title="Click to view accessories">${pendingAcc ? pendingAcc+' pending' : 'All given'} (${accessories.length})</span>` : '<span style="color:var(--muted)">—</span>')}</td>
+    <td class="row-actions"><button class="btn ghost sm" onclick="openProgressModal('${s.id}')">Manage</button></td>
+  </tr>`;
+}
+let progressHistoryOpen = false;
 function renderProgress(){
   const all = filteredProgress();
-  const rows = paginate(all, 'progress');
+  const active = all.filter(s=>!isDeliveryComplete(s));
+  const history = all.filter(isDeliveryComplete).sort((a,b)=>parseDate(b.tglRealisasi)-parseDate(a.tglRealisasi));
+  const rows = paginate(active, 'progress');
   const today = todayDate();
-  document.getElementById('progressTbody').innerHTML = rows.length ? rows.map(s=>{
-    const l = getLead(s.leadId) || {nama:'(deleted)'};
-    const stnkDone = (s.stnkStatus||'pending')==='done';
-    const daysSince = diffDays(today, parseDate(s.tglRealisasi));
-    const complaints = s.complaints||[];
-    const openComplaints = complaints.filter(c=>c.status!=='resolved').length;
-    const accessories = s.accessories||[];
-    const pendingAcc = accessories.filter(a=>!a.given).length;
-    return `<tr>
-      <td><strong>${escapeHtml(displayName(l))}</strong></td>
-      <td>${escapeHtml(vehicleLabel(l))}</td>
-      <td>${fmtDate(s.tglRealisasi)}</td>
-      <td>${stnkDone ? `<span class="pill st-done">Done — ${escapeHtml(s.stnkNoPolisi||'')}</span>` : (daysSince>=30 ? `<span class="pill st-overdue">Overdue (${daysSince}d)</span>` : `<span class="pill st-pending">${daysSince}d since DO</span>`)}</td>
-      <td>${wallChargingPill(s.wallChargingStatus, daysSince)}</td>
-      <td>${complaints.length ? `<span class="pill ${openComplaints?'st-open':'st-resolved'} clickable-pill" onclick="openProgressModal('${s.id}','complaints')" title="Click to view complaints">${openComplaints ? openComplaints+' open' : 'All resolved'} (${complaints.length})</span>` : '<span style="color:var(--muted)">—</span>'}</td>
-      <td>${accessories.length ? `<span class="pill ${pendingAcc?'st-pending':'st-done'} clickable-pill" onclick="openProgressModal('${s.id}','accessories')" title="Click to view accessories">${pendingAcc ? pendingAcc+' pending' : 'All given'} (${accessories.length})</span>` : '<span style="color:var(--muted)">—</span>'}</td>
-      <td class="row-actions"><button class="btn ghost sm" onclick="openProgressModal('${s.id}')">Manage</button></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="8"><div class="empty">No delivered customers match this filter.</div></td></tr>`;
+  document.getElementById('progressTbody').innerHTML = rows.length ? rows.map(s=>progressRowHtml(s, today)).join('') : `<tr><td colspan="9"><div class="empty">No delivered customers match this filter.</div></td></tr>`;
+
+  document.getElementById('progressHistoryCount').textContent = history.length;
+  const historyTbody = document.getElementById('progressHistoryTbody');
+  if(progressHistoryOpen){
+    historyTbody.innerHTML = history.length ? history.map(s=>progressRowHtml(s, today)).join('') : `<tr><td colspan="9"><div class="empty">Belum ada delivery yang selesai lengkap.</div></td></tr>`;
+  }
 }
+document.getElementById('btnToggleProgressHistory').addEventListener('click', ()=>{
+  progressHistoryOpen = !progressHistoryOpen;
+  document.getElementById('progressHistoryWrap').style.display = progressHistoryOpen ? 'block' : 'none';
+  const btn = document.getElementById('btnToggleProgressHistory');
+  btn.innerHTML = `${progressHistoryOpen ? 'Sembunyikan' : 'Tampilkan'} (<span id="progressHistoryCount">0</span>)`;
+  renderProgress();
+});
 document.getElementById('progSearch').addEventListener('input', ()=>{ pageState.progress=1; renderProgress(); });
 document.getElementById('progFilterStnk').addEventListener('change', ()=>{ pageState.progress=1; renderProgress(); });
 document.getElementById('progFilterWc').addEventListener('change', ()=>{ pageState.progress=1; renderProgress(); });
@@ -3022,14 +3176,18 @@ function openProgressModal(spkId, focusSection){
   if(!s){ toast('SPK not found','err'); return; }
   pgEditComplaintId = null;
   pgEditAccId = null;
+  ensureDefaultAccessories(s);
   const l = getLead(s.leadId) || {};
   const daysSince = diffDays(todayDate(), parseDate(s.tglRealisasi));
   const stnkDone = (s.stnkStatus||'pending')==='done';
+  const stnkReceived = !!s.stnkReceived;
+  const bpkbDone = (s.bpkbStatus||'pending')==='done';
   const wcStatus = s.wallChargingStatus||'pending';
   const wcDone = wcStatus==='done';
   const wcNotTaken = wcStatus==='not_taken';
   const complaints = s.complaints||[];
-  const accessories = s.accessories||[];
+  const dueDate = bpkbDueDate(s);
+  const dueOverdue = dueDate && diffDays(todayDate(), dueDate) < 0;
 
   openModal(`
     <div class="modal-head"><h3>Delivery Progress — ${escapeHtml(displayName(l))}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -3044,9 +3202,24 @@ function openProgressModal(spkId, focusSection){
       <label class="radio-opt ${stnkDone?'checked':''}"><input type="radio" name="pg_stnk" value="done" ${stnkDone?'checked':''}> Sudah Jadi</label>
     </div>
     ${!stnkDone && daysSince>=30 ? `<div class="rem-item stnk overdue" style="margin-bottom:10px"><div class="rem-emoji">📇</div><div style="flex:1"><div class="rem-title">Sudah ${daysSince} hari sejak DO</div><div class="rem-sub">STNK belum jadi — sebaiknya follow up ke admin (Bu Lita)</div></div><button class="btn whatsapp sm" onclick="waStnkAdmin('${s.id}')">💬 Follow Up to Admin</button></div>` : ''}
-    <div class="field" id="pg_platWrap" style="display:${stnkDone?'block':'none'};margin-bottom:16px"><label>No. Polisi</label><input id="pg_plat" value="${escapeHtml(s.stnkNoPolisi||'')}" placeholder="B 1234 XYZ"></div>
+    <div class="field" id="pg_platWrap" style="display:${stnkDone?'block':'none'};margin-bottom:10px"><label>No. Polisi</label><input id="pg_plat" value="${escapeHtml(s.stnkNoPolisi||'')}" placeholder="B 1234 XYZ"></div>
+    <div id="pg_stnkReceivedWrap" style="display:${stnkDone?'block':'none'};margin-bottom:16px">
+      ${stnkReceived ? `
+        <div class="rem-item do" style="border-color:var(--green);margin-bottom:8px"><div class="rem-emoji">✅</div><div style="flex:1">
+          <div class="rem-title">Sudah diterima customer — ${fmtDate(s.stnkReceivedAt)}</div>
+        </div></div>
+        <button class="btn ghost sm" id="pg_reprintStnkBtn">🖨️ Cetak Ulang Tanda Terima</button>
+      ` : `<button class="btn green sm" id="pg_stnkReceivedBtn">✅ Sudah Diterima Customer (Cetak Tanda Terima)</button>`}
+    </div>
 
-    <div class="section-title">2. Wall Charging</div>
+    <div class="section-title">2. BPKB</div>
+    <div class="radio-row" id="pg_bpkbRow" style="margin-bottom:8px">
+      <label class="radio-opt ${!bpkbDone?'checked':''}"><input type="radio" name="pg_bpkb" value="pending" ${!bpkbDone?'checked':''}> Belum Diterima</label>
+      <label class="radio-opt ${bpkbDone?'checked':''}"><input type="radio" name="pg_bpkb" value="done" ${bpkbDone?'checked':''}> Sudah Diterima</label>
+    </div>
+    ${!bpkbDone && dueDate ? `<div class="rem-item ${dueOverdue?'overdue':'stnk'}" style="margin-bottom:16px"><div class="rem-emoji">📇</div><div style="flex:1"><div class="rem-title">Jatuh tempo BPKB: ${fmtDate(dueDate.toISOString().slice(0,10))}</div><div class="rem-sub">Dihitung 3 bulan sejak STNK diserahkan ke customer (${fmtDate(s.stnkReceivedAt)})${dueOverdue?' — sudah terlewat':''}</div></div></div>` : '<div style="margin-bottom:16px"></div>'}
+
+    <div class="section-title">3. Wall Charging</div>
     <div class="radio-row" id="pg_wcRow" style="margin-bottom:8px">
       <label class="radio-opt ${(!wcDone&&!wcNotTaken)?'checked':''}"><input type="radio" name="pg_wc" value="pending" ${(!wcDone&&!wcNotTaken)?'checked':''}> Belum Terpasang</label>
       <label class="radio-opt ${wcDone?'checked':''}"><input type="radio" name="pg_wc" value="done" ${wcDone?'checked':''}> Sudah Terpasang</label>
@@ -3055,13 +3228,19 @@ function openProgressModal(spkId, focusSection){
     ${!wcDone && !wcNotTaken && daysSince>=30 ? `<div class="rem-item wallcharging overdue" style="margin-bottom:10px"><div class="rem-emoji">🔌</div><div style="flex:1"><div class="rem-title">Sudah ${daysSince} hari sejak DO</div><div class="rem-sub">Belum terpasang — sebaiknya follow up ke admin</div></div><button class="btn whatsapp sm" onclick="waWallChargingAdmin('${s.id}')">💬 Follow Up to Admin</button></div>` : ''}
     <div style="margin-bottom:16px"></div>
 
-    <div class="section-title" id="pg_complaintSection">3. Komplain</div>
+    <div class="section-title" id="pg_complaintSection">4. Komplain</div>
     <div id="pg_complaintList" style="margin-bottom:8px">${progressComplaintListHtml(s)}</div>
     <div class="add-row" style="margin-bottom:16px"><input type="text" id="pg_newComplaint" placeholder="Tulis komplain baru..."><button class="btn sm" id="pg_addComplaintBtn">+ Komplain</button></div>
 
-    <div class="section-title" id="pg_accSection">4. Accessories / Bonus</div>
+    <div class="section-title" id="pg_accSection">5. Accessories / Bonus ${s.accessoriesDone ? '<span class="pill st-done" style="margin-left:6px;font-size:10px;vertical-align:middle">Selesai</span>' : ''}</div>
     <div id="pg_accList" style="margin-bottom:8px">${progressAccessoryListHtml(s)}</div>
-    <div class="add-row" style="margin-bottom:6px"><input type="text" id="pg_newAcc" placeholder="Nama accessory/bonus..."><button class="btn sm" id="pg_addAccBtn">+ Tambah</button></div>
+    <div class="add-row" style="margin-bottom:10px"><input type="text" id="pg_newAcc" placeholder="Custom accessory/bonus lainnya..."><button class="btn sm" id="pg_addAccBtn">+ Tambah</button></div>
+    <div style="margin-bottom:16px">
+      ${s.accessoriesDone
+        ? `<button class="btn ghost sm" id="pg_accDoneBtn">↩️ Buka Lagi (Belum Semua Selesai)</button>`
+        : `<button class="btn green sm" id="pg_accDoneBtn">✅ Tandai Selesai (Done)</button>`}
+      <span style="font-size:11.5px;color:var(--muted);display:block;margin-top:6px">Tidak semua item harus "Sudah" — kalau ada yang memang tidak diberikan, tetap bisa ditandai Done di sini.</span>
+    </div>
 
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Close</button><button class="btn" id="pg_saveBtn">Save</button></div>
   `, true);
@@ -3070,11 +3249,38 @@ function openProgressModal(spkId, focusSection){
     document.querySelectorAll('#pg_stnkRow .radio-opt').forEach(o=>o.classList.remove('checked'));
     r.closest('.radio-opt').classList.add('checked');
     document.getElementById('pg_platWrap').style.display = r.value==='done' ? 'block':'none';
+    document.getElementById('pg_stnkReceivedWrap').style.display = r.value==='done' ? 'block':'none';
+  }));
+  document.querySelectorAll('#pg_bpkbRow input').forEach(r=>r.addEventListener('change', ()=>{
+    document.querySelectorAll('#pg_bpkbRow .radio-opt').forEach(o=>o.classList.remove('checked'));
+    r.closest('.radio-opt').classList.add('checked');
   }));
   document.querySelectorAll('#pg_wcRow input').forEach(r=>r.addEventListener('change', ()=>{
     document.querySelectorAll('#pg_wcRow .radio-opt').forEach(o=>o.classList.remove('checked'));
     r.closest('.radio-opt').classList.add('checked');
   }));
+
+  document.getElementById('pg_accDoneBtn')?.addEventListener('click', async ()=>{
+    s.accessoriesDone = !s.accessoriesDone;
+    await saveSpk();
+    toast(s.accessoriesDone ? 'Accessories ditandai selesai' : 'Accessories dibuka lagi');
+    openProgressModal(spkId, focusSection); renderProgress(); renderReminders();
+  });
+
+  document.getElementById('pg_stnkReceivedBtn')?.addEventListener('click', async ()=>{
+    const noPolisi = document.getElementById('pg_plat').value.trim();
+    if(!noPolisi){ toast('Isi No. Polisi terlebih dahulu','err'); return; }
+    s.stnkNoPolisi = noPolisi;
+    s.stnkReceived = true;
+    s.stnkReceivedAt = todayISO();
+    await saveSpk();
+    generateStnkTandaTerima(s.id);
+    toast('STNK ditandai sudah diterima, dokumen tanda terima diunduh');
+    openProgressModal(spkId, focusSection); renderProgress(); renderReminders();
+  });
+  document.getElementById('pg_reprintStnkBtn')?.addEventListener('click', ()=>{
+    generateStnkTandaTerima(s.id);
+  });
 
   document.getElementById('pg_addComplaintBtn').addEventListener('click', async ()=>{
     const text = document.getElementById('pg_newComplaint').value.trim();
@@ -3090,7 +3296,7 @@ function openProgressModal(spkId, focusSection){
     const name = document.getElementById('pg_newAcc').value.trim();
     if(!name){ toast('Isi nama accessory/bonus dulu','err'); return; }
     s.accessories = s.accessories || [];
-    s.accessories.push({ id: uid(), name, notes:'', given:false, createdAt: new Date().toISOString(), givenAt:'' });
+    s.accessories.push({ id: uid(), name, notes:'', given:false, isDefault:false, createdAt: new Date().toISOString(), givenAt:'' });
     await saveSpk();
     document.getElementById('pg_newAcc').value='';
     document.getElementById('pg_accList').innerHTML = progressAccessoryListHtml(s);
@@ -3101,6 +3307,11 @@ function openProgressModal(spkId, focusSection){
     const stnkVal = document.querySelector('#pg_stnkRow input:checked')?.value || 'pending';
     s.stnkStatus = stnkVal;
     s.stnkNoPolisi = stnkVal==='done' ? document.getElementById('pg_plat').value.trim() : '';
+    if(stnkVal!=='done'){ s.stnkReceived = false; s.stnkReceivedAt = ''; }
+    const bpkbVal = document.querySelector('#pg_bpkbRow input:checked')?.value || 'pending';
+    if(bpkbVal==='done' && (s.bpkbStatus||'pending')!=='done') s.bpkbReceivedAt = todayISO();
+    if(bpkbVal!=='done') s.bpkbReceivedAt = '';
+    s.bpkbStatus = bpkbVal;
     s.wallChargingStatus = document.querySelector('#pg_wcRow input:checked')?.value || 'pending';
     await saveSpk();
     toast('Progress saved');
@@ -3178,7 +3389,8 @@ async function updateComplaintStatus(spkId, complaintId, status){
 function progressAccessoryListHtml(s){
   const list = s.accessories||[];
   if(!list.length) return `<div class="empty">Belum ada accessory/bonus tercatat.</div>`;
-  return list.slice().reverse().map(a=>{
+  const ordered = list.slice().sort((a,b)=> (b.isDefault?1:0) - (a.isDefault?1:0));
+  return ordered.map(a=>{
     if(pgEditAccId===a.id){
       return `<div class="followup-item">
         <div style="flex:1;min-width:0"><input id="pg_editAccInput" value="${escapeHtml(a.name)}" style="width:100%"></div>
@@ -3186,14 +3398,17 @@ function progressAccessoryListHtml(s){
         <button class="btn ghost sm" onclick="cancelAccessoryEdit('${s.id}')">Cancel</button>
       </div>`;
     }
-    return `<div class="followup-item">
+    return `<div class="followup-item" style="align-items:center;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div class="fu-notes">${escapeHtml(a.name)}</div>
-        <div class="fu-date">${a.given ? 'Diberikan '+fmtDate(a.givenAt) : 'Belum diberikan'}</div>
+        ${a.given ? `<div class="fu-date">Diberikan ${fmtDate(a.givenAt)}</div>` : ''}
       </div>
-      <button class="btn ${a.given?'ghost':'green'} sm" onclick="toggleAccessoryGiven('${s.id}','${a.id}')">${a.given ? 'Undo' : 'Mark Given'}</button>
-      <button class="btn ghost sm" onclick="editAccessory('${s.id}','${a.id}')">Edit</button>
-      <button class="btn danger sm" onclick="deleteAccessory('${s.id}','${a.id}')">Delete</button>
+      <div class="radio-row" style="gap:8px">
+        <label class="radio-opt sm ${!a.given?'checked':''}"><input type="radio" name="pg_acc_${a.id}" value="pending" ${!a.given?'checked':''} onchange="toggleAccessoryGiven('${s.id}','${a.id}',false)"> Belum</label>
+        <label class="radio-opt sm ${a.given?'checked':''}"><input type="radio" name="pg_acc_${a.id}" value="given" ${a.given?'checked':''} onchange="toggleAccessoryGiven('${s.id}','${a.id}',true)"> Sudah</label>
+      </div>
+      ${!a.isDefault ? `<button class="btn ghost sm" onclick="editAccessory('${s.id}','${a.id}')">Edit</button>
+      <button class="btn danger sm" onclick="deleteAccessory('${s.id}','${a.id}')">Delete</button>` : ''}
     </div>`;
   }).join('');
 }
@@ -3218,17 +3433,19 @@ async function saveAccessoryEdit(spkId, accId){
 }
 async function deleteAccessory(spkId, accId){
   const s = getSpk(spkId);
+  const a = (s.accessories||[]).find(x=>x.id===accId);
+  if(a && a.isDefault){ toast('Item default tidak bisa dihapus','err'); return; }
   s.accessories = (s.accessories||[]).filter(x=>x.id!==accId);
   await saveSpk();
   toast('Accessory dihapus');
   document.getElementById('pg_accList').innerHTML = progressAccessoryListHtml(s);
   renderProgress(); renderReminders();
 }
-async function toggleAccessoryGiven(spkId, accId){
+async function toggleAccessoryGiven(spkId, accId, givenVal){
   const s = getSpk(spkId);
   const a = (s.accessories||[]).find(x=>x.id===accId);
   if(!a) return;
-  a.given = !a.given;
+  a.given = !!givenVal;
   a.givenAt = a.given ? new Date().toISOString().slice(0,10) : '';
   await saveSpk();
   toast(a.given ? 'Ditandai sudah diberikan' : 'Ditandai belum diberikan');
@@ -3246,7 +3463,7 @@ function progressReportRows(){
     const complaints = s.complaints||[];
     const openComplaints = complaints.filter(c=>c.status!=='resolved').length;
     const accessories = s.accessories||[];
-    const pendingAcc = accessories.filter(a=>!a.given).length;
+    const pendingAcc = s.accessoriesDone ? 0 : accessories.filter(a=>!a.given).length;
     return { s, l, stnkDone, wcDone, wcStatus, daysSince, openComplaints, pendingAcc };
   }).sort((a,b)=>parseDate(b.s.tglRealisasi)-parseDate(a.s.tglRealisasi));
 }
