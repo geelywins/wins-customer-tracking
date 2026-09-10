@@ -694,6 +694,13 @@ tbody tr:hover{background:#FAFBFE;}
 
       <div class="card">
         <h2>Export Center</h2>
+        <div class="export-card" style="border-color:var(--blue);background:#F5F8FF;margin-bottom:16px">
+          <h4>📦 Export Semua (All Reports)</h4>
+          <p>Semua laporan di bawah ini digabung jadi satu file Excel, satu sheet per laporan.</p>
+          <div class="export-btns">
+            <button class="btn sm" data-export="all-xlsx">Export ke Excel</button>
+          </div>
+        </div>
         <div class="export-grid">
           <div class="export-card">
             <h4>Leads Report (period)</h4>
@@ -749,6 +756,38 @@ tbody tr:hover{background:#FAFBFE;}
             <div class="export-btns">
               <button class="btn ghost sm" data-export="progress-xlsx">Excel</button>
               <button class="btn ghost sm" data-export="progress-pdf">PDF</button>
+            </div>
+          </div>
+          <div class="export-card">
+            <h4>Income Report (period)</h4>
+            <p>All income entries within the selected date range above.</p>
+            <div class="export-btns">
+              <button class="btn ghost sm" data-export="income-xlsx">Excel</button>
+              <button class="btn ghost sm" data-export="income-pdf">PDF</button>
+            </div>
+          </div>
+          <div class="export-card">
+            <h4>Incentive Report</h4>
+            <p>DO base &amp; unit incentive breakdown for the month selected in Incentive Calculator.</p>
+            <div class="export-btns">
+              <button class="btn ghost sm" data-export="incentive-xlsx">Excel</button>
+              <button class="btn ghost sm" data-export="incentive-pdf">PDF</button>
+            </div>
+          </div>
+          <div class="export-card">
+            <h4>Contacts Report</h4>
+            <p>Leasing CMO &amp; Insurance contacts, all-time.</p>
+            <div class="export-btns">
+              <button class="btn ghost sm" data-export="contacts-xlsx">Excel</button>
+              <button class="btn ghost sm" data-export="contacts-pdf">PDF</button>
+            </div>
+          </div>
+          <div class="export-card">
+            <h4>Referral Report</h4>
+            <p>Top referrers &amp; customers converted from referrals, all-time.</p>
+            <div class="export-btns">
+              <button class="btn ghost sm" data-export="referral-xlsx">Excel</button>
+              <button class="btn ghost sm" data-export="referral-pdf">PDF</button>
             </div>
           </div>
         </div>
@@ -2667,6 +2706,11 @@ function handleExport(kind){
   else if(kind==='insurance-xlsx') downloadExcel('Insurance_Customers.xlsx', {'Insurance': insuranceExportRows()});
   else if(kind==='adspend-xlsx') exportAdSpendExcel(fromV, toV);
   else if(kind==='progress-xlsx') downloadExcel('Delivery_Progress_Report.xlsx', {'Progress': progressExportRows()});
+  else if(kind==='income-xlsx') exportIncomeExcel(fromV, toV);
+  else if(kind==='incentive-xlsx') exportIncentiveExcel();
+  else if(kind==='contacts-xlsx') exportContactsExcel();
+  else if(kind==='referral-xlsx') exportReferralExcel();
+  else if(kind==='all-xlsx') exportAllExcel(fromV, toV, leadsPeriod);
   else if(kind==='leads-period-pdf') exportLeadsPdf(leadsPeriod, `Leads Report (${fromV} to ${toV})`, `Leads_${fromV}_to_${toV}.pdf`);
   else if(kind==='leads-all-pdf') exportLeadsPdf(state.leads, 'Full Customer Database', 'Customer_Database_Full.pdf');
   else if(kind==='spk-pdf') exportSpkPdf();
@@ -2674,7 +2718,151 @@ function handleExport(kind){
   else if(kind==='insurance-pdf') exportInsurancePdf();
   else if(kind==='adspend-pdf') exportAdSpendPdf(fromV, toV);
   else if(kind==='progress-pdf') exportProgressPdf();
+  else if(kind==='income-pdf') exportIncomePdf(fromV, toV);
+  else if(kind==='incentive-pdf') exportIncentivePdf();
+  else if(kind==='contacts-pdf') exportContactsPdf();
+  else if(kind==='referral-pdf') exportReferralPdf();
   toast('Export ready — check your downloads');
+}
+function incomeExportRows(fromV, toV){
+  const from = parseDate(fromV) || new Date(2000,0,1);
+  const to = parseDate(toV) || todayDate();
+  const toEnd = new Date(to); toEnd.setHours(23,59,59,999);
+  return state.income.filter(i=>{ const d=parseDate(i.date); return d && d>=from && d<=toEnd; })
+    .sort((a,b)=>parseDate(b.date)-parseDate(a.date))
+    .map(i=>({ Category:i.category, Date:fmtDate(i.date), Amount:Number(i.amount||0), Notes:i.notes||'' }));
+}
+function exportIncomeExcel(fromV, toV){
+  downloadExcel(`Income_${fromV}_to_${toV}.xlsx`, { 'Income': incomeExportRows(fromV, toV) });
+}
+function exportIncomePdf(fromV, toV){
+  const rows = incomeExportRows(fromV, toV);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  doc.setFontSize(17); doc.text('Drive Desk — Income Report', 40, 40);
+  doc.setFontSize(10); doc.setTextColor(120); doc.text(`Sales: Edwin Sowita S · Period ${fromV} to ${toV}`, 40, 58);
+  doc.setTextColor(0);
+  const total = rows.reduce((s,r)=>s+Number(r.Amount||0),0);
+  doc.setFontSize(11); doc.text(`Total: Rp ${total.toLocaleString('id-ID')}`, 40, 74);
+  pdfTable(doc, 'Entries', rows, 92);
+  doc.save(`Income_${fromV}_to_${toV}.pdf`);
+}
+function incentiveExportRows(monthValue){
+  const allUnits = incentiveGlobalUnitsForMonth(monthValue);
+  const unitRows = allUnits.map(u=>({
+    Position:u.position, Group:u.group.label, Customer: displayName(u.lead||{nama:'(deleted)'}),
+    Vehicle: vehicleLabel(u.lead||{}), 'DO Date': fmtDate(u.s.tglRealisasi), 'DO Base': u.doBase
+  }));
+  const summaryRows = INCENTIVE_GROUPS.map(group=>{
+    const units = allUnits.filter(u=>u.group.key===group.key);
+    const n = units.length;
+    const doBaseTotal = units.reduce((s,u)=>s+u.doBase,0);
+    const maxPos = n ? Math.max(...units.map(u=>u.position)) : 0;
+    const unitInc = n ? group.unitIncentive(maxPos) : 0;
+    return { Group: group.label, Units:n, 'DO Base Total':doBaseTotal, 'Unit Incentive':unitInc, Total: doBaseTotal+unitInc };
+  });
+  const grandTotal = summaryRows.reduce((s,r)=>s+r.Total,0);
+  summaryRows.push({ Group:'GRAND TOTAL', Units: allUnits.length, 'DO Base Total':'', 'Unit Incentive':'', Total: grandTotal });
+  return { unitRows, summaryRows };
+}
+function exportIncentiveExcel(){
+  const monthValue = document.getElementById('incentiveMonth').value || currentMonthValue();
+  const { unitRows, summaryRows } = incentiveExportRows(monthValue);
+  downloadExcel(`Incentive_${monthValue}.xlsx`, { 'Summary': summaryRows, 'Units': unitRows });
+}
+function exportIncentivePdf(){
+  const monthValue = document.getElementById('incentiveMonth').value || currentMonthValue();
+  const { unitRows, summaryRows } = incentiveExportRows(monthValue);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  doc.setFontSize(17); doc.text('Drive Desk — Incentive Report', 40, 40);
+  doc.setFontSize(10); doc.setTextColor(120); doc.text(`Sales: Edwin Sowita S · Bulan ${monthValue}`, 40, 58);
+  doc.setTextColor(0);
+  const y = pdfTable(doc, 'Summary', summaryRows, 80);
+  pdfTable(doc, 'Units', unitRows, y);
+  doc.save(`Incentive_${monthValue}.pdf`);
+}
+function contactsExportRows(){
+  const leasing = state.leasingContacts.map(c=>({ Name:c.name, Leasing:c.company||'', Phone:c.phone||'', Notes:c.notes||'' }));
+  const insurance = state.insuranceContacts.map(c=>({ Name:c.name, Provider:c.company||'', Phone:c.phone||'', Notes:c.notes||'' }));
+  return { leasing, insurance };
+}
+function exportContactsExcel(){
+  const { leasing, insurance } = contactsExportRows();
+  downloadExcel('Contacts_Report.xlsx', { 'Leasing CMO': leasing, 'Insurance': insurance });
+}
+function exportContactsPdf(){
+  const { leasing, insurance } = contactsExportRows();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  doc.setFontSize(17); doc.text('Drive Desk — Contacts Report', 40, 40);
+  doc.setFontSize(10); doc.setTextColor(120); doc.text('Sales: Edwin Sowita S · Generated '+fmtDate(todayISO()), 40, 58);
+  doc.setTextColor(0);
+  const y = pdfTable(doc, 'Leasing CMO Contacts', leasing, 80);
+  pdfTable(doc, 'Insurance Contacts', insurance, y);
+  doc.save('Contacts_Report.pdf');
+}
+function referralExportRows(){
+  const referrals = state.leads.filter(l=>l.sumber==='Referral' && l.sumberDetail);
+  const counts = {};
+  referrals.forEach(l=>{
+    const key = l.sumberDetail;
+    if(!counts[key]) counts[key] = { leads:0, spk:0 };
+    counts[key].leads++;
+    if(l.status==='spk') counts[key].spk++;
+  });
+  const summaryRows = Object.entries(counts).sort((a,b)=>b[1].leads-a[1].leads).map(([name,c])=>({ Referrer:name, 'Leads Referred':c.leads, 'Became SPK':c.spk }));
+  const detailRows = referrals.filter(l=>l.status==='spk').map(l=>{
+    const s = getSpkByLead(l.id);
+    return { Referrer:l.sumberDetail, Customer:displayName(l), Vehicle:vehicleLabel(l), Color: s?.warna||'—', 'SPK Date': s?fmtDate(s.tglSPK):'—' };
+  });
+  return { summaryRows, detailRows };
+}
+function exportReferralExcel(){
+  const { summaryRows, detailRows } = referralExportRows();
+  downloadExcel('Referral_Report.xlsx', { 'Top Referrers': summaryRows, 'Referral Conversions': detailRows });
+}
+function exportReferralPdf(){
+  const { summaryRows, detailRows } = referralExportRows();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  doc.setFontSize(17); doc.text('Drive Desk — Referral Report', 40, 40);
+  doc.setFontSize(10); doc.setTextColor(120); doc.text('Sales: Edwin Sowita S · Generated '+fmtDate(todayISO()), 40, 58);
+  doc.setTextColor(0);
+  const y = pdfTable(doc, 'Top Referrers', summaryRows, 80);
+  pdfTable(doc, 'Referral Conversions', detailRows, y);
+  doc.save('Referral_Report.pdf');
+}
+function exportAllExcel(fromV, toV, leadsPeriod){
+  const spkInRange = leadsPeriod.filter(l=>l.status==='spk').length;
+  const conv = leadsPeriod.length ? Math.round((spkInRange/leadsPeriod.length)*100) : 0;
+  const doneInRange = state.spk.filter(s=>s.doStatus==='done' && s.tglRealisasi && parseDate(s.tglRealisasi)>=parseDate(fromV) && parseDate(s.tglRealisasi)<=parseDate(toV)).length;
+  const perf = perfSummaryRows(leadsPeriod, spkInRange, conv, doneInRange);
+  const { entryRows: adEntryRows, perPlatform: adPerPlatform } = adSpendPeriodRows(fromV, toV);
+  const monthValue = document.getElementById('incentiveMonth').value || currentMonthValue();
+  const incentive = incentiveExportRows(monthValue);
+  const contacts = contactsExportRows();
+  const referral = referralExportRows();
+
+  const sheets = {
+    'Perf Summary': perf.summary,
+    'Lead Sources': perf.sources,
+    'Leads (Period)': leadExportRows(leadsPeriod),
+    'Leads (All)': leadExportRows(state.leads),
+    'SPK': spkExportRows(),
+    'Insurance': insuranceExportRows(),
+    'AdSpend Platform': adPerPlatform,
+    'AdSpend Entries': adEntryRows,
+    'Delivery Progress': progressExportRows(),
+    'Income': incomeExportRows(fromV, toV),
+    'Incentive Summary': incentive.summaryRows,
+    'Incentive Units': incentive.unitRows,
+    'Leasing Contacts': contacts.leasing,
+    'Insurance Contacts': contacts.insurance,
+    'Top Referrers': referral.summaryRows,
+    'Referral Conversions': referral.detailRows,
+  };
+  downloadExcel(`Drive_Desk_All_Reports_${fromV}_to_${toV}.xlsx`, sheets);
 }
 function exportProgressPdf(){
   const { jsPDF } = window.jspdf;
@@ -3083,6 +3271,27 @@ function wallChargingPill(status, daysSince){
   if(status==='not_taken') return '<span class="pill" style="background:#EEF0F4;color:var(--muted)">Not Taken</span>';
   return daysSince>=30 ? `<span class="pill st-overdue">Overdue (${daysSince}d)</span>` : `<span class="pill st-pending">${daysSince}d since DO</span>`;
 }
+function progressOverdueDays(s, today){
+  // Returns how many days overdue this delivery is, taking the worst (largest) of
+  // STNK / Wall Charging / BPKB — 0 means nothing is currently overdue (red).
+  const daysSince = diffDays(today, parseDate(s.tglRealisasi));
+  let worst = 0;
+  if((s.stnkStatus||'pending')!=='done' && daysSince>=30){
+    worst = Math.max(worst, daysSince-29);
+  }
+  const wc = s.wallChargingStatus||'pending';
+  if(wc==='pending' && daysSince>=30){
+    worst = Math.max(worst, daysSince-29);
+  }
+  if((s.bpkbStatus||'pending')!=='done'){
+    const due = bpkbDueDate(s);
+    if(due){
+      const dLeft = diffDays(due, today);
+      if(dLeft<0) worst = Math.max(worst, -dLeft);
+    }
+  }
+  return worst;
+}
 function filteredProgress(){
   const q = document.getElementById('progSearch').value.trim().toLowerCase();
   const stnkFilter = document.getElementById('progFilterStnk').value;
@@ -3108,7 +3317,12 @@ function filteredProgress(){
       if(wcFilter==='overdue' && (wc!=='pending' || daysSince<30)) return false;
     }
     return true;
-  }).sort((a,b)=>parseDate(b.tglRealisasi)-parseDate(a.tglRealisasi));
+  }).sort((a,b)=>{
+    const oa = progressOverdueDays(a, today);
+    const ob = progressOverdueDays(b, today);
+    if(oa!==ob) return ob-oa;
+    return parseDate(b.tglRealisasi)-parseDate(a.tglRealisasi);
+  });
 }
 function progressRowHtml(s, today){
   const l = getLead(s.leadId) || {nama:'(deleted)'};
@@ -4049,11 +4263,14 @@ function renderPriorityLeads(){
   `).join('') : `<tr><td colspan="7"><div class="empty">Tidak ada leads pada kategori prioritas ini.</div></td></tr>`;
 }
 document.getElementById('priorityFilterTier').addEventListener('change', renderPriorityLeads);
-function priorityWaFollowUp(leadId){
+async function priorityWaFollowUp(leadId){
   const l = getLead(leadId);
   if(!l || !l.noTlpn) return;
   const msg = `Halo ${displayName(l)}, saya Wins dari Geely. Mau menanyakan kabar terkait rencana ${vehicleLabel(l)} — apakah masih ada yang bisa saya bantu? 🙏`;
   window.open(waLink(l.noTlpn, msg), '_blank');
+  state.followups.push({ id: uid(), leadId, date: todayISO(), method:'WhatsApp', notes:'Follow up dari Growth Tools — Prioritas Leads', result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  renderPriorityLeads();
 }
 
 /* ---- 2) KALKULATOR SIMULASI CICILAN ---- */
@@ -4319,11 +4536,14 @@ document.getElementById('bc_selectAll').addEventListener('change', (e)=>{
 function fillTemplate(tpl, lead){
   return tpl.replace(/\{nama\}/g, displayName(lead)).replace(/\{kendaraan\}/g, vehicleLabel(lead));
 }
-function sendBroadcastOne(leadId){
+async function sendBroadcastOne(leadId){
   const l = getLead(leadId);
   if(!l || !l.noTlpn) return;
   const tpl = document.getElementById('bc_template').value;
   window.open(waLink(l.noTlpn, fillTemplate(tpl, l)), '_blank');
+  state.followups.push({ id: uid(), leadId, date: todayISO(), method:'WhatsApp', notes:'Follow up dari Growth Tools — WA Broadcast', result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  renderPriorityLeads();
 }
 
 /* ============================= INIT ============================= */
