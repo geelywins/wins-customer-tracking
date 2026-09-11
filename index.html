@@ -285,15 +285,16 @@ tbody tr:hover{background:#FAFBFE;}
       <div class="card">
         <h2>Reminders <span class="muted">birthdays · insurance renewal · scheduled service · credit tenor · delivery plans · post-delivery follow-ups</span></h2>
         <div class="rem-filter" id="remFilterChips">
-          <label class="chip on" data-k="birthday"><input type="checkbox" checked style="display:none">🎂 Birthdays</label>
-          <label class="chip on" data-k="insurance"><input type="checkbox" checked style="display:none">🛡️ Insurance</label>
-          <label class="chip on" data-k="service"><input type="checkbox" checked style="display:none">🔧 Service</label>
-          <label class="chip on" data-k="tenor"><input type="checkbox" checked style="display:none">📄 Tenor</label>
-          <label class="chip on" data-k="do"><input type="checkbox" checked style="display:none">🚚 Delivery</label>
-          <label class="chip on" data-k="stnk"><input type="checkbox" checked style="display:none">📇 STNK</label>
-          <label class="chip on" data-k="wallcharging"><input type="checkbox" checked style="display:none">🔌 Wall Charging</label>
-          <label class="chip on" data-k="accessory"><input type="checkbox" checked style="display:none">🎁 Accessories</label>
-          <label class="chip on" data-k="complaint"><input type="checkbox" checked style="display:none">⚠️ Complaints</label>
+          <label class="chip on" data-k="all">🔔 All</label>
+          <label class="chip" data-k="birthday">🎂 Birthdays</label>
+          <label class="chip" data-k="insurance">🛡️ Insurance</label>
+          <label class="chip" data-k="service">🔧 Service</label>
+          <label class="chip" data-k="tenor">📄 Tenor</label>
+          <label class="chip" data-k="do">🚚 Delivery</label>
+          <label class="chip" data-k="stnk">📇 STNK</label>
+          <label class="chip" data-k="wallcharging">🔌 Wall Charging</label>
+          <label class="chip" data-k="accessory">🎁 Accessories</label>
+          <label class="chip" data-k="complaint">⚠️ Complaints</label>
         </div>
         <div class="rem-list" id="reminderList"></div>
         <div class="rem-more" id="remMoreWrap" style="display:none"><button class="btn ghost sm" id="remMoreBtn">Show more</button></div>
@@ -1069,7 +1070,7 @@ let state = { leads: [], spk: [], adSpend: [], income: [], followups: [], leasin
 let charts = {};
 const PAGE_SIZE = 10;
 let pageState = { leads:1, spk:1, reports:1, adspend:1, overview:1, income:1, referrers:1, referralDetail:1, progress:1, leasingContacts:1, insuranceContacts:1 };
-let reminderFilter = { birthday:true, insurance:true, service:true, tenor:true, do:true, stnk:true, wallcharging:true, accessory:true, complaint:true, showAll:false };
+let reminderActiveCategory = 'all';
 
 function uid(){ return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
 function paginate(list, key, size){
@@ -1479,7 +1480,7 @@ function computeReminders(){
 
 let remDisplayLimit = 6;
 function renderReminders(){
-  const rem = computeReminders().filter(r=>reminderFilter[r.type]);
+  const rem = computeReminders().filter(r=>reminderActiveCategory==='all' || r.type===reminderActiveCategory);
   const bell = document.getElementById('bellDot');
   bell.style.display = rem.some(r=>r.urgent) ? 'block' : 'none';
   const list = document.getElementById('reminderList');
@@ -1678,8 +1679,8 @@ document.getElementById('remMoreBtn').addEventListener('click', ()=>{ remDisplay
 document.querySelectorAll('#remFilterChips .chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     const k = chip.dataset.k;
-    reminderFilter[k] = !reminderFilter[k];
-    chip.classList.toggle('on', reminderFilter[k]);
+    reminderActiveCategory = k;
+    document.querySelectorAll('#remFilterChips .chip').forEach(c=>c.classList.toggle('on', c.dataset.k===k));
     remDisplayLimit = 6;
     renderReminders();
   });
@@ -1800,7 +1801,9 @@ function drawConvChart(canvasId, leads){
 /* ============================= LEADS ============================= */
 function populateSourceFilter(){
   const sel = document.getElementById('leadFilterSource');
+  const prevSrc = sel.value;
   sel.innerHTML = '<option value="">All sources</option>' + state.settings.sumberList.map(s=>`<option value="${s}">${s}</option>`).join('');
+  if(prevSrc && state.settings.sumberList.includes(prevSrc)) sel.value = prevSrc;
   const catSel = document.getElementById('leadFilterCategory');
   if(catSel && !catSel.dataset.populated){
     catSel.innerHTML = '<option value="">All categories</option>' + CUSTOMER_CATEGORIES.map(c=>`<option value="${c}">${c}</option>`).join('');
