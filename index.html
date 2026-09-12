@@ -54,6 +54,12 @@ a{color:inherit;}
 .nav button:hover{background:rgba(255,255,255,.06);color:#fff;}
 .nav button.active{background:rgba(46,107,230,.25);color:#fff;box-shadow:inset 3px 0 0 var(--cyan);}
 .nav-ico{width:18px;text-align:center;}
+.nav-group-toggle{width:100%;cursor:pointer;justify-content:space-between;}
+.nav-group-toggle .nav-caret{margin-left:auto;font-size:11px;transition:transform .15s;}
+.nav-group.open .nav-group-toggle .nav-caret{transform:rotate(180deg);}
+.nav-sub{display:none;flex-direction:column;gap:2px;padding-left:14px;margin-top:2px;}
+.nav-group.open .nav-sub{display:flex;}
+.nav-sub button{font-size:12.5px;padding:8px 12px;}
 .sidebar-foot{margin-top:auto;padding:12px 8px 0;border-top:1px solid rgba(255,255,255,.12);font-size:11.5px;color:rgba(255,255,255,.55);}
 .sidebar-close{display:none;}
 
@@ -252,9 +258,15 @@ tbody tr:hover{background:#FAFBFE;}
       <button data-view="dashboard" class="active"><span class="nav-ico">◧</span> Dashboard</button>
       <button data-view="leads"><span class="nav-ico">☰</span> Leads</button>
       <button data-view="spk"><span class="nav-ico">▣</span> SPK &amp; Delivery</button>
-      <button data-view="adspend"><span class="nav-ico">💰</span> Ad Spend</button>
-      <button data-view="income"><span class="nav-ico">💵</span> Income</button>
-      <button data-view="incentive"><span class="nav-ico">🏆</span> Incentive</button>
+      <div class="nav-group">
+        <button class="nav-group-toggle" id="finGroupToggle" type="button"><span class="nav-ico">🏦</span> Financial <span class="nav-caret">▾</span></button>
+        <div class="nav-sub" id="finGroupSub">
+          <button data-view="adspend"><span class="nav-ico">💰</span> Ad Spend</button>
+          <button data-view="income"><span class="nav-ico">💵</span> Income</button>
+          <button data-view="incentive"><span class="nav-ico">🏆</span> Incentive</button>
+          <button data-view="purchase"><span class="nav-ico">🛒</span> Purchase</button>
+        </div>
+      </div>
       <button data-view="progress"><span class="nav-ico">📋</span> Delivery Progress</button>
       <button data-view="reports"><span class="nav-ico">▤</span> Reports</button>
       <button data-view="contacts"><span class="nav-ico">📇</span> Contacts</button>
@@ -469,6 +481,12 @@ tbody tr:hover{background:#FAFBFE;}
       </div>
 
       <div class="card">
+        <h2>Financial Overview <span class="muted" id="purOverviewPeriodLabel">this period</span></h2>
+        <div class="detail-grid" id="purOverviewGrid" style="margin-top:4px"></div>
+        <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">Pendapatan Bersih = Income − Ad Spend − Purchase, untuk periode yang sama seperti filter di atas (mengikuti filter Income ini).</p>
+      </div>
+
+      <div class="card">
         <h2>Budget Forecast <span class="muted">estimate the ad budget needed to hit a monthly income target</span></h2>
         <div class="form-grid">
           <div class="field"><label>Target monthly income (Rp)</label><input type="number" min="0" id="fcTarget" placeholder="e.g. 15000000"></div>
@@ -570,6 +588,44 @@ tbody tr:hover{background:#FAFBFE;}
         <h2>Log to Income</h2>
         <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">Adds this month's total incentive (both groups combined) as a single "Unit Incentive" entry in the Income menu.</p>
         <button class="btn" id="btnLogIncentive">Add to Income</button>
+      </div>
+    </div>
+
+    <!-- PURCHASE -->
+    <div class="view" id="view-purchase">
+      <div class="toolbar">
+        <select id="purFilterCategory"><option value="">All categories</option></select>
+        <div class="field" style="min-width:150px"><label style="font-size:11px">Quick range</label>
+          <select id="purQuick">
+            <option value="thisMonth">This month</option>
+            <option value="thisWeek">This week</option>
+            <option value="lastMonth">Last month</option>
+            <option value="all">All time</option>
+            <option value="custom">Custom (use dates)</option>
+          </select>
+        </div>
+        <div class="field" style="min-width:150px"><label style="font-size:11px">From</label><input type="date" id="purFrom"></div>
+        <div class="field" style="min-width:150px"><label style="font-size:11px">To</label><input type="date" id="purTo"></div>
+        <div class="spacer"></div>
+        <button class="btn" id="btnAddPurchase">+ Add Purchase</button>
+      </div>
+
+      <div class="stat-grid" id="purStats"></div>
+
+      <div class="card">
+        <h2>Purchase by Category</h2>
+        <canvas id="chartPurchaseCat" height="220"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Purchase / Expense History <span class="muted">input terbaru di paling atas</span></h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Category</th><th>Date</th><th>Qty</th><th>Amount</th><th>Notes</th><th>Actions</th></tr></thead>
+            <tbody id="purchaseTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="purchasePagination"></div>
       </div>
     </div>
 
@@ -765,6 +821,14 @@ tbody tr:hover{background:#FAFBFE;}
             <div class="export-btns">
               <button class="btn ghost sm" data-export="income-xlsx">Excel</button>
               <button class="btn ghost sm" data-export="income-pdf">PDF</button>
+            </div>
+          </div>
+          <div class="export-card">
+            <h4>Purchase Report (period)</h4>
+            <p>All purchase/expense entries within the selected date range above.</p>
+            <div class="export-btns">
+              <button class="btn ghost sm" data-export="purchase-xlsx">Excel</button>
+              <button class="btn ghost sm" data-export="purchase-pdf">PDF</button>
             </div>
           </div>
           <div class="export-card">
@@ -1014,6 +1078,11 @@ tbody tr:hover{background:#FAFBFE;}
         <div class="add-row"><input type="text" id="inpInsuranceProvider" placeholder="Add insurance provider..."><button class="btn sm" id="btnAddInsuranceProvider">Add</button></div>
       </div>
       <div class="card">
+        <h2>Purchase Categories <span class="muted">default cost items — tong sampah, talang air, dll</span></h2>
+        <div class="tag-list" id="tagPurchaseCategories"></div>
+        <div class="add-row"><input type="text" id="inpPurchaseCategory" placeholder="Add purchase category..."><button class="btn sm" id="btnAddPurchaseCategory">Add</button></div>
+      </div>
+      <div class="card">
         <h2>Reminder Settings</h2>
         <div class="form-grid">
           <div class="field"><label>Service reminder interval (months)</label><input type="number" min="1" id="inpServiceInterval"></div>
@@ -1060,16 +1129,17 @@ const DEFAULTS = {
   adPlatforms: ["Instagram","Website","TikTok","Facebook","YouTube","OLX"],
   incomeCategories: ["Salary","Unit Incentive","Leasing Refund","Accessories - Window Tint","Accessories - PPF","Accessories - Coating","Accessories - Under Cover","Accessories - Wall Charger"],
   insuranceProviders: ["Ramayana","Zurich","Oona","Rama","Panfic"],
+  purchaseCategories: ["Tong Sampah","Talang Air","Voucher Coating","Voucher PPF","Voucher Facial","Karpet 4D Matt","Stock Aksesoris","Lain-lain"],
   serviceIntervalMonths: 12,
   reminderWindowDays: 5,
   complaintSlaDays: 3,
   targetSpkPerMonth: 10,
   targetIncomePerMonth: 15000000
 };
-let state = { leads: [], spk: [], adSpend: [], income: [], followups: [], leasingContacts: [], insuranceContacts: [], settings: JSON.parse(JSON.stringify(DEFAULTS)) };
+let state = { leads: [], spk: [], adSpend: [], income: [], purchases: [], followups: [], leasingContacts: [], insuranceContacts: [], settings: JSON.parse(JSON.stringify(DEFAULTS)) };
 let charts = {};
 const PAGE_SIZE = 10;
-let pageState = { leads:1, spk:1, reports:1, adspend:1, overview:1, income:1, referrers:1, referralDetail:1, progress:1, leasingContacts:1, insuranceContacts:1 };
+let pageState = { leads:1, spk:1, reports:1, adspend:1, overview:1, income:1, purchase:1, referrers:1, referralDetail:1, progress:1, leasingContacts:1, insuranceContacts:1 };
 let reminderActiveCategory = 'all';
 
 function uid(){ return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
@@ -1198,6 +1268,10 @@ async function loadState(){
     if(inc && inc.value) state.income = JSON.parse(inc.value);
   }catch(e){ state.income = []; }
   try{
+    const pu = await storageGet('purchases-db');
+    if(pu && pu.value) state.purchases = JSON.parse(pu.value);
+  }catch(e){ state.purchases = []; }
+  try{
     const fu = await storageGet('followups-db');
     if(fu && fu.value) state.followups = JSON.parse(fu.value);
   }catch(e){ state.followups = []; }
@@ -1221,7 +1295,7 @@ function migrateSettingsDefaults(){
   // own custom additions or removing anything they've deleted on purpose... except
   // for this one-time catch-up for items that never existed for them at all.
   let changed = false;
-  const listKeys = ['kendaraan','colors','leasing','pameran','eventList','sosmed','sumberList','adPlatforms','incomeCategories','insuranceProviders'];
+  const listKeys = ['kendaraan','colors','leasing','pameran','eventList','sosmed','sumberList','adPlatforms','incomeCategories','insuranceProviders','purchaseCategories'];
   listKeys.forEach(key=>{
     if(!Array.isArray(state.settings[key])) { state.settings[key] = JSON.parse(JSON.stringify(DEFAULTS[key]||[])); changed = true; return; }
     if(key==='sumberList' && !state.settings.sumberList.includes('Event')){
@@ -1248,6 +1322,10 @@ async function saveAdSpend(){
 async function saveIncome(){
   const ok = await storageSet('income-db', JSON.stringify(state.income));
   if(!ok) toast('Failed to save income data','err');
+}
+async function savePurchases(){
+  const ok = await storageSet('purchases-db', JSON.stringify(state.purchases));
+  if(!ok) toast('Failed to save purchase data','err');
 }
 async function saveFollowups(){
   const ok = await storageSet('followups-db', JSON.stringify(state.followups));
@@ -1304,6 +1382,7 @@ const titles = {
   adspend:['Ad Spend','Track advertising cost per platform and SPK results'],
   income:['Income','Track earnings, compare to ad spend, and forecast budget'],
   incentive:['Incentive Calculator','Monthly DO & unit incentive for EX5 / Starray deliveries'],
+  purchase:['Purchase','Track purchases and bonus/accessory costs given to customers, and stock spending'],
   progress:['Delivery Progress','STNK, wall charging, complaints and accessories after DO'],
   reports:['Reports','Monthly performance, conversion charts and exports'],
   contacts:['Contacts','Leasing CMO and insurance contacts, one tap to WhatsApp'],
@@ -1315,18 +1394,23 @@ document.getElementById('navList').addEventListener('click', (e)=>{
   if(!btn) return;
   goTo(btn.dataset.view);
 });
+document.getElementById('finGroupToggle').addEventListener('click', ()=>{
+  document.getElementById('finGroupToggle').closest('.nav-group').classList.toggle('open');
+});
 function goTo(view){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   document.getElementById('topTitle').textContent = titles[view][0];
   document.getElementById('topSub').textContent = titles[view][1];
+  if(['adspend','income','incentive','purchase'].includes(view)) document.getElementById('finGroupToggle').closest('.nav-group').classList.add('open');
   if(view==='dashboard') renderDashboard();
   if(view==='leads') renderLeads();
   if(view==='spk') renderSpk();
   if(view==='adspend') renderAdSpend();
   if(view==='income') renderIncome();
   if(view==='incentive') renderIncentive();
+  if(view==='purchase') renderPurchase();
   if(view==='progress') renderProgress();
   if(view==='reports') renderReports();
   if(view==='contacts') renderContacts();
@@ -1341,7 +1425,7 @@ function closeSidebar(){ document.getElementById('sidebar').classList.remove('op
 document.getElementById('hamburgerBtn').addEventListener('click', openSidebar);
 document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
 document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
-document.getElementById('navList').addEventListener('click', ()=>{ if(window.innerWidth<=860) closeSidebar(); });
+document.getElementById('navList').addEventListener('click', (e)=>{ if(window.innerWidth<=860 && e.target.closest('button[data-view]')) closeSidebar(); });
 
 /* ============================= HELPERS: computed data ============================= */
 function getLead(id){ return state.leads.find(l=>l.id===id); }
@@ -2710,6 +2794,7 @@ function handleExport(kind){
   else if(kind==='adspend-xlsx') exportAdSpendExcel(fromV, toV);
   else if(kind==='progress-xlsx') downloadExcel('Delivery_Progress_Report.xlsx', {'Progress': progressExportRows()});
   else if(kind==='income-xlsx') exportIncomeExcel(fromV, toV);
+  else if(kind==='purchase-xlsx') exportPurchaseExcel(fromV, toV);
   else if(kind==='incentive-xlsx') exportIncentiveExcel();
   else if(kind==='contacts-xlsx') exportContactsExcel();
   else if(kind==='referral-xlsx') exportReferralExcel();
@@ -2722,6 +2807,7 @@ function handleExport(kind){
   else if(kind==='adspend-pdf') exportAdSpendPdf(fromV, toV);
   else if(kind==='progress-pdf') exportProgressPdf();
   else if(kind==='income-pdf') exportIncomePdf(fromV, toV);
+  else if(kind==='purchase-pdf') exportPurchasePdf(fromV, toV);
   else if(kind==='incentive-pdf') exportIncentivePdf();
   else if(kind==='contacts-pdf') exportContactsPdf();
   else if(kind==='referral-pdf') exportReferralPdf();
@@ -2749,6 +2835,29 @@ function exportIncomePdf(fromV, toV){
   doc.setFontSize(11); doc.text(`Total: Rp ${total.toLocaleString('id-ID')}`, 40, 74);
   pdfTable(doc, 'Entries', rows, 92);
   doc.save(`Income_${fromV}_to_${toV}.pdf`);
+}
+function purchaseExportRows(fromV, toV){
+  const from = parseDate(fromV) || new Date(2000,0,1);
+  const to = parseDate(toV) || todayDate();
+  const toEnd = new Date(to); toEnd.setHours(23,59,59,999);
+  return state.purchases.filter(p=>{ const d=parseDate(p.date); return d && d>=from && d<=toEnd; })
+    .sort((a,b)=>parseDate(b.date)-parseDate(a.date))
+    .map(p=>({ Category:p.category, Date:fmtDate(p.date), Qty:p.qty||1, Amount:Number(p.amount||0), Notes:p.notes||'' }));
+}
+function exportPurchaseExcel(fromV, toV){
+  downloadExcel(`Purchase_${fromV}_to_${toV}.xlsx`, { 'Purchases': purchaseExportRows(fromV, toV) });
+}
+function exportPurchasePdf(fromV, toV){
+  const rows = purchaseExportRows(fromV, toV);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  doc.setFontSize(17); doc.text('Drive Desk — Purchase Report', 40, 40);
+  doc.setFontSize(10); doc.setTextColor(120); doc.text(`Sales: Edwin Sowita S · Period ${fromV} to ${toV}`, 40, 58);
+  doc.setTextColor(0);
+  const total = rows.reduce((s,r)=>s+Number(r.Amount||0),0);
+  doc.setFontSize(11); doc.text(`Total: Rp ${total.toLocaleString('id-ID')}`, 40, 74);
+  pdfTable(doc, 'Entries', rows, 92);
+  doc.save(`Purchase_${fromV}_to_${toV}.pdf`);
 }
 function incentiveExportRows(monthValue){
   const allUnits = incentiveGlobalUnitsForMonth(monthValue);
@@ -2858,6 +2967,7 @@ function exportAllExcel(fromV, toV, leadsPeriod){
     'AdSpend Entries': adEntryRows,
     'Delivery Progress': progressExportRows(),
     'Income': incomeExportRows(fromV, toV),
+    'Purchases': purchaseExportRows(fromV, toV),
     'Incentive Summary': incentive.summaryRows,
     'Incentive Units': incentive.unitRows,
     'Leasing Contacts': contacts.leasing,
@@ -3141,11 +3251,34 @@ function renderSettings(){
   renderTags('tagAdPlatforms','adPlatforms');
   renderTags('tagIncomeCategories','incomeCategories');
   renderTags('tagInsuranceProviders','insuranceProviders');
+  renderPurchaseCategoryTags();
   document.getElementById('inpServiceInterval').value = state.settings.serviceIntervalMonths;
   document.getElementById('inpReminderWindow').value = state.settings.reminderWindowDays;
   document.getElementById('inpComplaintSla').value = state.settings.complaintSlaDays;
   document.getElementById('inpTargetSpk').value = state.settings.targetSpkPerMonth;
   document.getElementById('inpTargetIncome').value = state.settings.targetIncomePerMonth;
+}
+function renderPurchaseCategoryTags(){
+  const el = document.getElementById('tagPurchaseCategories');
+  el.innerHTML = state.settings.purchaseCategories.map((v,i)=>`<div class="tag">${escapeHtml(v)}<button style="color:var(--blue)" onclick="editPurchaseCategory(${i})" title="Edit">✎</button><button onclick="removeTag('purchaseCategories',${i})" title="Delete">✕</button></div>`).join('') || `<span class="empty" style="padding:4px 0">No items yet.</span>`;
+}
+function editPurchaseCategory(idx){
+  const current = state.settings.purchaseCategories[idx];
+  openModal(`
+    <div class="modal-head"><h3>Edit Purchase Category</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Nama Kategori</label><input id="editPurchaseCatInput" value="${escapeHtml(current)}"></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="savePurchaseCatBtn">Save</button></div>
+  `);
+  document.getElementById('savePurchaseCatBtn').addEventListener('click', async ()=>{
+    const val = document.getElementById('editPurchaseCatInput').value.trim();
+    if(!val){ toast('Nama tidak boleh kosong','err'); return; }
+    if(state.settings.purchaseCategories.some((v,i)=>i!==idx && v.toLowerCase()===val.toLowerCase())){ toast('Already in the list','err'); return; }
+    state.settings.purchaseCategories[idx] = val;
+    await saveSettings();
+    closeModal();
+    renderSettings();
+    toast('Kategori diperbarui');
+  });
 }
 function renderTags(elId, key){
   const el = document.getElementById(elId);
@@ -3173,8 +3306,9 @@ document.getElementById('btnAddEvent').addEventListener('click', ()=>addTag('eve
 document.getElementById('btnAddAdPlatform').addEventListener('click', ()=>addTag('adPlatforms','inpAdPlatform'));
 document.getElementById('btnAddIncomeCategory').addEventListener('click', ()=>addTag('incomeCategories','inpIncomeCategory'));
 document.getElementById('btnAddInsuranceProvider').addEventListener('click', ()=>addTag('insuranceProviders','inpInsuranceProvider'));
-['inpKendaraan','inpColor','inpLeasing','inpPameran','inpEvent','inpAdPlatform','inpIncomeCategory','inpInsuranceProvider'].forEach((id,i)=>{
-  const keys=['kendaraan','colors','leasing','pameran','eventList','adPlatforms','incomeCategories','insuranceProviders'];
+document.getElementById('btnAddPurchaseCategory').addEventListener('click', ()=>addTag('purchaseCategories','inpPurchaseCategory'));
+['inpKendaraan','inpColor','inpLeasing','inpPameran','inpEvent','inpAdPlatform','inpIncomeCategory','inpInsuranceProvider','inpPurchaseCategory'].forEach((id,i)=>{
+  const keys=['kendaraan','colors','leasing','pameran','eventList','adPlatforms','incomeCategories','insuranceProviders','purchaseCategories'];
   document.getElementById(id).addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); addTag(keys[i], id); } });
 });
 document.getElementById('btnSaveReminderSettings').addEventListener('click', async ()=>{
@@ -3197,7 +3331,7 @@ document.getElementById('btnSaveTargets').addEventListener('click', async ()=>{
 function buildBackupPayload(){
   return JSON.stringify({
     app: 'Drive Desk CRM — Edwin', exportedAt: new Date().toISOString(),
-    leads: state.leads, spk: state.spk, adSpend: state.adSpend, income: state.income, followups: state.followups,
+    leads: state.leads, spk: state.spk, adSpend: state.adSpend, income: state.income, purchases: state.purchases, followups: state.followups,
     leasingContacts: state.leasingContacts, insuranceContacts: state.insuranceContacts, settings: state.settings
   }, null, 2);
 }
@@ -3244,11 +3378,12 @@ function openRestoreModal(){
         state.spk = Array.isArray(data.spk) ? data.spk : [];
         state.adSpend = Array.isArray(data.adSpend) ? data.adSpend : [];
         state.income = Array.isArray(data.income) ? data.income : [];
+        state.purchases = Array.isArray(data.purchases) ? data.purchases : [];
         state.followups = Array.isArray(data.followups) ? data.followups : [];
         state.leasingContacts = Array.isArray(data.leasingContacts) ? data.leasingContacts : [];
         state.insuranceContacts = Array.isArray(data.insuranceContacts) ? data.insuranceContacts : [];
         state.settings = Object.assign({}, DEFAULTS, data.settings || {});
-        await saveLeads(); await saveSpk(); await saveAdSpend(); await saveIncome(); await saveFollowups(); await saveLeasingContacts(); await saveInsuranceContacts(); await saveSettings();
+        await saveLeads(); await saveSpk(); await saveAdSpend(); await saveIncome(); await savePurchases(); await saveFollowups(); await saveLeasingContacts(); await saveInsuranceContacts(); await saveSettings();
         toast('Data restored from backup');
         closeModal();
         goTo('dashboard');
@@ -3915,14 +4050,24 @@ function renderIncome(){
   const to = parseDate(document.getElementById('incTo').value);
   const totalIncome = entries.reduce((s,i)=>s+Number(i.amount||0),0);
   const totalAdSpend = adSpendTotalInRange(from, to);
-  const net = totalIncome - totalAdSpend;
+  const totalPurchase = purchaseTotalInRange(from, to);
+  const net = totalIncome - totalAdSpend - totalPurchase;
   const spkCount = state.spk.filter(s=>{ const d=parseDate(s.tglSPK); return d && d>=from && d<=to; }).length;
 
   document.getElementById('incStats').innerHTML = `
     ${statCard('Total Income', 'Rp '+totalIncome.toLocaleString('id-ID'), 'var(--green)')}
     ${statCard('Total Ad Spend', 'Rp '+totalAdSpend.toLocaleString('id-ID'), 'var(--red)')}
-    ${statCard('Net Sales Income', 'Rp '+net.toLocaleString('id-ID'), net>=0?'var(--blue)':'var(--red)')}
+    ${statCard('Total Purchase', 'Rp '+totalPurchase.toLocaleString('id-ID'), 'var(--amber)')}
+    ${statCard('Pendapatan Bersih', 'Rp '+net.toLocaleString('id-ID'), net>=0?'var(--blue)':'var(--red)')}
     ${statCard('SPK in Period', spkCount, 'var(--purple)')}
+  `;
+
+  document.getElementById('purOverviewPeriodLabel').textContent = `${fmtDate(from.toISOString().slice(0,10))} – ${fmtDate(to.toISOString().slice(0,10))}`;
+  document.getElementById('purOverviewGrid').innerHTML = `
+    <div><div class="k">Income</div><div class="v">Rp ${totalIncome.toLocaleString('id-ID')}</div></div>
+    <div><div class="k">Ad Spend</div><div class="v">Rp ${totalAdSpend.toLocaleString('id-ID')}</div></div>
+    <div><div class="k">Purchase</div><div class="v">Rp ${totalPurchase.toLocaleString('id-ID')}</div></div>
+    <div><div class="k">Pendapatan Bersih</div><div class="v" style="color:${net>=0?'var(--green)':'var(--red)'}">Rp ${net.toLocaleString('id-ID')}</div></div>
   `;
 
   const catTotals = {};
@@ -4062,6 +4207,132 @@ function runForecast(){
       <div class="rem-sub">Based on the last ${months} month(s) of data: to reach Rp ${target.toLocaleString('id-ID')}/month you need about ${Math.ceil(requiredSpk)} SPK, which historically costs around Rp ${Math.round(avgCostPerSpk).toLocaleString('id-ID')} in ads each.</div></div>
     </div>
   `;
+}
+
+/* ============================= PURCHASE / EXPENSES ============================= */
+function purchaseTotalInRange(from, to){
+  const toEnd = new Date(to); toEnd.setHours(23,59,59,999);
+  return state.purchases.filter(p=>{ const d=parseDate(p.date); return d && d>=from && d<=toEnd; }).reduce((s,p)=>s+Number(p.amount||0),0);
+}
+function populatePurchaseCategoryFilter(){
+  const sel = document.getElementById('purFilterCategory');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All categories</option>' + state.settings.purchaseCategories.map(c=>`<option ${c===current?'selected':''}>${escapeHtml(c)}</option>`).join('');
+}
+function setPurchaseQuickDefault(){
+  if(!document.getElementById('purFrom').value){
+    const today = todayDate();
+    document.getElementById('purFrom').value = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
+    document.getElementById('purTo').value = new Date(today.getFullYear(), today.getMonth()+1, 0).toISOString().slice(0,10);
+  }
+}
+function setPurchaseQuickRange(){
+  const q = document.getElementById('purQuick').value;
+  const today = todayDate();
+  let from, to;
+  if(q==='thisMonth'){ from = new Date(today.getFullYear(), today.getMonth(), 1); to = new Date(today.getFullYear(), today.getMonth()+1, 0); }
+  else if(q==='thisWeek'){ const dow = today.getDay(); const mondayOffset = dow===0 ? -6 : 1-dow; from = new Date(today); from.setDate(today.getDate()+mondayOffset); to = new Date(from); to.setDate(from.getDate()+6); }
+  else if(q==='lastMonth'){ from = new Date(today.getFullYear(), today.getMonth()-1, 1); to = new Date(today.getFullYear(), today.getMonth(), 0); }
+  else if(q==='all'){ from = new Date(2000,0,1); to = today; }
+  else return;
+  document.getElementById('purFrom').value = from.toISOString().slice(0,10);
+  document.getElementById('purTo').value = to.toISOString().slice(0,10);
+  pageState.purchase = 1;
+  renderPurchase();
+}
+function purchaseRangeEntries(){
+  const from = parseDate(document.getElementById('purFrom').value) || new Date(2000,0,1);
+  const to = parseDate(document.getElementById('purTo').value) || todayDate();
+  const toEnd = new Date(to); toEnd.setHours(23,59,59,999);
+  const cat = document.getElementById('purFilterCategory').value;
+  return state.purchases.filter(p=>{
+    const d = parseDate(p.date);
+    if(!d || d<from || d>toEnd) return false;
+    if(cat && p.category!==cat) return false;
+    return true;
+  });
+}
+function renderPurchase(){
+  populatePurchaseCategoryFilter();
+  setPurchaseQuickDefault();
+  const entries = purchaseRangeEntries();
+  const from = parseDate(document.getElementById('purFrom').value);
+  const to = parseDate(document.getElementById('purTo').value);
+  const totalPurchase = entries.reduce((s,p)=>s+Number(p.amount||0),0);
+  const itemCount = entries.length;
+  const catTotals = {};
+  entries.forEach(p=>{ catTotals[p.category] = (catTotals[p.category]||0) + Number(p.amount||0); });
+  const catEntries = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const topCat = catEntries.length ? catEntries[0][0] : '—';
+
+  document.getElementById('purStats').innerHTML = `
+    ${statCard('Total Biaya Periode Ini', 'Rp '+totalPurchase.toLocaleString('id-ID'), 'var(--red)')}
+    ${statCard('Jumlah Item', itemCount, 'var(--purple)')}
+    ${statCard('Kategori Terbanyak', topCat, 'var(--blue)')}
+  `;
+
+  try{
+    if(charts['chartPurchaseCat']) charts['chartPurchaseCat'].destroy();
+    if(typeof Chart !== 'undefined'){
+      const ctx = document.getElementById('chartPurchaseCat').getContext('2d');
+      const palette = ['#DC4C4C','#F5A524','#2E6BE6','#7C5CE0','#1AA971','#0EA5C9','#E0578C','#6B7590'];
+      charts['chartPurchaseCat'] = new Chart(ctx, { type:'doughnut',
+        data:{ labels: catEntries.map(e=>e[0]), datasets:[{ data: catEntries.map(e=>e[1]), backgroundColor: catEntries.map((_,i)=>palette[i%palette.length]) }]},
+        options:{ plugins:{legend:{position:'bottom'}}, cutout:'60%' } });
+    }
+  }catch(e){ console.error(e); }
+
+  const sorted = state.purchases.slice().sort((a,b)=>parseDate(b.createdAt)-parseDate(a.createdAt));
+  const pageRows = paginate(sorted, 'purchase');
+  document.getElementById('purchaseTbody').innerHTML = pageRows.length ? pageRows.map(p=>`
+    <tr><td><span class="adplat-badge">${escapeHtml(p.category)}</span></td><td>${fmtDate(p.date)}</td><td>${p.qty||1}</td><td>Rp ${Number(p.amount||0).toLocaleString('id-ID')}</td><td>${escapeHtml(p.notes||'—')}</td>
+    <td class="row-actions"><button class="btn ghost sm" onclick="openPurchaseModal('${p.id}')">Edit</button><button class="btn danger sm" onclick="deletePurchase('${p.id}')">Delete</button></td></tr>
+  `).join('') : `<tr><td colspan="6"><div class="empty">No purchase entries yet. Click "+ Add Purchase" to log your first one.</div></td></tr>`;
+}
+document.getElementById('purQuick').addEventListener('change', setPurchaseQuickRange);
+document.getElementById('purFilterCategory').addEventListener('change', ()=>{ pageState.purchase=1; renderPurchase(); });
+document.getElementById('purFrom').addEventListener('change', ()=>{ document.getElementById('purQuick').value='custom'; pageState.purchase=1; renderPurchase(); });
+document.getElementById('purTo').addEventListener('change', ()=>{ document.getElementById('purQuick').value='custom'; pageState.purchase=1; renderPurchase(); });
+document.getElementById('btnAddPurchase').addEventListener('click', ()=>openPurchaseModal(null));
+
+function openPurchaseModal(id){
+  const p = id ? state.purchases.find(x=>x.id===id) : null;
+  const catOpts = state.settings.purchaseCategories.map(c=>`<option ${p&&p.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('');
+  openModal(`
+    <div class="modal-head"><h3>${p?'Edit Purchase':'Add Purchase'}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Category</label><select id="pur_cat">${catOpts}</select></div>
+      <div class="field"><label>Date</label><input type="date" id="pur_date" value="${p?p.date:todayISO()}"></div>
+      <div class="field"><label>Qty</label><input type="number" min="1" id="pur_qty" value="${p?(p.qty||1):1}"></div>
+      <div class="field"><label>Total Amount (Rp)</label><input type="number" min="0" id="pur_amount" value="${p?p.amount:''}" placeholder="e.g. 150000"></div>
+      <div class="field full"><label>Notes</label><input id="pur_notes" value="${p?escapeHtml(p.notes||''):''}" placeholder="Untuk customer/unit mana, vendor, dll."></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="savePurchaseBtn">Save</button></div>
+  `);
+  document.getElementById('savePurchaseBtn').onclick = async ()=>{
+    const category = document.getElementById('pur_cat').value;
+    const date = document.getElementById('pur_date').value;
+    const qty = Number(document.getElementById('pur_qty').value)||1;
+    const amount = Number(document.getElementById('pur_amount').value);
+    if(!category || !date || !amount){ toast('Category, date and amount are required','err'); return; }
+    const notes = document.getElementById('pur_notes').value.trim();
+    if(p){
+      Object.assign(p, {category, date, qty, amount, notes});
+      toast('Purchase updated');
+    } else {
+      state.purchases.push({ id: uid(), category, date, qty, amount, notes, createdAt: new Date().toISOString() });
+      toast('Purchase added');
+    }
+    await savePurchases();
+    closeModal(); renderPurchase();
+  };
+}
+async function deletePurchase(id){
+  confirmModal('Delete this purchase entry?', 'This cannot be undone.', async ()=>{
+    state.purchases = state.purchases.filter(p=>p.id!==id);
+    await savePurchases();
+    toast('Purchase deleted'); renderPurchase();
+  });
 }
 
 /* ============================= INCENTIVE CALCULATOR ============================= */
