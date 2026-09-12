@@ -267,6 +267,15 @@ tbody tr:hover{background:#FAFBFE;}
           <button data-view="purchase"><span class="nav-ico">🛒</span> Purchase</button>
         </div>
       </div>
+      <div class="nav-group">
+        <button class="nav-group-toggle" id="growthGroupToggle" type="button"><span class="nav-ico">🌱</span> Customer Growth <span class="nav-caret">▾</span></button>
+        <div class="nav-sub" id="growthGroupSub">
+          <button data-view="testdrive"><span class="nav-ico">🚗</span> Test Drive</button>
+          <button data-view="anniversary"><span class="nav-ico">🎂</span> Anniversary</button>
+          <button data-view="review"><span class="nav-ico">⭐</span> Review Request</button>
+          <button data-view="tradein"><span class="nav-ico">🔄</span> Trade-In Radar</button>
+        </div>
+      </div>
       <button data-view="progress"><span class="nav-ico">📋</span> Delivery Progress</button>
       <button data-view="reports"><span class="nav-ico">▤</span> Reports</button>
       <button data-view="contacts"><span class="nav-ico">📇</span> Contacts</button>
@@ -626,6 +635,110 @@ tbody tr:hover{background:#FAFBFE;}
           </table>
         </div>
         <div class="pagination" id="purchasePagination"></div>
+      </div>
+    </div>
+
+    <!-- TEST DRIVE -->
+    <div class="view" id="view-testdrive">
+      <div class="toolbar">
+        <input type="search" id="tdSearch" placeholder="Search by customer name...">
+        <select id="tdFilterStatus">
+          <option value="">All statuses</option>
+          <option value="needH1">Need H+1 Follow Up</option>
+          <option value="needH3">Need H+3 Follow Up</option>
+          <option value="done">Follow-ups Complete</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn" id="btnAddTestDrive">+ Add Test Drive</button>
+      </div>
+      <div class="stat-grid" id="tdStats"></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Customer</th><th>Vehicle</th><th>Test Drive Date</th><th>Notes</th><th>Follow Up</th><th>Actions</th></tr></thead>
+            <tbody id="testdriveTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="testdrivePagination"></div>
+      </div>
+    </div>
+
+    <!-- ANNIVERSARY -->
+    <div class="view" id="view-anniversary">
+      <div class="toolbar">
+        <input type="search" id="annSearch" placeholder="Search by customer name...">
+        <select id="annFilterWindow">
+          <option value="30">Next 30 days</option>
+          <option value="14">Next 14 days</option>
+          <option value="9999">All (any anniversary)</option>
+        </select>
+        <div class="spacer"></div>
+      </div>
+      <div class="stat-grid" id="annStats"></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Customer</th><th>Vehicle</th><th>DO Date</th><th>Tahun Ke-</th><th>Tanggal Anniversary</th><th>Aksi</th></tr></thead>
+            <tbody id="anniversaryTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="anniversaryPagination"></div>
+      </div>
+    </div>
+
+    <!-- REVIEW REQUEST -->
+    <div class="view" id="view-review">
+      <div class="toolbar">
+        <input type="search" id="revSearch" placeholder="Search by customer name...">
+        <select id="revFilterStatus">
+          <option value="">All statuses</option>
+          <option value="notRequested">Belum Diminta</option>
+          <option value="requested">Sudah Diminta</option>
+          <option value="received">Sudah Dapat Review</option>
+        </select>
+        <div class="spacer"></div>
+      </div>
+      <div class="stat-grid" id="revStats"></div>
+      <div class="card">
+        <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">Customer dengan delivery yang sudah 100% selesai (STNK, BPKB, wall charging, komplain, accessories) otomatis muncul di sini sebagai kandidat diminta review.</p>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Customer</th><th>Vehicle</th><th>Delivery Selesai</th><th>Status</th><th>Testimoni</th><th>Aksi</th></tr></thead>
+            <tbody id="reviewTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="reviewPagination"></div>
+      </div>
+    </div>
+
+    <!-- TRADE-IN RADAR -->
+    <div class="view" id="view-tradein">
+      <div class="toolbar">
+        <input type="search" id="tiSearch" placeholder="Search by customer name...">
+        <select id="tiMinYears">
+          <option value="1">1+ tahun</option>
+          <option value="2" selected>2+ tahun</option>
+          <option value="3">3+ tahun</option>
+          <option value="4">4+ tahun</option>
+        </select>
+        <select id="tiFilterStatus">
+          <option value="">All statuses</option>
+          <option value="notContacted">Belum Dihubungi</option>
+          <option value="contacted">Sudah Dihubungi</option>
+        </select>
+        <div class="spacer"></div>
+      </div>
+      <div class="stat-grid" id="tiStats"></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Customer</th><th>Vehicle</th><th>DO Date</th><th>Usia Kendaraan</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="tradeinTbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="tradeinPagination"></div>
       </div>
     </div>
 
@@ -1083,6 +1196,12 @@ tbody tr:hover{background:#FAFBFE;}
         <div class="add-row"><input type="text" id="inpPurchaseCategory" placeholder="Add purchase category..."><button class="btn sm" id="btnAddPurchaseCategory">Add</button></div>
       </div>
       <div class="card">
+        <h2>Google Review Link</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">Dipakai di pesan WhatsApp saat meminta review di menu Review Request.</p>
+        <div class="field"><label>Link Google Review</label><input type="text" id="inpGoogleReviewLink" placeholder="https://g.page/r/xxxxx/review"></div>
+        <button class="btn sm" id="btnSaveGoogleReviewLink" style="margin-top:10px">Save</button>
+      </div>
+      <div class="card">
         <h2>Reminder Settings</h2>
         <div class="form-grid">
           <div class="field"><label>Service reminder interval (months)</label><input type="number" min="1" id="inpServiceInterval"></div>
@@ -1134,12 +1253,13 @@ const DEFAULTS = {
   reminderWindowDays: 5,
   complaintSlaDays: 3,
   targetSpkPerMonth: 10,
-  targetIncomePerMonth: 15000000
+  targetIncomePerMonth: 15000000,
+  googleReviewLink: ""
 };
-let state = { leads: [], spk: [], adSpend: [], income: [], purchases: [], followups: [], leasingContacts: [], insuranceContacts: [], settings: JSON.parse(JSON.stringify(DEFAULTS)) };
+let state = { leads: [], spk: [], adSpend: [], income: [], purchases: [], testDrives: [], followups: [], leasingContacts: [], insuranceContacts: [], settings: JSON.parse(JSON.stringify(DEFAULTS)) };
 let charts = {};
 const PAGE_SIZE = 10;
-let pageState = { leads:1, spk:1, reports:1, adspend:1, overview:1, income:1, purchase:1, referrers:1, referralDetail:1, progress:1, leasingContacts:1, insuranceContacts:1 };
+let pageState = { leads:1, spk:1, reports:1, adspend:1, overview:1, income:1, purchase:1, referrers:1, referralDetail:1, progress:1, leasingContacts:1, insuranceContacts:1, testdrive:1, anniversary:1, review:1, tradein:1 };
 let reminderActiveCategory = 'all';
 
 function uid(){ return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
@@ -1272,6 +1392,10 @@ async function loadState(){
     if(pu && pu.value) state.purchases = JSON.parse(pu.value);
   }catch(e){ state.purchases = []; }
   try{
+    const td = await storageGet('testdrives-db');
+    if(td && td.value) state.testDrives = JSON.parse(td.value);
+  }catch(e){ state.testDrives = []; }
+  try{
     const fu = await storageGet('followups-db');
     if(fu && fu.value) state.followups = JSON.parse(fu.value);
   }catch(e){ state.followups = []; }
@@ -1326,6 +1450,10 @@ async function saveIncome(){
 async function savePurchases(){
   const ok = await storageSet('purchases-db', JSON.stringify(state.purchases));
   if(!ok) toast('Failed to save purchase data','err');
+}
+async function saveTestDrives(){
+  const ok = await storageSet('testdrives-db', JSON.stringify(state.testDrives));
+  if(!ok) toast('Failed to save test drive data','err');
 }
 async function saveFollowups(){
   const ok = await storageSet('followups-db', JSON.stringify(state.followups));
@@ -1383,6 +1511,10 @@ const titles = {
   income:['Income','Track earnings, compare to ad spend, and forecast budget'],
   incentive:['Incentive Calculator','Monthly DO & unit incentive for EX5 / Starray deliveries'],
   purchase:['Purchase','Track purchases and bonus/accessory costs given to customers, and stock spending'],
+  testdrive:['Test Drive Tracker','Log test drives and follow up at H+1 / H+3'],
+  anniversary:['Purchase Anniversary','Customers approaching their 1/2/3-year purchase anniversary'],
+  review:['Review Request','Ask completed deliveries for a Google review and track testimonials'],
+  tradein:['Trade-In / Upgrade Radar','Customers whose vehicle is old enough to be a trade-in/upgrade candidate'],
   progress:['Delivery Progress','STNK, wall charging, complaints and accessories after DO'],
   reports:['Reports','Monthly performance, conversion charts and exports'],
   contacts:['Contacts','Leasing CMO and insurance contacts, one tap to WhatsApp'],
@@ -1397,6 +1529,9 @@ document.getElementById('navList').addEventListener('click', (e)=>{
 document.getElementById('finGroupToggle').addEventListener('click', ()=>{
   document.getElementById('finGroupToggle').closest('.nav-group').classList.toggle('open');
 });
+document.getElementById('growthGroupToggle').addEventListener('click', ()=>{
+  document.getElementById('growthGroupToggle').closest('.nav-group').classList.toggle('open');
+});
 function goTo(view){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -1404,6 +1539,7 @@ function goTo(view){
   document.getElementById('topTitle').textContent = titles[view][0];
   document.getElementById('topSub').textContent = titles[view][1];
   if(['adspend','income','incentive','purchase'].includes(view)) document.getElementById('finGroupToggle').closest('.nav-group').classList.add('open');
+  if(['testdrive','anniversary','review','tradein'].includes(view)) document.getElementById('growthGroupToggle').closest('.nav-group').classList.add('open');
   if(view==='dashboard') renderDashboard();
   if(view==='leads') renderLeads();
   if(view==='spk') renderSpk();
@@ -1411,6 +1547,10 @@ function goTo(view){
   if(view==='income') renderIncome();
   if(view==='incentive') renderIncentive();
   if(view==='purchase') renderPurchase();
+  if(view==='testdrive') renderTestDrive();
+  if(view==='anniversary') renderAnniversary();
+  if(view==='review') renderReviewRequest();
+  if(view==='tradein') renderTradeIn();
   if(view==='progress') renderProgress();
   if(view==='reports') renderReports();
   if(view==='contacts') renderContacts();
@@ -3252,6 +3392,7 @@ function renderSettings(){
   renderTags('tagIncomeCategories','incomeCategories');
   renderTags('tagInsuranceProviders','insuranceProviders');
   renderPurchaseCategoryTags();
+  document.getElementById('inpGoogleReviewLink').value = state.settings.googleReviewLink || '';
   document.getElementById('inpServiceInterval').value = state.settings.serviceIntervalMonths;
   document.getElementById('inpReminderWindow').value = state.settings.reminderWindowDays;
   document.getElementById('inpComplaintSla').value = state.settings.complaintSlaDays;
@@ -3307,6 +3448,11 @@ document.getElementById('btnAddAdPlatform').addEventListener('click', ()=>addTag
 document.getElementById('btnAddIncomeCategory').addEventListener('click', ()=>addTag('incomeCategories','inpIncomeCategory'));
 document.getElementById('btnAddInsuranceProvider').addEventListener('click', ()=>addTag('insuranceProviders','inpInsuranceProvider'));
 document.getElementById('btnAddPurchaseCategory').addEventListener('click', ()=>addTag('purchaseCategories','inpPurchaseCategory'));
+document.getElementById('btnSaveGoogleReviewLink').addEventListener('click', async ()=>{
+  state.settings.googleReviewLink = document.getElementById('inpGoogleReviewLink').value.trim();
+  await saveSettings();
+  toast('Google Review link saved');
+});
 ['inpKendaraan','inpColor','inpLeasing','inpPameran','inpEvent','inpAdPlatform','inpIncomeCategory','inpInsuranceProvider','inpPurchaseCategory'].forEach((id,i)=>{
   const keys=['kendaraan','colors','leasing','pameran','eventList','adPlatforms','incomeCategories','insuranceProviders','purchaseCategories'];
   document.getElementById(id).addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); addTag(keys[i], id); } });
@@ -3331,7 +3477,7 @@ document.getElementById('btnSaveTargets').addEventListener('click', async ()=>{
 function buildBackupPayload(){
   return JSON.stringify({
     app: 'Drive Desk CRM — Edwin', exportedAt: new Date().toISOString(),
-    leads: state.leads, spk: state.spk, adSpend: state.adSpend, income: state.income, purchases: state.purchases, followups: state.followups,
+    leads: state.leads, spk: state.spk, adSpend: state.adSpend, income: state.income, purchases: state.purchases, testDrives: state.testDrives, followups: state.followups,
     leasingContacts: state.leasingContacts, insuranceContacts: state.insuranceContacts, settings: state.settings
   }, null, 2);
 }
@@ -3379,11 +3525,12 @@ function openRestoreModal(){
         state.adSpend = Array.isArray(data.adSpend) ? data.adSpend : [];
         state.income = Array.isArray(data.income) ? data.income : [];
         state.purchases = Array.isArray(data.purchases) ? data.purchases : [];
+        state.testDrives = Array.isArray(data.testDrives) ? data.testDrives : [];
         state.followups = Array.isArray(data.followups) ? data.followups : [];
         state.leasingContacts = Array.isArray(data.leasingContacts) ? data.leasingContacts : [];
         state.insuranceContacts = Array.isArray(data.insuranceContacts) ? data.insuranceContacts : [];
         state.settings = Object.assign({}, DEFAULTS, data.settings || {});
-        await saveLeads(); await saveSpk(); await saveAdSpend(); await saveIncome(); await savePurchases(); await saveFollowups(); await saveLeasingContacts(); await saveInsuranceContacts(); await saveSettings();
+        await saveLeads(); await saveSpk(); await saveAdSpend(); await saveIncome(); await savePurchases(); await saveTestDrives(); await saveFollowups(); await saveLeasingContacts(); await saveInsuranceContacts(); await saveSettings();
         toast('Data restored from backup');
         closeModal();
         goTo('dashboard');
@@ -4333,6 +4480,298 @@ async function deletePurchase(id){
     await savePurchases();
     toast('Purchase deleted'); renderPurchase();
   });
+}
+
+/* ============================= TEST DRIVE TRACKER ============================= */
+function renderTestDrive(){
+  const q = document.getElementById('tdSearch').value.trim().toLowerCase();
+  const statusFilter = document.getElementById('tdFilterStatus').value;
+  const today = todayDate();
+  let rows = state.testDrives.map(td=>{
+    const l = getLead(td.leadId);
+    const daysSince = diffDays(today, parseDate(td.date));
+    const needH1 = daysSince>=1 && !td.followUp1Done;
+    const needH3 = daysSince>=3 && !td.followUp3Done;
+    return { td, l, daysSince, needH1, needH3 };
+  }).filter(r=>r.l);
+  if(q) rows = rows.filter(r=>r.l.nama.toLowerCase().includes(q));
+  if(statusFilter==='needH1') rows = rows.filter(r=>r.needH1);
+  if(statusFilter==='needH3') rows = rows.filter(r=>r.needH3);
+  if(statusFilter==='done') rows = rows.filter(r=>!r.needH1 && !r.needH3);
+  rows.sort((a,b)=>parseDate(b.td.createdAt)-parseDate(a.td.createdAt));
+
+  const today2 = todayDate();
+  const pendingH1 = state.testDrives.filter(td=>{ const d=diffDays(today2,parseDate(td.date)); return d>=1 && !td.followUp1Done; }).length;
+  const pendingH3 = state.testDrives.filter(td=>{ const d=diffDays(today2,parseDate(td.date)); return d>=3 && !td.followUp3Done; }).length;
+  document.getElementById('tdStats').innerHTML = `
+    ${statCard('Total Test Drive', state.testDrives.length, 'var(--blue)')}
+    ${statCard('Perlu Follow Up H+1', pendingH1, 'var(--amber)')}
+    ${statCard('Perlu Follow Up H+3', pendingH3, 'var(--red)')}
+  `;
+
+  const pageRows = paginate(rows, 'testdrive');
+  document.getElementById('testdriveTbody').innerHTML = pageRows.length ? pageRows.map(r=>{
+    const followBtns = [];
+    if(r.needH1) followBtns.push(`<button class="btn whatsapp sm" onclick="testDriveFollowUp('${r.td.id}',1)">💬 H+1</button>`);
+    if(r.needH3) followBtns.push(`<button class="btn whatsapp sm" onclick="testDriveFollowUp('${r.td.id}',3)">💬 H+3</button>`);
+    const followStatus = followBtns.length ? followBtns.join(' ') : `<span class="pill st-done">Selesai</span>`;
+    return `<tr>
+      <td><strong>${escapeHtml(displayName(r.l))}</strong></td>
+      <td>${escapeHtml(vehicleLabel(r.l))}</td>
+      <td>${fmtDate(r.td.date)} (${r.daysSince}d lalu)</td>
+      <td>${escapeHtml(r.td.notes||'—')}</td>
+      <td>${followStatus}</td>
+      <td class="row-actions"><button class="btn ghost sm" onclick="openTestDriveModal('${r.td.id}')">Edit</button><button class="btn danger sm" onclick="deleteTestDrive('${r.td.id}')">Delete</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6"><div class="empty">Belum ada test drive tercatat. Klik "+ Add Test Drive" untuk mulai.</div></td></tr>`;
+}
+document.getElementById('tdSearch').addEventListener('input', ()=>{ pageState.testdrive=1; renderTestDrive(); });
+document.getElementById('tdFilterStatus').addEventListener('change', ()=>{ pageState.testdrive=1; renderTestDrive(); });
+document.getElementById('btnAddTestDrive').addEventListener('click', ()=>openTestDriveModal(null));
+function openTestDriveModal(id){
+  const td = id ? state.testDrives.find(x=>x.id===id) : null;
+  const leadOpts = state.leads.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(l=>`<option value="${l.id}" ${td&&td.leadId===l.id?'selected':''}>${escapeHtml(displayName(l))} — ${escapeHtml(vehicleLabel(l))}</option>`).join('');
+  openModal(`
+    <div class="modal-head"><h3>${td?'Edit Test Drive':'Add Test Drive'}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Customer</label><select id="td_lead">${leadOpts}</select></div>
+      <div class="field"><label>Tanggal Test Drive</label><input type="date" id="td_date" value="${td?td.date:todayISO()}"></div>
+      <div class="field full"><label>Notes</label><input id="td_notes" value="${td?escapeHtml(td.notes||''):''}" placeholder="Kesan customer, mobil yang diminati, dll."></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="saveTestDriveBtn">Save</button></div>
+  `);
+  document.getElementById('saveTestDriveBtn').addEventListener('click', async ()=>{
+    const leadId = document.getElementById('td_lead').value;
+    const date = document.getElementById('td_date').value;
+    if(!leadId || !date){ toast('Pilih customer dan tanggal','err'); return; }
+    const notes = document.getElementById('td_notes').value.trim();
+    if(td){
+      Object.assign(td, {leadId, date, notes});
+      toast('Test drive updated');
+    } else {
+      state.testDrives.push({ id: uid(), leadId, date, notes, followUp1Done:false, followUp3Done:false, createdAt: new Date().toISOString() });
+      toast('Test drive added');
+    }
+    await saveTestDrives();
+    closeModal(); renderTestDrive();
+  });
+}
+async function deleteTestDrive(id){
+  confirmModal('Delete this test drive record?', 'This cannot be undone.', async ()=>{
+    state.testDrives = state.testDrives.filter(t=>t.id!==id);
+    await saveTestDrives();
+    toast('Test drive deleted'); renderTestDrive();
+  });
+}
+async function testDriveFollowUp(id, day){
+  const td = state.testDrives.find(t=>t.id===id);
+  if(!td) return;
+  const l = getLead(td.leadId);
+  if(!l || !l.noTlpn){ toast('Lead tidak punya nomor WA','err'); return; }
+  const msg = day===1
+    ? `Halo ${displayName(l)}, terima kasih sudah test drive ${vehicleLabel(l)} kemarin. Bagaimana kesannya? Ada yang bisa saya bantu terkait keputusannya? 🙏`
+    : `Halo ${displayName(l)}, saya Edwin dari Geely. Menyusul test drive ${vehicleLabel(l)} beberapa hari lalu, apakah masih berminat melanjutkan ke proses berikutnya? 🙏`;
+  window.open(waLink(l.noTlpn, msg), '_blank');
+  if(day===1) td.followUp1Done = true; else td.followUp3Done = true;
+  await saveTestDrives();
+  state.followups.push({ id: uid(), leadId: td.leadId, date: todayISO(), method:'WhatsApp', notes:`Follow up test drive H+${day}`, result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  toast('Follow up tercatat');
+  renderTestDrive();
+}
+
+/* ============================= PURCHASE ANNIVERSARY ============================= */
+function purchaseAnniversaryInfo(s, today){
+  const doDate = parseDate(s.tglRealisasi);
+  if(!doDate) return null;
+  const yearsSince = today.getFullYear() - doDate.getFullYear();
+  let bestYear = null, bestDiff = Infinity, bestDate = null;
+  for(let n=1; n<=yearsSince+1; n++){
+    const annDate = addYears(doDate, n);
+    const diff = diffDays(annDate, today);
+    if(Math.abs(diff) < Math.abs(bestDiff)){ bestDiff = diff; bestYear = n; bestDate = annDate; }
+  }
+  if(bestYear===null) return null;
+  return { yearMark: bestYear, date: bestDate, diffDays: bestDiff };
+}
+function renderAnniversary(){
+  const q = document.getElementById('annSearch').value.trim().toLowerCase();
+  const windowDays = Number(document.getElementById('annFilterWindow').value);
+  const today = todayDate();
+  let rows = deliveredSpkList().map(s=>{
+    const l = getLead(s.leadId);
+    const info = purchaseAnniversaryInfo(s, today);
+    return { s, l, info };
+  }).filter(r=>r.l && r.info);
+  if(q) rows = rows.filter(r=>r.l.nama.toLowerCase().includes(q));
+  rows = rows.filter(r=>Math.abs(r.info.diffDays) <= windowDays);
+  rows.sort((a,b)=>a.info.diffDays - b.info.diffDays);
+
+  const upcoming = rows.filter(r=>r.info.diffDays>=0 && r.info.diffDays<=14).length;
+  const passed = rows.filter(r=>r.info.diffDays<0 && r.info.diffDays>=-14).length;
+  document.getElementById('annStats').innerHTML = `
+    ${statCard('Dalam Jendela Filter', rows.length, 'var(--blue)')}
+    ${statCard('Akan Datang (≤14 hari)', upcoming, 'var(--amber)')}
+    ${statCard('Baru Lewat (≤14 hari)', passed, 'var(--purple)')}
+  `;
+
+  const pageRows = paginate(rows, 'anniversary');
+  document.getElementById('anniversaryTbody').innerHTML = pageRows.length ? pageRows.map(r=>{
+    const statusLabel = r.info.diffDays===0 ? 'Hari ini!' : r.info.diffDays>0 ? `${r.info.diffDays} hari lagi` : `${-r.info.diffDays} hari lalu`;
+    return `<tr>
+      <td><strong>${escapeHtml(displayName(r.l))}</strong></td>
+      <td>${escapeHtml(vehicleLabel(r.l))}</td>
+      <td>${fmtDate(r.s.tglRealisasi)}</td>
+      <td>Tahun ke-${r.info.yearMark}</td>
+      <td>${fmtDate(r.info.date.toISOString().slice(0,10))} <span class="muted">(${statusLabel})</span></td>
+      <td class="row-actions">${r.l.noTlpn ? `<button class="btn whatsapp sm" onclick="anniversaryWa('${r.s.id}')">💬 Kirim Ucapan</button>` : '—'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6"><div class="empty">Tidak ada anniversary dalam rentang ini.</div></td></tr>`;
+}
+document.getElementById('annSearch').addEventListener('input', ()=>{ pageState.anniversary=1; renderAnniversary(); });
+document.getElementById('annFilterWindow').addEventListener('change', ()=>{ pageState.anniversary=1; renderAnniversary(); });
+async function anniversaryWa(spkId){
+  const s = getSpk(spkId);
+  const l = s ? getLead(s.leadId) : null;
+  if(!l || !l.noTlpn) return;
+  const info = purchaseAnniversaryInfo(s, todayDate());
+  const msg = `Halo ${displayName(l)}, tidak terasa sudah ${info.yearMark} tahun sejak ${vehicleLabel(l)} Bapak/Ibu delivery bersama kami 🎉. Kalau ada kebutuhan service, upgrade unit, atau mau referensikan teman/keluarga, saya siap bantu ya. Terima kasih atas kepercayaannya! — Edwin, Geely`;
+  window.open(waLink(l.noTlpn, msg), '_blank');
+  state.followups.push({ id: uid(), leadId: l.id, date: todayISO(), method:'WhatsApp', notes:`Ucapan anniversary tahun ke-${info.yearMark}`, result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  toast('Ucapan terkirim & tercatat');
+}
+
+/* ============================= REVIEW REQUEST ============================= */
+function renderReviewRequest(){
+  const q = document.getElementById('revSearch').value.trim().toLowerCase();
+  const statusFilter = document.getElementById('revFilterStatus').value;
+  let rows = state.spk.filter(isDeliveryComplete).map(s=>({ s, l: getLead(s.leadId) })).filter(r=>r.l);
+  if(q) rows = rows.filter(r=>r.l.nama.toLowerCase().includes(q));
+  if(statusFilter==='notRequested') rows = rows.filter(r=>!r.s.reviewRequested);
+  if(statusFilter==='requested') rows = rows.filter(r=>r.s.reviewRequested && !r.s.reviewReceived);
+  if(statusFilter==='received') rows = rows.filter(r=>r.s.reviewReceived);
+  rows.sort((a,b)=>parseDate(b.s.tglRealisasi)-parseDate(a.s.tglRealisasi));
+
+  const totalEligible = state.spk.filter(isDeliveryComplete).length;
+  const requested = state.spk.filter(s=>s.reviewRequested).length;
+  const received = state.spk.filter(s=>s.reviewReceived).length;
+  document.getElementById('revStats').innerHTML = `
+    ${statCard('Eligible (Delivery Selesai)', totalEligible, 'var(--blue)')}
+    ${statCard('Sudah Diminta', requested, 'var(--amber)')}
+    ${statCard('Sudah Dapat Review', received, 'var(--green)')}
+  `;
+
+  const pageRows = paginate(rows, 'review');
+  document.getElementById('reviewTbody').innerHTML = pageRows.length ? pageRows.map(r=>{
+    const statusPill = r.s.reviewReceived ? `<span class="pill st-done">Sudah Dapat Review</span>` : r.s.reviewRequested ? `<span class="pill st-pending">Sudah Diminta</span>` : `<span class="pill" style="background:#EEF0F4;color:var(--muted)">Belum Diminta</span>`;
+    return `<tr>
+      <td><strong>${escapeHtml(displayName(r.l))}</strong></td>
+      <td>${escapeHtml(vehicleLabel(r.l))}</td>
+      <td>${fmtDate(r.s.tglRealisasi)}</td>
+      <td>${statusPill}</td>
+      <td>${r.s.reviewLink ? `<a href="${escapeHtml(r.s.reviewLink)}" target="_blank" rel="noopener">Lihat</a>` : '—'}</td>
+      <td class="row-actions">
+        ${!r.s.reviewRequested ? `<button class="btn whatsapp sm" onclick="requestReview('${r.s.id}')">💬 Minta Review</button>` : `<button class="btn whatsapp sm" onclick="requestReview('${r.s.id}')">💬 Kirim Ulang</button>`}
+        ${r.s.reviewRequested && !r.s.reviewReceived ? `<button class="btn ghost sm" onclick="markReviewReceived('${r.s.id}')">✅ Tandai Dapat Review</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6"><div class="empty">Belum ada delivery yang selesai 100% untuk diminta review.</div></td></tr>`;
+}
+document.getElementById('revSearch').addEventListener('input', ()=>{ pageState.review=1; renderReviewRequest(); });
+document.getElementById('revFilterStatus').addEventListener('change', ()=>{ pageState.review=1; renderReviewRequest(); });
+async function requestReview(spkId){
+  const s = getSpk(spkId);
+  const l = s ? getLead(s.leadId) : null;
+  if(!l || !l.noTlpn){ toast('Lead tidak punya nomor WA','err'); return; }
+  const link = state.settings.googleReviewLink;
+  const msg = `Halo ${displayName(l)}, terima kasih banyak sudah mempercayakan pembelian ${vehicleLabel(l)} kepada kami 🙏. Kalau berkenan, boleh minta waktu sebentar untuk kasih review pengalamannya di Google?${link ? `\n\n${link}` : ''}\n\nMasukan Bapak/Ibu sangat berarti buat kami. Terima kasih! — Edwin, Geely`;
+  window.open(waLink(l.noTlpn, msg), '_blank');
+  s.reviewRequested = true;
+  s.reviewRequestedAt = todayISO();
+  await saveSpk();
+  state.followups.push({ id: uid(), leadId: l.id, date: todayISO(), method:'WhatsApp', notes:'Minta Google Review', result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  toast('Permintaan review terkirim');
+  renderReviewRequest();
+}
+function markReviewReceived(spkId){
+  const s = getSpk(spkId);
+  openModal(`
+    <div class="modal-head"><h3>Tandai Sudah Dapat Review</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="field"><label>Link / Screenshot Testimoni (opsional)</label><input id="rev_link" value="${escapeHtml(s.reviewLink||'')}" placeholder="https://..."></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" id="saveReviewReceivedBtn">Save</button></div>
+  `);
+  document.getElementById('saveReviewReceivedBtn').addEventListener('click', async ()=>{
+    s.reviewReceived = true;
+    s.reviewLink = document.getElementById('rev_link').value.trim();
+    await saveSpk();
+    closeModal();
+    toast('Review tercatat, terima kasih!');
+    renderReviewRequest();
+  });
+}
+
+/* ============================= TRADE-IN / UPGRADE RADAR ============================= */
+function vehicleAgeYears(doDate, today){
+  return (today - doDate) / (1000*60*60*24*365.25);
+}
+function renderTradeIn(){
+  const q = document.getElementById('tiSearch').value.trim().toLowerCase();
+  const minYears = Number(document.getElementById('tiMinYears').value);
+  const statusFilter = document.getElementById('tiFilterStatus').value;
+  const today = todayDate();
+  let rows = deliveredSpkList().map(s=>{
+    const l = getLead(s.leadId);
+    const doDate = parseDate(s.tglRealisasi);
+    const ageYears = doDate ? vehicleAgeYears(doDate, today) : 0;
+    return { s, l, doDate, ageYears };
+  }).filter(r=>r.l && r.doDate && r.ageYears >= minYears);
+  if(q) rows = rows.filter(r=>r.l.nama.toLowerCase().includes(q));
+  if(statusFilter==='notContacted') rows = rows.filter(r=>!r.s.upgradeContacted);
+  if(statusFilter==='contacted') rows = rows.filter(r=>r.s.upgradeContacted);
+  rows.sort((a,b)=>b.ageYears - a.ageYears);
+
+  const totalCandidates = rows.length;
+  const contacted = rows.filter(r=>r.s.upgradeContacted).length;
+  document.getElementById('tiStats').innerHTML = `
+    ${statCard('Kandidat Trade-In/Upgrade', totalCandidates, 'var(--blue)')}
+    ${statCard('Sudah Dihubungi', contacted, 'var(--green)')}
+    ${statCard('Belum Dihubungi', totalCandidates-contacted, 'var(--amber)')}
+  `;
+
+  const pageRows = paginate(rows, 'tradein');
+  document.getElementById('tradeinTbody').innerHTML = pageRows.length ? pageRows.map(r=>{
+    const y = Math.floor(r.ageYears);
+    let m = Math.round((r.ageYears-y)*12);
+    let displayY = y, displayM = m;
+    if(m>=12){ displayY = y+1; displayM = 0; }
+    return `<tr>
+      <td><strong>${escapeHtml(displayName(r.l))}</strong></td>
+      <td>${escapeHtml(vehicleLabel(r.l))}</td>
+      <td>${fmtDate(r.s.tglRealisasi)}</td>
+      <td>${displayY} tahun ${displayM} bulan</td>
+      <td>${r.s.upgradeContacted ? `<span class="pill st-done">Sudah Dihubungi</span>` : `<span class="pill st-pending">Belum Dihubungi</span>`}</td>
+      <td class="row-actions">${r.l.noTlpn ? `<button class="btn whatsapp sm" onclick="tradeInWa('${r.s.id}')">💬 Tawarkan Upgrade</button>` : '—'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6"><div class="empty">Belum ada kandidat trade-in/upgrade untuk kriteria ini.</div></td></tr>`;
+}
+document.getElementById('tiSearch').addEventListener('input', ()=>{ pageState.tradein=1; renderTradeIn(); });
+document.getElementById('tiMinYears').addEventListener('change', ()=>{ pageState.tradein=1; renderTradeIn(); });
+document.getElementById('tiFilterStatus').addEventListener('change', ()=>{ pageState.tradein=1; renderTradeIn(); });
+async function tradeInWa(spkId){
+  const s = getSpk(spkId);
+  const l = s ? getLead(s.leadId) : null;
+  if(!l || !l.noTlpn) return;
+  const msg = `Halo ${displayName(l)}, saya Edwin dari Geely. Sudah beberapa tahun nih pakai ${vehicleLabel(l)} — kalau tertarik upgrade ke model terbaru atau trade-in, saya bisa bantu hitungkan simulasinya. Boleh saya kirimkan info promo terbaru? 🙏`;
+  window.open(waLink(l.noTlpn, msg), '_blank');
+  s.upgradeContacted = true;
+  s.upgradeContactedAt = todayISO();
+  await saveSpk();
+  state.followups.push({ id: uid(), leadId: l.id, date: todayISO(), method:'WhatsApp', notes:'Tawaran trade-in/upgrade', result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  toast('Tawaran terkirim & tercatat');
+  renderTradeIn();
 }
 
 /* ============================= INCENTIVE CALCULATOR ============================= */
