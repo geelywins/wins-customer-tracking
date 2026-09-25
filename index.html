@@ -5427,14 +5427,14 @@ document.getElementById('btnGenerateAiFollow').addEventListener('click', ()=>{
   resultCard.style.display = 'block';
   msgWrap.style.display = 'none';
   actionsEl.style.display = 'none';
-  statusEl.innerHTML = `<span style="color:var(--amber)">⏳ Menunggu AI menyusun draft... (biasanya 5-15 detik)</span>`;
+  statusEl.innerHTML = `<span style="color:var(--amber)">⏳ Menunggu AI menyusun draft... (bisa sampai ±1 menit, karena bot cek berkala tiap menit)</span>`;
   resultCard.dataset.leadId = l.id;
 
   if(aiFollowListenerRef) aiFollowListenerRef.off();
   aiFollowListenerRef = aiFollowDb.ref('ai_responses/'+reqId);
   const timeoutHandle = setTimeout(()=>{
-    statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Timeout — belum ada balasan dari bot setelah 45 detik. Cek apakah Cloud Function-nya sudah ter-deploy &amp; config-nya benar (lihat SETUP.md).</span>`;
-  }, 45000);
+    statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Timeout — belum ada balasan dari bot setelah 90 detik. Cek apakah Cloud Function/Apps Script-nya sudah ter-deploy &amp; config-nya benar (lihat SETUP.md).</span>`;
+  }, 90000);
 
   aiFollowListenerRef.on('value', (snap)=>{
     const data = snap.val();
