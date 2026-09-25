@@ -17,6 +17,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.8/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
 :root{
   --navy:#0F1B3D;
@@ -1035,6 +1037,7 @@ tbody tr:hover{background:#FAFBFE;}
         <button class="growth-tab active" data-gtab="priority">🎯 Prioritas Leads</button>
         <button class="growth-tab" data-gtab="cicilan">🧮 Simulasi Cicilan</button>
         <button class="growth-tab" data-gtab="broadcast">📣 WA Broadcast</button>
+        <button class="growth-tab" data-gtab="aifollow">🤖 AI Follow Up</button>
       </div>
 
       <!-- PRIORITY LEADS -->
@@ -1153,6 +1156,42 @@ tbody tr:hover{background:#FAFBFE;}
           </div>
         </div>
       </div>
+
+      <!-- AI FOLLOW UP GENERATOR -->
+      <div class="growth-panel" id="gpanel-aifollow">
+        <div class="card" id="aiFollowNotConfigured" style="display:none">
+          <h2>🤖 AI Follow Up Generator</h2>
+          <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Fitur ini butuh koneksi ke Firebase &amp; bot backend-nya dulu supaya bisa jalan.</p>
+          <div class="rem-item stnk"><div class="rem-emoji">⚙️</div><div style="flex:1"><div class="rem-title">Belum disetel</div><div class="rem-sub">Buka <strong>Settings → AI Follow Up Generator (Firebase)</strong>, isi config Firebase-nya, lalu kembali ke sini.</div></div></div>
+        </div>
+
+        <div id="aiFollowConfigured" style="display:none">
+          <div class="card">
+            <h2>🤖 AI Follow Up Generator</h2>
+            <p style="font-size:13px;color:var(--muted);margin:0 0 14px">Pilih customer, ceritakan situasinya singkat, AI akan cari referensi dari riwayat follow-up sebelumnya lalu susunkan draft pesan WhatsApp terbaik — otomatis lewat bot di background.</p>
+            <div class="form-grid">
+              <div class="field full"><label>Customer</label><select id="ai_lead"></select></div>
+              <div class="field full"><label>Situasi / alasan follow-up</label><textarea id="ai_situation" rows="3" placeholder="misal: sudah 5 hari sejak test drive, belum ada kabar, terakhir tanya-tanya soal DP"></textarea></div>
+            </div>
+            <div class="toolbar" style="margin-top:4px">
+              <button class="btn" id="btnGenerateAiFollow">✨ Generate AI Follow Up</button>
+            </div>
+          </div>
+
+          <div class="card" id="aiFollowResultCard" style="display:none">
+            <h2>Draft Pesan</h2>
+            <div id="aiFollowStatus" style="margin-bottom:10px"></div>
+            <div class="field full" id="aiFollowMessageWrap" style="display:none">
+              <label>Pesan (bisa diedit sebelum dikirim)</label>
+              <textarea id="ai_resultMessage" rows="5"></textarea>
+            </div>
+            <div class="toolbar" style="margin-top:8px;display:none" id="aiFollowActions">
+              <button class="btn whatsapp sm" id="btnSendAiFollowWa">💬 Kirim via WhatsApp</button>
+              <span id="aiFollowProviderNote" style="font-size:11.5px;color:var(--muted);margin-left:8px"></span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- SETTINGS -->
@@ -1209,6 +1248,21 @@ tbody tr:hover{background:#FAFBFE;}
         <button class="btn sm" id="btnSaveGoogleReviewLink" style="margin-top:10px">Save</button>
       </div>
       <div class="card">
+        <h2>AI Follow Up Generator (Firebase)</h2>
+        <p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">Config dari Firebase Console → Project Settings → Your apps. Lihat SETUP.md untuk panduan lengkap bikin bot &amp; koneksinya dari nol.</p>
+        <div class="form-grid">
+          <div class="field"><label>API Key</label><input type="text" id="ai_fb_apiKey" placeholder="AIzaSy..."></div>
+          <div class="field"><label>Auth Domain</label><input type="text" id="ai_fb_authDomain" placeholder="xxx.firebaseapp.com"></div>
+          <div class="field full"><label>Database URL</label><input type="text" id="ai_fb_databaseURL" placeholder="https://xxx-default-rtdb.asia-southeast1.firebasedatabase.app"></div>
+          <div class="field"><label>Project ID</label><input type="text" id="ai_fb_projectId" placeholder="xxx"></div>
+          <div class="field"><label>Storage Bucket</label><input type="text" id="ai_fb_storageBucket" placeholder="xxx.appspot.com"></div>
+          <div class="field"><label>Messaging Sender ID</label><input type="text" id="ai_fb_messagingSenderId" placeholder="1234567890"></div>
+          <div class="field"><label>App ID</label><input type="text" id="ai_fb_appId" placeholder="1:1234567890:web:xxxxx"></div>
+        </div>
+        <button class="btn sm" id="btnSaveAiFollowFirebase" style="margin-top:10px">Save &amp; Connect</button>
+        <div id="aiFollowConnStatus" style="margin-top:10px;font-size:12.5px"></div>
+      </div>
+      <div class="card">
         <h2>Reminder Settings</h2>
         <div class="form-grid">
           <div class="field"><label>Service reminder interval (months)</label><input type="number" min="1" id="inpServiceInterval"></div>
@@ -1261,7 +1315,8 @@ const DEFAULTS = {
   complaintSlaDays: 3,
   targetSpkPerMonth: 10,
   targetIncomePerMonth: 15000000,
-  googleReviewLink: ""
+  googleReviewLink: "",
+  aiFollowUpFirebase: { apiKey:"", authDomain:"", databaseURL:"", projectId:"", storageBucket:"", messagingSenderId:"", appId:"" }
 };
 let state = { leads: [], spk: [], adSpend: [], income: [], purchases: [], testDrives: [], followups: [], leasingContacts: [], insuranceContacts: [], settings: JSON.parse(JSON.stringify(DEFAULTS)) };
 let charts = {};
@@ -3400,6 +3455,15 @@ function renderSettings(){
   renderTags('tagInsuranceProviders','insuranceProviders');
   renderPurchaseCategoryTags();
   document.getElementById('inpGoogleReviewLink').value = state.settings.googleReviewLink || '';
+  const fbc = state.settings.aiFollowUpFirebase || {};
+  document.getElementById('ai_fb_apiKey').value = fbc.apiKey || '';
+  document.getElementById('ai_fb_authDomain').value = fbc.authDomain || '';
+  document.getElementById('ai_fb_databaseURL').value = fbc.databaseURL || '';
+  document.getElementById('ai_fb_projectId').value = fbc.projectId || '';
+  document.getElementById('ai_fb_storageBucket').value = fbc.storageBucket || '';
+  document.getElementById('ai_fb_messagingSenderId').value = fbc.messagingSenderId || '';
+  document.getElementById('ai_fb_appId').value = fbc.appId || '';
+  updateAiFollowConnStatusUI();
   document.getElementById('inpServiceInterval').value = state.settings.serviceIntervalMonths;
   document.getElementById('inpReminderWindow').value = state.settings.reminderWindowDays;
   document.getElementById('inpComplaintSla').value = state.settings.complaintSlaDays;
@@ -3459,6 +3523,21 @@ document.getElementById('btnSaveGoogleReviewLink').addEventListener('click', asy
   state.settings.googleReviewLink = document.getElementById('inpGoogleReviewLink').value.trim();
   await saveSettings();
   toast('Google Review link saved');
+});
+document.getElementById('btnSaveAiFollowFirebase').addEventListener('click', async ()=>{
+  const cfg = {
+    apiKey: document.getElementById('ai_fb_apiKey').value.trim(),
+    authDomain: document.getElementById('ai_fb_authDomain').value.trim(),
+    databaseURL: document.getElementById('ai_fb_databaseURL').value.trim(),
+    projectId: document.getElementById('ai_fb_projectId').value.trim(),
+    storageBucket: document.getElementById('ai_fb_storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('ai_fb_messagingSenderId').value.trim(),
+    appId: document.getElementById('ai_fb_appId').value.trim(),
+  };
+  state.settings.aiFollowUpFirebase = cfg;
+  await saveSettings();
+  toast('Firebase config saved');
+  initAiFollowFirebase(true);
 });
 ['inpKendaraan','inpColor','inpLeasing','inpPameran','inpEvent','inpAdPlatform','inpIncomeCategory','inpInsuranceProvider','inpPurchaseCategory'].forEach((id,i)=>{
   const keys=['kendaraan','colors','leasing','pameran','eventList','adPlatforms','incomeCategories','insuranceProviders','purchaseCategories'];
@@ -4915,6 +4994,7 @@ function renderGrowth(){
   renderPriorityLeads();
   populateCicilanKendaraan();
   populateBroadcastFilters();
+  renderAiFollow();
 }
 
 /* ---- 1) LEAD SCORING & PRIORITAS ---- */
@@ -5266,11 +5346,133 @@ async function sendBroadcastOne(leadId){
   renderPriorityLeads();
 }
 
+/* ============================= AI FOLLOW UP GENERATOR ============================= */
+let aiFollowApp = null;
+let aiFollowDb = null;
+let aiFollowListenerRef = null;
+
+function aiFollowIsConfigured(){
+  const c = state.settings.aiFollowUpFirebase || {};
+  return !!(c.apiKey && c.databaseURL && c.projectId);
+}
+function initAiFollowFirebase(showToast){
+  if(!aiFollowIsConfigured()){ aiFollowApp = null; aiFollowDb = null; updateAiFollowConnStatusUI(); return; }
+  try{
+    const cfg = state.settings.aiFollowUpFirebase;
+    if(aiFollowApp){ try{ aiFollowApp.delete(); }catch(e){} aiFollowApp = null; }
+    aiFollowApp = firebase.initializeApp(cfg, 'aiFollowApp_'+Date.now());
+    aiFollowDb = aiFollowApp.database();
+    if(showToast) toast('Firebase terhubung');
+  }catch(e){
+    console.error('Firebase init failed', e);
+    aiFollowApp = null; aiFollowDb = null;
+    if(showToast) toast('Gagal konek Firebase — cek config','err');
+  }
+  updateAiFollowConnStatusUI();
+}
+function updateAiFollowConnStatusUI(){
+  const el = document.getElementById('aiFollowConnStatus');
+  if(!el) return;
+  if(!aiFollowIsConfigured()){
+    el.innerHTML = `<span style="color:var(--muted)">Belum disetel.</span>`;
+  } else if(aiFollowDb){
+    el.innerHTML = `<span style="color:var(--green)">✅ Terhubung ke Firebase.</span>`;
+  } else {
+    el.innerHTML = `<span style="color:var(--red)">⚠️ Config ada tapi gagal konek — cek ulang nilainya.</span>`;
+  }
+}
+
+function renderAiFollow(){
+  const configured = aiFollowIsConfigured();
+  document.getElementById('aiFollowNotConfigured').style.display = configured ? 'none' : 'block';
+  document.getElementById('aiFollowConfigured').style.display = configured ? 'block' : 'none';
+  if(!configured) return;
+  if(!aiFollowDb) initAiFollowFirebase(false);
+
+  const sel = document.getElementById('ai_lead');
+  const prevVal = sel.value;
+  sel.innerHTML = state.leads.slice().sort((a,b)=>a.nama.localeCompare(b.nama))
+    .map(l=>`<option value="${l.id}">${escapeHtml(displayName(l))} — ${escapeHtml(vehicleLabel(l))}</option>`).join('');
+  if(prevVal) sel.value = prevVal;
+}
+
+document.getElementById('btnGenerateAiFollow').addEventListener('click', ()=>{
+  if(!aiFollowDb){ toast('Firebase belum terhubung','err'); return; }
+  const leadId = document.getElementById('ai_lead').value;
+  const l = getLead(leadId);
+  if(!l){ toast('Pilih customer dulu','err'); return; }
+  const situation = document.getElementById('ai_situation').value.trim();
+  if(!situation){ toast('Isi situasinya dulu, walau singkat','err'); return; }
+
+  const fus = getFollowupsByLead(l.id);
+  const lastContact = fus.length ? fmtDate(fus[0].date) : 'Belum pernah';
+
+  const reqRef = aiFollowDb.ref('ai_requests').push();
+  const reqId = reqRef.key;
+  reqRef.set({
+    leadId: l.id,
+    leadName: displayName(l),
+    category: l.kategori || '',
+    vehicle: vehicleLabel(l),
+    source: l.sumber || '',
+    lastContact,
+    situation,
+    requestedAt: new Date().toISOString(),
+  });
+
+  const resultCard = document.getElementById('aiFollowResultCard');
+  const statusEl = document.getElementById('aiFollowStatus');
+  const msgWrap = document.getElementById('aiFollowMessageWrap');
+  const actionsEl = document.getElementById('aiFollowActions');
+  resultCard.style.display = 'block';
+  msgWrap.style.display = 'none';
+  actionsEl.style.display = 'none';
+  statusEl.innerHTML = `<span style="color:var(--amber)">⏳ Menunggu AI menyusun draft... (biasanya 5-15 detik)</span>`;
+  resultCard.dataset.leadId = l.id;
+
+  if(aiFollowListenerRef) aiFollowListenerRef.off();
+  aiFollowListenerRef = aiFollowDb.ref('ai_responses/'+reqId);
+  const timeoutHandle = setTimeout(()=>{
+    statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Timeout — belum ada balasan dari bot setelah 45 detik. Cek apakah Cloud Function-nya sudah ter-deploy &amp; config-nya benar (lihat SETUP.md).</span>`;
+  }, 45000);
+
+  aiFollowListenerRef.on('value', (snap)=>{
+    const data = snap.val();
+    if(!data) return;
+    clearTimeout(timeoutHandle);
+    if(data.status === 'error'){
+      statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Gagal generate: ${escapeHtml(data.error||'unknown error')}</span>`;
+      return;
+    }
+    if(data.status === 'done'){
+      statusEl.innerHTML = `<span style="color:var(--green)">✅ Draft siap.</span>`;
+      document.getElementById('ai_resultMessage').value = data.message || '';
+      msgWrap.style.display = 'block';
+      actionsEl.style.display = 'flex';
+      document.getElementById('aiFollowProviderNote').textContent = data.provider ? `Dibuat oleh: ${data.provider}` : '';
+    }
+  });
+});
+
+document.getElementById('btnSendAiFollowWa').addEventListener('click', async ()=>{
+  const resultCard = document.getElementById('aiFollowResultCard');
+  const leadId = resultCard.dataset.leadId;
+  const l = getLead(leadId);
+  if(!l || !l.noTlpn){ toast('Customer ini tidak punya nomor WA','err'); return; }
+  const msg = document.getElementById('ai_resultMessage').value;
+  window.open(waLink(l.noTlpn, msg), '_blank');
+  state.followups.push({ id: uid(), leadId: l.id, date: todayISO(), method:'WhatsApp', notes:'Follow up via AI Follow Up Generator', result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  toast('Terkirim & tercatat sebagai follow-up');
+  renderPriorityLeads();
+});
+
 /* ============================= INIT ============================= */
 (async function init(){
   await loadState();
   populateSourceFilter();
   renderDashboard();
+  if(aiFollowIsConfigured()) initAiFollowFirebase(false);
 })();
 </script>
 </body>
