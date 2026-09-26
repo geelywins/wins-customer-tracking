@@ -227,6 +227,18 @@ tbody tr:hover{background:#FAFBFE;}
 .pill.score-medium{background:#FFF4E0;color:var(--amber);}
 .pill.score-low{background:#EDF1FB;color:var(--blue);}
 .rem-more{text-align:center;margin-top:10px;}
+.rem-cal-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.rem-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.rem-cal-weekday{font-size:10.5px;font-weight:800;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase;}
+.rem-cal-day{border:1px solid var(--line);border-radius:8px;min-height:52px;padding:4px 5px;font-size:11.5px;cursor:pointer;background:#fff;transition:background .1s;}
+.rem-cal-day:hover{background:#F5F7FC;}
+.rem-cal-day.other-month{visibility:hidden;cursor:default;}
+.rem-cal-day.today{border-color:var(--blue);border-width:2px;font-weight:800;}
+.rem-cal-day.selected{background:#EDF1FB;border-color:var(--blue);}
+.rem-cal-dots{display:flex;gap:2px;flex-wrap:wrap;margin-top:5px;align-items:center;}
+.rem-cal-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);flex-shrink:0;}
+.rem-cal-dot.urgent{background:var(--red);}
+.rem-cal-more{font-size:9px;color:var(--muted);}
 
 .btn.whatsapp{background:#25D366;color:#fff;}
 .adplat-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;background:#F1F4FB;color:var(--blue);}
@@ -326,8 +338,22 @@ tbody tr:hover{background:#FAFBFE;}
           <label class="chip" data-k="accessory">🎁 Accessories</label>
           <label class="chip" data-k="complaint">⚠️ Complaints</label>
         </div>
+        <div class="growth-tabs" id="remViewTabs" style="margin:12px 0">
+          <button class="growth-tab active" data-rview="list">📋 List</button>
+          <button class="growth-tab" data-rview="calendar">📅 Kalender</button>
+        </div>
         <div class="rem-list" id="reminderList"></div>
         <div class="rem-more" id="remMoreWrap" style="display:none"><button class="btn ghost sm" id="remMoreBtn">Show more</button></div>
+        <div id="reminderCalendarWrap" style="display:none">
+          <div class="rem-cal-toolbar">
+            <button class="btn ghost sm" id="remCalPrev">←</button>
+            <div style="flex:1;text-align:center;font-weight:800" id="remCalMonthLabel"></div>
+            <button class="btn ghost sm" id="remCalNext">→</button>
+            <button class="btn ghost sm" id="remCalToday">Hari Ini</button>
+          </div>
+          <div class="rem-calendar-grid" id="remCalendarGrid"></div>
+          <div id="remCalendarDayList" style="margin-top:16px"></div>
+        </div>
       </div>
       <div class="card">
         <h2>Insurance &amp; Service Overview <span class="muted">all delivered customers, regardless of due date</span></h2>
@@ -1799,7 +1825,111 @@ function renderReminders(){
   const moreWrap = document.getElementById('remMoreWrap');
   if(rem.length > shown.length){ moreWrap.style.display='block'; document.getElementById('remMoreBtn').textContent = `Show more (${rem.length - shown.length} remaining)`; }
   else moreWrap.style.display='none';
+  if(reminderViewMode==='calendar') renderReminderCalendar();
 }
+
+/* ============================= REMINDER CALENDAR VIEW ============================= */
+let reminderViewMode = 'list';
+let remCalMonth = null;
+document.querySelectorAll('#remViewTabs .growth-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#remViewTabs .growth-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    reminderViewMode = btn.dataset.rview;
+    document.getElementById('reminderList').style.display = reminderViewMode==='list' ? '' : 'none';
+    document.getElementById('reminderCalendarWrap').style.display = reminderViewMode==='calendar' ? 'block' : 'none';
+    if(reminderViewMode==='list'){ renderReminders(); }
+    else { if(!remCalMonth) remCalMonth = todayDate(); renderReminderCalendar(); }
+  });
+});
+document.getElementById('remCalPrev').addEventListener('click', ()=>{
+  remCalMonth = new Date(remCalMonth.getFullYear(), remCalMonth.getMonth()-1, 1);
+  renderReminderCalendar();
+});
+document.getElementById('remCalNext').addEventListener('click', ()=>{
+  remCalMonth = new Date(remCalMonth.getFullYear(), remCalMonth.getMonth()+1, 1);
+  renderReminderCalendar();
+});
+document.getElementById('remCalToday').addEventListener('click', ()=>{
+  remCalMonth = todayDate();
+  renderReminderCalendar();
+  const todayKey = todayDate().toISOString().slice(0,10);
+  selectReminderCalDay(todayKey);
+});
+function reminderKeyForDate(d){
+  // Uses LOCAL date parts (not toISOString, which converts to UTC and can
+  // shift the date back a day for timezones ahead of UTC like WIB/WITA/WIT
+  // during early morning hours).
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function renderReminderCalendar(){
+  if(!remCalMonth) remCalMonth = todayDate();
+  const year = remCalMonth.getFullYear(), month = remCalMonth.getMonth();
+  document.getElementById('remCalMonthLabel').textContent = remCalMonth.toLocaleDateString('id-ID', {month:'long', year:'numeric'});
+
+  const rem = computeReminders().filter(r=>reminderActiveCategory==='all' || r.type===reminderActiveCategory);
+  const byDate = {};
+  rem.forEach(r=>{
+    const key = reminderKeyForDate(r.sortDate);
+    (byDate[key] = byDate[key]||[]).push(r);
+  });
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startWeekday = firstOfMonth.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const todayKey = reminderKeyForDate(todayDate());
+  const weekdayLabels = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+  let html = weekdayLabels.map(w=>`<div class="rem-cal-weekday">${w}</div>`).join('');
+  for(let i=0;i<startWeekday;i++) html += `<div class="rem-cal-day other-month"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const key = reminderKeyForDate(new Date(year, month, d));
+    const items = byDate[key] || [];
+    const isToday = key===todayKey;
+    const dots = items.slice(0,4).map(r=>`<span class="rem-cal-dot ${r.urgent?'urgent':''}"></span>`).join('');
+    html += `<div class="rem-cal-day ${isToday?'today':''}" data-date="${key}" onclick="selectReminderCalDay('${key}')">
+      <div>${d}</div>
+      ${items.length ? `<div class="rem-cal-dots">${dots}${items.length>4?`<span class="rem-cal-more">+${items.length-4}</span>`:''}</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('remCalendarGrid').innerHTML = html;
+
+  const dayListEl = document.getElementById('remCalendarDayList');
+  const sameMonth = dayListEl.dataset.selectedDate && dayListEl.dataset.selectedDate.slice(0,7) === `${year}-${String(month+1).padStart(2,'0')}`;
+  if(sameMonth) selectReminderCalDay(dayListEl.dataset.selectedDate);
+  else dayListEl.innerHTML = `<p style="font-size:12.5px;color:var(--muted)">Klik tanggal yang ada titiknya buat lihat detail reminder-nya.</p>`;
+}
+function selectReminderCalDay(dateKey){
+  const dayListEl = document.getElementById('remCalendarDayList');
+  dayListEl.dataset.selectedDate = dateKey;
+  document.querySelectorAll('.rem-cal-day').forEach(el=>el.classList.toggle('selected', el.dataset.date===dateKey));
+
+  const rem = computeReminders().filter(r=>reminderActiveCategory==='all' || r.type===reminderActiveCategory);
+  const items = rem.filter(r=>reminderKeyForDate(r.sortDate)===dateKey);
+  const label = parseDate(dateKey).toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+  if(!items.length){
+    dayListEl.innerHTML = `<div style="font-weight:800;margin-bottom:8px">${label}</div><div class="empty">Tidak ada reminder di tanggal ini.</div>`;
+    return;
+  }
+  dayListEl.innerHTML = `<div style="font-weight:800;margin-bottom:8px">${label}</div>` + items.map(r=>`
+    <div class="rem-item ${r.type} ${r.urgent?'overdue':''}" style="margin-bottom:8px">
+      <div class="rem-emoji">${r.emoji}</div>
+      <div style="flex:1;min-width:0"><div class="rem-title">${r.label}</div><div class="rem-sub">${r.sub}</div></div>
+      ${r.type==='birthday' && r.phone ? `<button class="btn whatsapp sm" onclick="ackBirthday('${r.spkId}',${r.birthdayYear})">💬 Wish on WhatsApp</button>` : ''}
+      ${r.type==='insurance' && r.phone ? `<button class="btn whatsapp sm" onclick="waRemind('${r.phone}','${escapeHtml(r.name)}','insurance')">💬 Remind on WhatsApp</button>` : ''}
+      ${r.type==='insurance' && r.overdue ? `<button class="btn amber sm" onclick="openInsuranceModal('${r.spkId}')">Kelola Asuransi</button>` : ''}
+      ${r.type==='service' && r.phone ? `<button class="btn whatsapp sm" onclick="waRemind('${r.phone}','${escapeHtml(r.name)}','service')">💬 Remind on WhatsApp</button>` : ''}
+      ${r.type==='tenor' && r.phone ? `<button class="btn whatsapp sm" onclick="waRemind('${r.phone}','${escapeHtml(r.name)}','tenor')">💬 Offer on WhatsApp</button>` : ''}
+      ${r.type==='stnk' ? `<button class="btn whatsapp sm" onclick="waStnkAdmin('${r.spkId}')">💬 Follow Up to Admin</button>` : ''}
+      ${r.type==='wallcharging' ? `<button class="btn whatsapp sm" onclick="waWallChargingAdmin('${r.spkId}')">💬 Follow Up to Admin</button>` : ''}
+      ${r.type==='accessory' && r.phone ? `<button class="btn whatsapp sm" onclick="waRemind('${r.phone}','${escapeHtml(r.name)}','accessory')">💬 Notify Customer</button>` : ''}
+      ${r.type==='complaint' && r.phone ? `<button class="btn whatsapp sm" onclick="waRemind('${r.phone}','${escapeHtml(r.name)}','complaint')">💬 Respond on WhatsApp</button>` : ''}
+    </div>
+  `).join('');
+}
+
 async function ackBirthday(spkId, year){
   const s = getSpk(spkId);
   if(!s) return;
