@@ -1190,6 +1190,12 @@ tbody tr:hover{background:#FAFBFE;}
               <span id="aiFollowProviderNote" style="font-size:11.5px;color:var(--muted);margin-left:8px"></span>
             </div>
           </div>
+
+          <div class="card">
+            <h2>📥 Kotak Masuk Telegram <span class="muted" id="tgInboxCount"></span></h2>
+            <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">Lead baru & catatan follow-up yang kamu kirim lewat chat/voice note ke bot Telegram, menunggu dikonfirmasi di sini sebelum masuk data beneran.</p>
+            <div id="telegramInboxList"><div class="empty">Belum ada kiriman dari Telegram.</div></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1496,10 +1502,12 @@ function migrateSettingsDefaults(){
 async function saveLeads(){
   const ok = await storageSet('leads-db', JSON.stringify(state.leads));
   if(!ok) toast('Failed to save leads data','err');
+  scheduleFirebaseSync_();
 }
 async function saveSpk(){
   const ok = await storageSet('spk-db', JSON.stringify(state.spk));
   if(!ok) toast('Failed to save SPK data','err');
+  scheduleFirebaseSync_();
 }
 async function saveAdSpend(){
   const ok = await storageSet('adspend-db', JSON.stringify(state.adSpend));
@@ -1516,10 +1524,12 @@ async function savePurchases(){
 async function saveTestDrives(){
   const ok = await storageSet('testdrives-db', JSON.stringify(state.testDrives));
   if(!ok) toast('Failed to save test drive data','err');
+  scheduleFirebaseSync_();
 }
 async function saveFollowups(){
   const ok = await storageSet('followups-db', JSON.stringify(state.followups));
   if(!ok) toast('Failed to save follow-up data','err');
+  scheduleFirebaseSync_();
 }
 async function saveLeasingContacts(){
   const ok = await storageSet('leasing-contacts-db', JSON.stringify(state.leasingContacts));
@@ -1974,6 +1984,7 @@ document.querySelectorAll('#remFilterChips .chip').forEach(chip=>{
 
 /* ============================= DASHBOARD ============================= */
 function renderDashboard(){
+  if(typeof aiFollowDb!=='undefined' && aiFollowDb) pushDashboardSnapshot_();
   const totalLeads = state.leads.length;
   const totalSpk = state.spk.length;
   const doneDo = state.spk.filter(s=>s.doStatus==='done').length;
@@ -5394,6 +5405,147 @@ function renderAiFollow(){
   sel.innerHTML = state.leads.slice().sort((a,b)=>a.nama.localeCompare(b.nama))
     .map(l=>`<option value="${l.id}">${escapeHtml(displayName(l))} — ${escapeHtml(vehicleLabel(l))}</option>`).join('');
   if(prevVal) sel.value = prevVal;
+
+  pushLeadsSync_();
+  setupTelegramInboxListener_();
+}
+
+/* ---- Sync Drive Desk data to Firebase so the Telegram bot can read it ---- */
+// Called after any save (leads, SPK, followups, test drives) — debounced so
+// several quick saves in a row only trigger one Firebase write, not several.
+let firebaseSyncTimer_ = null;
+function scheduleFirebaseSync_(){
+  if(!aiFollowDb) return; // not configured yet — nothing to sync to
+  if(firebaseSyncTimer_) clearTimeout(firebaseSyncTimer_);
+  firebaseSyncTimer_ = setTimeout(()=>{
+    pushLeadsSync_();
+    pushDashboardSnapshot_();
+  }, 2000);
+}
+function pushLeadsSync_(){
+  if(!aiFollowDb) return;
+  const payload = {};
+  state.leads.forEach(l=>{ payload[l.id] = { nama: l.nama, noTlpn: l.noTlpn||'', kategori: l.kategori||'Warm', jenisKendaraan: l.jenisKendaraan||'' }; });
+  aiFollowDb.ref('leads_sync').set(payload).catch(e=>console.error('pushLeadsSync_ failed', e));
+}
+function pushDashboardSnapshot_(){
+  if(!aiFollowDb) return;
+  const today = todayDate();
+  const priorityRows = state.leads.filter(l=>l.status!=='spk' && l.kategori!=='Lost')
+    .map(l=>{ const s=leadScore(l); return { lead:l, score:s.score, tier:scoreTier(s.score) }; });
+  const hotRows = priorityRows.filter(r=>r.tier.key==='hot').sort((a,b)=>b.score-a.score);
+
+  const stnkOverdue = deliveredSpkList().filter(s=>progressOverdueDays(s, today) > 0).length;
+
+  const tdNeedFollowup = state.testDrives.filter(td=>{
+    const d = diffDays(today, parseDate(td.date));
+    return (d>=1 && !td.followUp1Done) || (d>=3 && !td.followUp3Done);
+  }).length;
+
+  const annCount = deliveredSpkList().filter(s=>{
+    const info = purchaseAnniversaryInfo(s, today);
+    return info && Math.abs(info.diffDays) <= 14;
+  }).length;
+
+  const reviewReady = state.spk.filter(s=>isDeliveryComplete(s) && !s.reviewRequested).length;
+
+  aiFollowDb.ref('dashboard_snapshot').set({
+    priorityCount: hotRows.length,
+    topPriorityNames: hotRows.slice(0,3).map(r=>displayName(r.lead)),
+    stnkOverdueCount: stnkOverdue,
+    testDriveFollowupCount: tdNeedFollowup,
+    anniversaryCount: annCount,
+    reviewReadyCount: reviewReady,
+    generatedAt: new Date().toISOString(),
+  }).catch(e=>console.error('pushDashboardSnapshot_ failed', e));
+}
+
+/* ---- Telegram Inbox: leads/notes captured via chat or voice, waiting for confirmation ---- */
+let telegramInboxRef = null;
+function setupTelegramInboxListener_(){
+  if(!aiFollowDb || telegramInboxRef) return; // only attach once per session
+  telegramInboxRef = aiFollowDb.ref('telegram_inbox');
+  telegramInboxRef.on('value', (snap)=>{
+    const items = snap.val() || {};
+    renderTelegramInbox_(items);
+  });
+}
+function renderTelegramInbox_(items){
+  const ids = Object.keys(items);
+  const countEl = document.getElementById('tgInboxCount');
+  const listEl = document.getElementById('telegramInboxList');
+  if(!countEl || !listEl) return; // view not mounted right now
+  countEl.textContent = ids.length ? `(${ids.length} menunggu)` : '';
+  if(!ids.length){ listEl.innerHTML = `<div class="empty">Belum ada kiriman dari Telegram.</div>`; return; }
+
+  const sorted = ids.map(id=>({id, ...items[id]})).sort((a,b)=>parseDate(b.createdAt)-parseDate(a.createdAt));
+  listEl.innerHTML = sorted.map(item=>{
+    if(item.type==='new_lead'){
+      const d = item.data||{};
+      return `<div class="rem-item do" style="margin-bottom:10px">
+        <div class="rem-emoji">📇</div>
+        <div style="flex:1">
+          <div class="rem-title">Lead baru: ${escapeHtml(d.nama||'(nama tidak terbaca)')}</div>
+          <div class="rem-sub">${escapeHtml(d.noTlpn||'-')} · ${escapeHtml(d.jenisKendaraan||'-')} · ${escapeHtml(d.kategori||'Warm')} · sumber: ${escapeHtml(d.sumber||'Telegram')}${d.notes?' · '+escapeHtml(d.notes):''}</div>
+        </div>
+        <button class="btn green sm" onclick="importTelegramLead_('${item.id}')">✅ Import</button>
+        <button class="btn ghost sm" onclick="dismissTelegramInbox_('${item.id}')">Abaikan</button>
+      </div>`;
+    }
+    const d = item.data||{};
+    return `<div class="rem-item stnk" style="margin-bottom:10px">
+      <div class="rem-emoji">📝</div>
+      <div style="flex:1">
+        <div class="rem-title">Catatan: ${escapeHtml(d.leadName||'(customer tidak terdeteksi)')}</div>
+        <div class="rem-sub">${escapeHtml(d.situation||item.rawText||'-')}</div>
+      </div>
+      <button class="btn green sm" onclick="importTelegramNote_('${item.id}')">✅ Import</button>
+      <button class="btn ghost sm" onclick="dismissTelegramInbox_('${item.id}')">Abaikan</button>
+    </div>`;
+  }).join('');
+}
+async function importTelegramLead_(inboxId){
+  if(!aiFollowDb) return;
+  const snap = await aiFollowDb.ref('telegram_inbox/'+inboxId).once('value');
+  const item = snap.val();
+  if(!item){ toast('Item sudah tidak ada','err'); return; }
+  const d = item.data||{};
+  if(!d.nama){ toast('Nama lead kosong, tidak bisa diimport','err'); return; }
+  state.leads.push({
+    id: uid(), nama: d.nama, noTlpn: d.noTlpn||'',
+    kategori: CUSTOMER_CATEGORIES.includes(d.kategori) ? d.kategori : 'Warm',
+    jenisKendaraan: d.jenisKendaraan||'',
+    sumber: d.sumber || 'Telegram', sumberDetail: '',
+    notes: d.notes||'', status:'lead',
+    createdAt: todayISO(), addedAt: new Date().toISOString(),
+  });
+  await saveLeads();
+  await aiFollowDb.ref('telegram_inbox/'+inboxId).remove();
+  toast('Lead berhasil diimport');
+  renderLeads(); renderAiFollow();
+}
+async function importTelegramNote_(inboxId){
+  if(!aiFollowDb) return;
+  const snap = await aiFollowDb.ref('telegram_inbox/'+inboxId).once('value');
+  const item = snap.val();
+  if(!item){ toast('Item sudah tidak ada','err'); return; }
+  const d = item.data||{};
+  let lead = d.leadId ? getLead(d.leadId) : null;
+  if(!lead && d.leadName){
+    const needle = d.leadName.toLowerCase();
+    lead = state.leads.find(l=>l.nama.toLowerCase().includes(needle) || needle.includes(l.nama.toLowerCase()));
+  }
+  if(!lead){ toast('Customer tidak ketemu, cocokkan manual dulu di menu Leads','err'); return; }
+  state.followups.push({ id: uid(), leadId: lead.id, date: todayISO(), method:'Telegram', notes: d.situation||item.rawText||'', result:'', createdAt: new Date().toISOString() });
+  await saveFollowups();
+  await aiFollowDb.ref('telegram_inbox/'+inboxId).remove();
+  toast('Catatan berhasil diimport ke '+displayName(lead));
+  renderAiFollow();
+}
+async function dismissTelegramInbox_(inboxId){
+  if(!aiFollowDb) return;
+  await aiFollowDb.ref('telegram_inbox/'+inboxId).remove();
+  toast('Diabaikan');
 }
 
 document.getElementById('btnGenerateAiFollow').addEventListener('click', ()=>{
