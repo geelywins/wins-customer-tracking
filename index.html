@@ -2114,7 +2114,7 @@ document.querySelectorAll('#remFilterChips .chip').forEach(chip=>{
 
 /* ============================= DASHBOARD ============================= */
 function renderDashboard(){
-  if(typeof aiFollowDb!=='undefined' && aiFollowDb) pushDashboardSnapshot_();
+  if(typeof aiFollowDb!=='undefined' && aiFollowDb){ pushDashboardSnapshot_(); pushRemindersSync_(); }
   const totalLeads = state.leads.length;
   const totalSpk = state.spk.length;
   const doneDo = state.spk.filter(s=>s.doStatus==='done').length;
@@ -5550,6 +5550,7 @@ function scheduleFirebaseSync_(){
   firebaseSyncTimer_ = setTimeout(()=>{
     pushLeadsSync_();
     pushDashboardSnapshot_();
+    pushRemindersSync_();
   }, 2000);
 }
 function pushLeadsSync_(){
@@ -5557,6 +5558,22 @@ function pushLeadsSync_(){
   const payload = {};
   state.leads.forEach(l=>{ payload[l.id] = { nama: l.nama, noTlpn: l.noTlpn||'', kategori: l.kategori||'Warm', jenisKendaraan: l.jenisKendaraan||'' }; });
   aiFollowDb.ref('leads_sync').set(payload).catch(e=>console.error('pushLeadsSync_ failed', e));
+}
+function pushRemindersSync_(){
+  // Pushes the current reminders list to Firebase (key = type+id+date, so the
+  // same reminder always maps to the same key) so the Telegram bot can spot
+  // urgent ones and push a notification, without duplicating the whole
+  // reminders logic on the Apps Script side.
+  if(!aiFollowDb) return;
+  const rem = computeReminders();
+  const payload = {};
+  rem.forEach(r=>{
+    const dateKey = reminderKeyForDate(r.sortDate);
+    const rawKey = `${r.type}_${r.spkId||r.name||'x'}_${dateKey}`;
+    const key = rawKey.replace(/[.#$\[\]/\s]/g, '_');
+    payload[key] = { type:r.type, label:r.label, sub:r.sub, urgent:!!r.urgent, date:dateKey };
+  });
+  aiFollowDb.ref('reminders_sync').set(payload).catch(e=>console.error('pushRemindersSync_ failed', e));
 }
 function pushDashboardSnapshot_(){
   if(!aiFollowDb) return;
