@@ -242,6 +242,21 @@ tbody tr:hover{background:#FAFBFE;}
 .film-sides{display:flex;flex-direction:column;gap:10px;}
 .film-side{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fbfcfe;}
 .film-side-label{font-size:12.5px;font-weight:700;margin-bottom:6px;}
+.nav-badge{margin-left:auto;background:var(--amber);color:#fff;border-radius:10px;font-size:11px;font-weight:800;padding:0 7px;line-height:18px;}
+.nav-badge:empty{display:none;}
+.pos-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;background:#EEF1F6;flex:none;}
+.pos-thumb-empty{display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted);font-weight:700;}
+.pos-imgs{display:flex;gap:8px;flex-wrap:wrap;}
+.pos-imgbox{position:relative;}
+.pos-imgfull{width:92px;height:92px;border-radius:10px;object-fit:cover;background:#EEF1F6;display:block;}
+.pos-imgdel{all:unset;cursor:pointer;position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;font-size:12px;line-height:22px;}
+.pos-imgadd{all:unset;cursor:pointer;box-sizing:border-box;width:92px;height:92px;border:1.5px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:var(--blue);}
+.pos-banner-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px dashed var(--line);flex-wrap:wrap;}
+.pos-banner-img{width:150px;height:62px;border-radius:8px;object-fit:cover;background:#EEF1F6;}
+.pos-banner-preview{width:100%;max-height:220px;border-radius:10px;object-fit:cover;background:#EEF1F6;display:block;}
+.pos-qris{width:150px;height:150px;border-radius:10px;object-fit:contain;background:#EEF1F6;border:1px solid var(--line);}
+.pos-code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#F4F6FA;border:1px solid var(--line);border-radius:8px;padding:9px 11px;word-break:break-all;}
+.pos-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;color:var(--c);background:color-mix(in srgb, var(--c) 12%, white);}
 .ex-checks{display:flex;flex-wrap:wrap;gap:8px;}
 .ex-check{display:flex;align-items:center;gap:6px;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;}
 .ex-calc{font-size:12.5px;margin-top:12px;padding:10px 12px;background:#EDF1FB;border-radius:9px;line-height:1.6;}
@@ -333,6 +348,7 @@ tbody tr:hover{background:#FAFBFE;}
       <button data-view="reports"><span class="nav-ico">▤</span> Reports</button>
       <button data-view="contacts"><span class="nav-ico">📇</span> Contacts</button>
       <button data-view="growth"><span class="nav-ico">🚀</span> Growth Tools</button>
+      <button data-view="toko"><span class="nav-ico">🛍️</span> Toko Online <span class="nav-badge" id="navTokoBadge"></span></button>
       <button data-view="settings"><span class="nav-ico">⚙</span> Settings</button>
     </div>
     <div class="sidebar-foot">Single-user workspace<br>Data stored privately in this app<br><span style="opacity:.8">Dibuat oleh Wins Geely</span></div>
@@ -1321,6 +1337,91 @@ tbody tr:hover{background:#FAFBFE;}
     </div>
 
     <!-- SETTINGS -->
+    <!-- TOKO ONLINE (backend) -->
+    <div class="view" id="view-toko">
+      <div id="posNoFb" class="card" style="display:none">
+        <h2>Hubungkan Firebase dulu</h2>
+        <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Toko online membaca katalog dan mengirim pesanan lewat Firebase Realtime Database yang sama dengan Drive Desk. Isi config Firebase di Settings, lalu kembali ke sini.</p>
+        <button class="btn" onclick="goTo('settings')">Buka Settings</button>
+      </div>
+      <div id="posMain">
+        <div class="card pos-status" id="posStatus"></div>
+        <div class="growth-tabs" id="posTabs">
+          <button class="growth-tab active" data-ptab="orders">🧾 Pesanan <span id="posNewBadge"></span></button>
+          <button class="growth-tab" data-ptab="products">📦 Produk</button>
+          <button class="growth-tab" data-ptab="banners">🖼️ Banner</button>
+          <button class="growth-tab" data-ptab="payship">💳 Pembayaran &amp; Pengiriman</button>
+          <button class="growth-tab" data-ptab="store">🏪 Pengaturan Toko</button>
+        </div>
+        <div class="pos-panel" id="ppanel-orders">
+          <div class="toolbar">
+            <input type="search" id="posOrderSearch" placeholder="Cari no. pesanan, nama, WA...">
+            <select id="posOrderStatus"><option value="">Semua status</option></select>
+          </div>
+          <div class="card"><div id="posOrderList"></div></div>
+        </div>
+        <div class="pos-panel" id="ppanel-products" style="display:none">
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">🪟 Kaca Film <span class="muted">harga &amp; kegelapan diambil dari Vendor &amp; Pricelist</span></h2>
+              <button class="btn ghost sm" onclick="goTo('growth');setTimeout(()=>{document.querySelector('[data-gtab=existing]').click();exGoVendor();},50)">Atur harga ›</button></div>
+            <div id="posFilmList"></div>
+          </div>
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">🧶 Karpet Custom</h2><button class="btn sm" onclick="posCarpetForm()">+ Brand Karpet</button></div>
+            <div id="posCarpetList"></div>
+          </div>
+        </div>
+        <div class="pos-panel" id="ppanel-banners" style="display:none">
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">Banner Promosi <span class="muted">slide besar di halaman depan · ideal 1200×500</span></h2><button class="btn sm" onclick="posBannerForm('promo')">+ Banner</button></div>
+            <div id="posBannerPromo"></div>
+          </div>
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">Banner Iklan <span class="muted">strip iklan di antara produk · ideal 800×300</span></h2><button class="btn sm" onclick="posBannerForm('iklan')">+ Banner</button></div>
+            <div id="posBannerIklan"></div>
+          </div>
+        </div>
+        <div class="pos-panel" id="ppanel-payship" style="display:none">
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">Rekening Transfer</h2><button class="btn sm" onclick="posBankForm()">+ Rekening</button></div>
+            <div id="posBankList"></div>
+          </div>
+          <div class="card">
+            <h2>QRIS &amp; Bayar di Dealer</h2>
+            <div id="posQris"></div>
+          </div>
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">Opsi Pengiriman / Pemasangan</h2><button class="btn sm" onclick="posShipForm()">+ Opsi</button></div>
+            <div id="posShipList"></div>
+          </div>
+        </div>
+        <div class="pos-panel" id="ppanel-store" style="display:none">
+          <div class="card">
+            <h2>Identitas Toko</h2>
+            <div class="form-grid">
+              <div class="field"><label>Nama Toko</label><input type="text" id="pos_name"></div>
+              <div class="field"><label>Tagline</label><input type="text" id="pos_tagline"></div>
+              <div class="field"><label>WhatsApp Admin</label><input type="text" id="pos_wa" placeholder="08xx"></div>
+              <div class="field"><label>Alamat Dealer</label><input type="text" id="pos_address"></div>
+              <div class="field full"><label>Link Toko (tempat file toko.html di-hosting)</label><input type="url" id="pos_url" placeholder="https://username.github.io/toko/"></div>
+            </div>
+            <div class="section-title">Logo</div>
+            <div id="posLogo"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="posStoreSave">Simpan</button></div>
+          </div>
+          <div class="card">
+            <h2>Menghubungkan toko.html</h2>
+            <p style="font-size:13px;color:var(--muted);margin:0 0 8px">Toko cukup tahu alamat database Firebase. Pilih salah satu:</p>
+            <p style="font-size:13px;margin:0 0 6px">Tempel alamat ini di baris <code>const DB_URL = ''</code> di toko.html:</p>
+            <div class="pos-code" id="posDbUrl"></div>
+            <p style="font-size:13px;margin:12px 0 6px">Atau bagikan link toko yang sudah membawa alamat database:</p>
+            <div class="pos-code" id="posShareLink"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn ghost sm" onclick="posCopy('posDbUrl')">Salin alamat database</button><button class="btn ghost sm" onclick="posCopy('posShareLink')">Salin link toko</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="view" id="view-settings">
       <div class="card">
         <h2>Vehicle Types</h2>
@@ -1682,6 +1783,7 @@ async function saveInsuranceContacts(){
 async function saveSettings(){
   const ok = await storageSet('settings-db', JSON.stringify(state.settings));
   if(!ok) toast('Failed to save settings','err');
+  if(typeof schedulePosPublish_==='function') schedulePosPublish_();
 }
 
 /* ============================= TOAST ============================= */
@@ -1731,6 +1833,7 @@ const titles = {
   reports:['Reports','Monthly performance, conversion charts and exports'],
   contacts:['Contacts','Leasing CMO and insurance contacts, one tap to WhatsApp'],
   growth:['Growth Tools','Lead prioritas, simulasi cicilan, dan WhatsApp broadcast tersegmentasi'],
+  toko:['Toko Online','Katalog, banner, pembayaran dan pesanan toko aksesoris'],
   settings:['Settings','Manage dropdown lists and reminder rules']
 };
 document.getElementById('navList').addEventListener('click', (e)=>{
@@ -1767,6 +1870,7 @@ function goTo(view){
   if(view==='reports') renderReports();
   if(view==='contacts') renderContacts();
   if(view==='growth') renderGrowth();
+  if(view==='toko') renderToko();
   if(view==='settings') renderSettings();
 }
 document.getElementById('bellBtn').addEventListener('click', ()=>goTo('dashboard'));
@@ -5366,8 +5470,16 @@ function exRows(){ return state.spk.map(s=>({ s, l:getLead(s.leadId), ins:exInsI
 /* insurance setup per vendor: { mode, perluasan:[{id,name,value}], models:{ [model]:{allRisk, lengkap} } } */
 function exInsSetup(vendor){
   state.settings.insuranceSetup = state.settings.insuranceSetup || {};
-  if(!state.settings.insuranceSetup[vendor]) state.settings.insuranceSetup[vendor] = { mode:'persen', perluasan:[], perluasanReady:false, models:{} };
-  return state.settings.insuranceSetup[vendor];
+  if(!state.settings.insuranceSetup[vendor]) state.settings.insuranceSetup[vendor] = { mode:'nominal', perluasan:[], perluasanReady:false, models:{} };
+  const st = state.settings.insuranceSetup[vendor];
+  if(st.mode!=='nominal'){
+    // premi sekarang hanya nominal Rp — angka rate % lama tidak bisa dipakai sebagai Rupiah, jadi dikosongkan
+    st.mode = 'nominal';
+    (st.perluasan||[]).forEach(p=>{ p.value = ''; });
+    st.models = {};
+    st.needsReprice = true;
+  }
+  return st;
 }
 function exFmtVal(mode, v){ return mode==='persen' ? `${Number(v)||0}%` : exRp(v); }
 
@@ -5908,7 +6020,7 @@ function exFilmVendorsHtml(){
 /* voucher promo */
 function exVouchersHtml(){
   const list = state.settings.vouchers||[];
-  const scopeLbl = { kacafilm:'Kaca Film', coating:'Coating' };
+  const scopeLbl = { kacafilm:'Kaca Film', coating:'Coating', karpet:'Karpet (toko)' };
   return list.length ? list.map(v=>`<div class="vd-item"><div><strong>🎟️ ${escapeHtml(v.name)}</strong> ${v.active===false?'<span class="pill">nonaktif</span>':''}
       <div class="ex-sub">${scopeLbl[v.scope]||v.scope} · ${v.vendor?escapeHtml(v.vendor):'semua vendor'} · ${exVoucherTag(v)}</div></div>
       <div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="exVoucherForm('${v.id}')">✏️</button><button class="btn ghost sm" onclick="exVoucherDelete('${v.id}')">🗑</button></div></div>`).join('')
@@ -5916,11 +6028,11 @@ function exVouchersHtml(){
 }
 function exVoucherForm(id){
   const v = (state.settings.vouchers||[]).find(x=>x.id===id) || { scope:'kacafilm', type:'persen', active:true };
-  const vendorOpts = scope => (scope==='coating' ? (state.settings.coatingVendors||[]) : (state.settings.windowFilmBrands||[]));
+  const vendorOpts = scope => (scope==='coating' ? (state.settings.coatingVendors||[]) : scope==='karpet' ? posCfg().carpets.map(c=>c.name) : (state.settings.windowFilmBrands||[]));
   openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Voucher</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
       <div class="field full"><label>Nama Voucher</label><input type="text" id="exvc_name" value="${escapeHtml(v.name||'')}" placeholder="mis. Promo Oktober"></div>
-      <div class="field"><label>Berlaku Untuk</label><select id="exvc_scope"><option value="kacafilm" ${v.scope==='kacafilm'?'selected':''}>Kaca Film</option><option value="coating" ${v.scope==='coating'?'selected':''}>Coating</option></select></div>
+      <div class="field"><label>Berlaku Untuk</label><select id="exvc_scope"><option value="kacafilm" ${v.scope==='kacafilm'?'selected':''}>Kaca Film</option><option value="coating" ${v.scope==='coating'?'selected':''}>Coating</option><option value="karpet" ${v.scope==='karpet'?'selected':''}>Karpet (toko online)</option></select></div>
       <div class="field"><label>Brand / Vendor</label><select id="exvc_vendor"></select></div>
       <div class="field"><label>Jenis Potongan</label><select id="exvc_type"><option value="persen" ${v.type==='persen'?'selected':''}>Persen (%)</option><option value="nominal" ${v.type==='nominal'?'selected':''}>Nominal (Rp)</option></select></div>
       <div class="field"><label>Nilai Potongan</label><input type="number" min="0" step="any" id="exvc_value" value="${v.value??''}"></div>
@@ -5965,7 +6077,7 @@ function renderExVendors(){
     return `<div class="vd-vendor">
       <div class="vd-head">
         <div><strong>${escapeHtml(v)}</strong>
-          <div class="ex-sub">${filled}/${models.length} seri terisi · ${st.perluasanReady&&st.perluasan.length?`${st.perluasan.length} perluasan`:'<span class="st-warn">perluasan belum di-setup</span>'} · ${st.mode==='persen'?'rate %':'nominal Rp'}</div></div>
+          <div class="ex-sub">${filled}/${models.length} seri terisi · ${st.perluasanReady&&st.perluasan.length?`${st.perluasan.length} perluasan`:'<span class="st-warn">perluasan belum di-setup</span>'}${st.needsReprice?' · <span class="st-warn">isi ulang harga (Rp)</span>':''}</div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn sm ${open?'ghost':'green'}" onclick="exToggleVendor(decodeURIComponent('${exEnc(v)}'))">${open?'Tutup':'Setup Harga'}</button>
           <button class="btn ghost sm" onclick="exVendorForm('ins',decodeURIComponent('${exEnc(v)}'))">✏️</button>
@@ -6003,8 +6115,8 @@ function exInsSetupHtml(v){
   const unit = st.mode==='persen' ? '%' : 'Rp';
   const perl = st.perluasanReady ? st.perluasan : (st.perluasan.length ? st.perluasan : EX_DEFAULT_PERLUASAN.map(n=>({id:uid(), name:n, value:''})));
   return `<div class="ins-setup" id="insSetup">
-    <div class="field" style="max-width:260px;margin:8px 0 12px"><label>Cara Hitung Premi</label>
-      <select id="iss_mode"><option value="persen" ${st.mode==='persen'?'selected':''}>Rate % dari nilai pertanggungan / tahun</option><option value="nominal" ${st.mode==='nominal'?'selected':''}>Nominal Rp / tahun</option></select></div>
+    <p class="ex-sub" style="margin:8px 0 12px">Semua harga diisi dalam <strong>Rupiah per tahun</strong>.</p>
+    ${st.needsReprice ? `<p style="font-size:12.5px;color:var(--amber);font-weight:600;margin:0 0 10px">Harga lama berupa rate % sudah dikosongkan — isi ulang dalam Rupiah.</p>` : ''}
     <div class="section-title" style="margin-top:4px">1. Jenis Perluasan ${st.perluasanReady?'':'<span class="st-warn" style="text-transform:none;letter-spacing:0">— wajib di-set pertama kali</span>'}</div>
     <div id="iss_perl">${perl.map(p=>`<div class="iss-row" data-id="${p.id}">
       <input type="text" class="iss-pname" value="${escapeHtml(p.name)}" placeholder="Nama perluasan">
@@ -6025,7 +6137,7 @@ function exInsSetupHtml(v){
 function exBindInsSetup(v){
   const wrap = document.getElementById('insSetup'); if(!wrap) return;
   document.getElementById('iss_addPerl').addEventListener('click', ()=>{
-    document.getElementById('iss_perl').insertAdjacentHTML('beforeend', `<div class="iss-row" data-id="${uid()}"><input type="text" class="iss-pname" placeholder="Nama perluasan"><input type="number" step="any" min="0" class="iss-pval" placeholder="${document.getElementById('iss_mode').value==='persen'?'%':'Rp'}"><button class="btn ghost sm" onclick="this.closest('.iss-row').remove()">🗑</button></div>`);
+    document.getElementById('iss_perl').insertAdjacentHTML('beforeend', `<div class="iss-row" data-id="${uid()}"><input type="text" class="iss-pname" placeholder="Nama perluasan"><input type="number" step="any" min="0" class="iss-pval" placeholder="Rp"><button class="btn ghost sm" onclick="this.closest('.iss-row').remove()">🗑</button></div>`);
   });
   document.getElementById('iss_save').addEventListener('click', async ()=>{
     const st = exInsSetup(v);
@@ -6045,7 +6157,7 @@ function exBindInsSetup(v){
       if(ar!=='' || lk!=='') models[tr.dataset.model] = { allRisk: ar===''?null:Number(ar), lengkap: lk===''?null:Number(lk) };
     });
     Object.keys(st.models).forEach(m=>{ if(!(state.settings.kendaraan||[]).includes(m) && !models[m]) models[m] = st.models[m]; });
-    st.mode = document.getElementById('iss_mode').value;
+    st.mode = 'nominal'; delete st.needsReprice;
     st.perluasan = perl; st.perluasanReady = true; st.models = models;
     await saveSettings();
     toast(`Setup ${v} disimpan`);
@@ -6477,6 +6589,512 @@ async function sendBroadcastOne(leadId){
   renderPriorityLeads();
 }
 
+/* ============================= TOKO ONLINE (backend POS) ============================= */
+const POS_STATUS = [
+  { key:'baru', label:'Menunggu Pembayaran', color:'var(--amber)' },
+  { key:'dibayar', label:'Pembayaran Dikonfirmasi', color:'var(--blue)' },
+  { key:'diproses', label:'Diproses / Dijadwalkan', color:'var(--purple)' },
+  { key:'dikirim', label:'Dikirim / Siap Dipasang', color:'var(--cyan)' },
+  { key:'selesai', label:'Selesai', color:'var(--green)' },
+  { key:'batal', label:'Dibatalkan', color:'var(--red)' }
+];
+const POS_DEFAULT = {
+  store:{ name:'Geely Aksesoris', tagline:'Aksesoris resmi dealer Geely BSD City & Tanah Abang', wa:'', address:'', logo:'', url:'' },
+  film:{},
+  carpets:[{ id:'carpet_engraver', name:'Engraver', active:true, desc:'Karpet custom presisi mengikuti lekuk lantai kabin Geely, bahan tebal dan mudah dibersihkan.', images:[],
+    packages:['Kabin','Kabin + Bagasi'], colors:['Hitam','Hitam List Merah','Cokelat'], prices:{} }],
+  banners:[],
+  payments:{ banks:[], qris:'', payAtDealer:true },
+  shipping:[
+    { id:'ship_bsd', name:'Pasang di Dealer BSD City', fee:0, applies:'all', needsAddress:false, note:'Dipasang teknisi dealer, jadwal dikonfirmasi admin' },
+    { id:'ship_ta', name:'Pasang di Dealer Tanah Abang', fee:0, applies:'all', needsAddress:false, note:'' },
+    { id:'ship_kurir', name:'Kirim via Kurir', fee:50000, applies:'karpet', needsAddress:true, note:'Khusus karpet, estimasi 2–4 hari' }
+  ]
+};
+let posOrders = {};
+let posOrdersRef = null;
+let posImgCache = {};
+let posPublishTimer = null;
+let posLastPublish = null;
+
+function posCfg(){
+  if(!state.settings.pos) state.settings.pos = JSON.parse(JSON.stringify(POS_DEFAULT));
+  const p = state.settings.pos;
+  Object.keys(POS_DEFAULT).forEach(k=>{ if(p[k]===undefined) p[k] = JSON.parse(JSON.stringify(POS_DEFAULT[k])); });
+  return p;
+}
+function posReady(){ if(!aiFollowDb && aiFollowIsConfigured()) initAiFollowFirebase(false); return !!aiFollowDb; }
+async function posSave(){ await saveSettings(); }
+function posEsc(v){ return escapeHtml(v==null?'':String(v)); }
+
+/* ---- gambar: dikompres di browser lalu disimpan di Firebase (pos/images/{id}) ---- */
+function posPickImage(maxW, quality){
+  return new Promise((resolve)=>{
+    const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+    inp.onchange = ()=>{
+      const f = inp.files[0]; if(!f) return resolve(null);
+      const rd = new FileReader();
+      rd.onload = ()=>{
+        const img = new Image();
+        img.onload = ()=>{
+          const scale = Math.min(1, maxW/img.width);
+          const c = document.createElement('canvas'); c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
+          const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height);
+          resolve(c.toDataURL('image/jpeg', quality||0.75));
+        };
+        img.onerror = ()=>{ toast('File bukan gambar yang valid','err'); resolve(null); };
+        img.src = rd.result;
+      };
+      rd.readAsDataURL(f);
+    };
+    inp.click();
+  });
+}
+async function posUploadImage(maxW){
+  if(!posReady()){ toast('Firebase belum terhubung','err'); return null; }
+  const data = await posPickImage(maxW||900, 0.75); if(!data) return null;
+  const id = 'img_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  try{ await aiFollowDb.ref('pos/images/'+id).set(data); posImgCache[id]=data; return id; }
+  catch(e){ console.error(e); toast('Gagal upload gambar ke Firebase','err'); return null; }
+}
+function posDeleteImage(id){ if(id && aiFollowDb) aiFollowDb.ref('pos/images/'+id).remove().catch(()=>{}); delete posImgCache[id]; }
+async function posImgSrc(id){
+  if(!id) return '';
+  if(posImgCache[id]) return posImgCache[id];
+  if(!aiFollowDb) return '';
+  try{ const snap = await aiFollowDb.ref('pos/images/'+id).once('value'); posImgCache[id] = snap.val()||''; return posImgCache[id]; }catch(e){ return ''; }
+}
+function posHydrateImages(root){
+  (root||document).querySelectorAll('img[data-pimg]').forEach(async el=>{ const src = await posImgSrc(el.dataset.pimg); if(src) el.src = src; });
+}
+function posThumb(id, cls){ return `<img class="${cls||'pos-thumb'}" data-pimg="${id}" alt="">`; }
+
+/* ---- publish katalog ke Firebase (dibaca toko.html) ---- */
+function posBuildCatalog(){
+  const p = posCfg();
+  const brands = (state.settings.windowFilmBrands||[]).map(b=>{
+    const cfg = exFilmCfg(b); const meta = p.film[b] || {};
+    if(meta.active===false || !Object.values(cfg.prices).some(v=>Number(v)>0)) return null;
+    return { name:b, desc:meta.desc||'', badge:meta.badge||'', images:meta.images||[], prices:cfg.prices, shades:cfg.shades };
+  }).filter(Boolean);
+  const carpets = p.carpets.filter(c=>c.active!==false && Object.keys(c.prices||{}).length).map(c=>({ id:c.id, name:c.name, desc:c.desc||'', images:c.images||[], packages:c.packages||[], colors:c.colors||[], prices:c.prices||{} }));
+  const vouchers = (state.settings.vouchers||[]).filter(v=>v.active!==false && (v.scope==='kacafilm'||v.scope==='karpet'))
+    .map(v=>({ id:v.id, name:v.name, scope:v.scope, vendor:v.vendor||'', type:v.type, value:Number(v.value)||0 }));
+  return {
+    v:1, updatedAt: new Date().toISOString(),
+    store: p.store, models: state.settings.kendaraan||[],
+    film:{ sides: EX_FILM_SIDES, packages: EX_FILM_PACKAGES, brands },
+    carpets, vouchers,
+    banners: p.banners.filter(b=>b.active!==false && b.img),
+    payments: p.payments, shipping: p.shipping
+  };
+}
+function schedulePosPublish_(){
+  if(!aiFollowDb || !state.settings.pos) return;
+  clearTimeout(posPublishTimer);
+  posPublishTimer = setTimeout(()=>posPublish(false), 1500);
+}
+async function posPublish(showToast){
+  if(!posReady()){ if(showToast) toast('Firebase belum terhubung','err'); return; }
+  try{
+    await aiFollowDb.ref('pos/catalog').set(JSON.parse(JSON.stringify(posBuildCatalog())));
+    posLastPublish = new Date();
+    if(showToast) toast('Katalog toko diperbarui');
+  }catch(e){ console.error(e); toast('Gagal update katalog toko — cek rules Firebase','err'); }
+  posRenderStatus();
+}
+function posRenderStatus(){
+  const el = document.getElementById('posStatus'); if(!el) return;
+  const cat = posBuildCatalog();
+  const url = posCfg().store.url;
+  el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div><strong>${aiFollowDb?'🟢 Tersambung ke toko':'🔴 Firebase belum tersambung'}</strong>
+      <div class="ex-sub">${cat.film.brands.length} brand kaca film · ${cat.carpets.length} karpet · ${cat.banners.length} banner aktif${posLastPublish?` · update terakhir ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost sm" onclick="posPublish(true)">↻ Update katalog sekarang</button>
+      ${url?`<a class="btn sm" href="${posEsc(posShareLink())}" target="_blank">Buka toko</a>`:''}
+    </div></div>`;
+}
+
+/* ---- navigasi tab ---- */
+document.getElementById('posTabs').addEventListener('click', e=>{
+  const b = e.target.closest('.growth-tab'); if(!b) return;
+  document.querySelectorAll('#posTabs .growth-tab').forEach(x=>x.classList.toggle('active', x===b));
+  document.querySelectorAll('.pos-panel').forEach(pn=>pn.style.display = pn.id==='ppanel-'+b.dataset.ptab ? '' : 'none');
+  renderToko();
+});
+function posActiveTab(){ const b = document.querySelector('#posTabs .growth-tab.active'); return b ? b.dataset.ptab : 'orders'; }
+function renderToko(){
+  const ok = posReady();
+  document.getElementById('posNoFb').style.display = ok ? 'none' : '';
+  document.getElementById('posMain').style.display = ok ? '' : 'none';
+  if(!ok) return;
+  posCfg(); posListenOrders(); posRenderStatus();
+  const t = posActiveTab();
+  if(t==='orders') posRenderOrders();
+  if(t==='products'){ posRenderFilm(); posRenderCarpets(); }
+  if(t==='banners') posRenderBanners();
+  if(t==='payship') posRenderPayShip();
+  if(t==='store') posRenderStore();
+}
+
+/* ---- Produk: kaca film ---- */
+function posRenderFilm(){
+  const p = posCfg();
+  const brands = state.settings.windowFilmBrands||[];
+  document.getElementById('posFilmList').innerHTML = brands.length ? brands.map(b=>{
+    const cfg = exFilmCfg(b); const meta = p.film[b] || {};
+    const prices = Object.values(cfg.prices).filter(v=>Number(v)>0);
+    const on = meta.active!==false;
+    return `<div class="vd-vendor"><div class="vd-head">
+      <div style="display:flex;gap:10px;align-items:center">${(meta.images||[])[0]?posThumb(meta.images[0]):'<div class="pos-thumb pos-thumb-empty">🪟</div>'}
+        <div><strong>${posEsc(b)}</strong>${meta.badge?` <span class="pill lead">${posEsc(meta.badge)}</span>`:''}
+        <div class="ex-sub">${prices.length?`mulai ${exRp(Math.min(...prices))} · ${prices.length} paket`:'<span class="st-warn">harga belum di-setup — tidak tampil di toko</span>'}${prices.length?(on?' · tampil di toko':' · disembunyikan'):''}</div></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost sm" onclick="posFilmForm(decodeURIComponent('${exEnc(b)}'))">✏️ Info &amp; foto</button>
+        <button class="btn sm ${on?'ghost':'green'}" onclick="posFilmToggle(decodeURIComponent('${exEnc(b)}'))">${on?'Sembunyikan':'Tampilkan'}</button>
+      </div></div></div>`;
+  }).join('') : '<div class="empty">Belum ada brand kaca film.</div>';
+  posHydrateImages(document.getElementById('posFilmList'));
+}
+async function posFilmToggle(b){ const p = posCfg(); p.film[b] = p.film[b]||{}; p.film[b].active = p.film[b].active===false; await posSave(); posRenderFilm(); posRenderStatus(); }
+function posImagesEditor(ids, max){
+  return `<div class="pos-imgs" id="posImgs">${ids.map((id,i)=>`<div class="pos-imgbox">${posThumb(id,'pos-imgfull')}<button class="pos-imgdel" onclick="posImgRemove(${i})">✕</button></div>`).join('')}
+    ${ids.length<(max||4)?`<button class="pos-imgadd" onclick="posImgAdd()">+ Foto</button>`:''}</div>`;
+}
+let posEditImages = [];
+let posEditImagesMax = 4;
+let posEditImagesRedraw = null;
+async function posImgAdd(){ const id = await posUploadImage(900); if(id){ posEditImages.push(id); posEditImagesRedraw(); } }
+function posImgRemove(i){ posEditImages.splice(i,1); posEditImagesRedraw(); }
+function posBindImages(ids, max){
+  posEditImages = ids.slice(); posEditImagesMax = max||4;
+  posEditImagesRedraw = ()=>{ const w = document.getElementById('posImgsWrap'); w.innerHTML = posImagesEditor(posEditImages, posEditImagesMax); posHydrateImages(w); };
+  posEditImagesRedraw();
+}
+function posCommitImages(oldIds){ oldIds.filter(id=>!posEditImages.includes(id)).forEach(posDeleteImage); return posEditImages.slice(); }
+function posFilmForm(b){
+  const p = posCfg(); const meta = p.film[b] || {};
+  openModal(`<div class="modal-head"><h3>${posEsc(b)} di Toko</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Label (opsional)</label><input type="text" id="pf_badge" value="${posEsc(meta.badge)}" placeholder="mis. Premium, Terlaris"></div>
+      <div class="field full"><label>Deskripsi Produk</label><textarea id="pf_desc" rows="4" placeholder="Keunggulan, garansi, tolak panas, dll.">${posEsc(meta.desc)}</textarea></div>
+      <div class="field full"><label>Foto Produk (maks. 4)</label><div id="posImgsWrap"></div></div>
+    </div>
+    <p class="ex-sub">Harga, paket pemasangan dan pilihan kegelapan diambil otomatis dari Setup Brand Kaca Film.</p>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pf_save">Simpan</button></div>`, true);
+  posBindImages(meta.images||[], 4);
+  document.getElementById('pf_save').addEventListener('click', async ()=>{
+    p.film[b] = Object.assign({}, meta, { desc:document.getElementById('pf_desc').value.trim(), badge:document.getElementById('pf_badge').value.trim(), images:posCommitImages(meta.images||[]) });
+    await posSave(); closeModal(); toast('Produk disimpan'); posRenderFilm(); posRenderStatus();
+  });
+}
+
+/* ---- Produk: karpet custom ---- */
+function posRenderCarpets(){
+  const p = posCfg(); const models = state.settings.kendaraan||[];
+  document.getElementById('posCarpetList').innerHTML = p.carpets.length ? p.carpets.map(c=>{
+    const all = Object.values(c.prices||{}).flatMap(m=>Object.values(m||{})).filter(v=>Number(v)>0);
+    const on = c.active!==false;
+    return `<div class="vd-vendor"><div class="vd-head">
+      <div style="display:flex;gap:10px;align-items:center">${(c.images||[])[0]?posThumb(c.images[0]):'<div class="pos-thumb pos-thumb-empty">🧶</div>'}
+        <div><strong>${posEsc(c.name)}</strong><div class="ex-sub">${all.length?`mulai ${exRp(Math.min(...all))} · ${Object.keys(c.prices).length}/${models.length} seri berharga`:'<span class="st-warn">harga belum di-setup — tidak tampil di toko</span>'}${all.length?(on?' · tampil di toko':' · disembunyikan'):''}</div></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn sm green" onclick="posCarpetPrice('${c.id}')">Harga</button>
+        <button class="btn ghost sm" onclick="posCarpetForm('${c.id}')">✏️</button>
+        <button class="btn ghost sm" onclick="posCarpetToggle('${c.id}')">${on?'Sembunyikan':'Tampilkan'}</button>
+        <button class="btn ghost sm" onclick="posCarpetDelete('${c.id}')">🗑</button>
+      </div></div></div>`;
+  }).join('') : '<div class="empty">Belum ada brand karpet.</div>';
+  posHydrateImages(document.getElementById('posCarpetList'));
+}
+function posCarpetForm(id){
+  const p = posCfg(); const c = p.carpets.find(x=>x.id===id) || { packages:['Kabin','Kabin + Bagasi'], colors:['Hitam'], images:[], prices:{}, active:true };
+  openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Brand Karpet</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Nama Brand</label><input type="text" id="pc_name" value="${posEsc(c.name)}" placeholder="mis. Engraver"></div>
+      <div class="field"><label>Paket (pisahkan koma)</label><input type="text" id="pc_pk" value="${posEsc((c.packages||[]).join(', '))}"></div>
+      <div class="field full"><label>Pilihan Warna (pisahkan koma)</label><input type="text" id="pc_col" value="${posEsc((c.colors||[]).join(', '))}"></div>
+      <div class="field full"><label>Deskripsi</label><textarea id="pc_desc" rows="3">${posEsc(c.desc)}</textarea></div>
+      <div class="field full"><label>Foto Produk (maks. 4)</label><div id="posImgsWrap"></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pc_save">Simpan</button></div>`, true);
+  posBindImages(c.images||[], 4);
+  document.getElementById('pc_save').addEventListener('click', async ()=>{
+    const name = document.getElementById('pc_name').value.trim();
+    const split = v=>v.split(',').map(x=>x.trim()).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i);
+    const packages = split(document.getElementById('pc_pk').value), colors = split(document.getElementById('pc_col').value);
+    if(!name){ toast('Nama brand wajib diisi','err'); return; }
+    if(!packages.length){ toast('Isi minimal satu paket','err'); return; }
+    if(p.carpets.some(x=>x.name.toLowerCase()===name.toLowerCase() && x.id!==id)){ toast('Brand ini sudah ada','err'); return; }
+    const oldName = c.name;
+    const data = { name, packages, colors, desc:document.getElementById('pc_desc').value.trim(), images:posCommitImages(c.images||[]) };
+    Object.keys(c.prices||{}).forEach(m=>{ Object.keys(c.prices[m]).forEach(k=>{ if(!packages.includes(k)) delete c.prices[m][k]; }); });
+    if(id) Object.assign(c, data); else p.carpets.push(Object.assign({ id:uid(), active:true, prices:{} }, data));
+    if(id && oldName && oldName!==name) (state.settings.vouchers||[]).forEach(v=>{ if(v.scope==='karpet' && v.vendor===oldName) v.vendor = name; });
+    await posSave(); closeModal(); toast('Brand karpet disimpan'); posRenderCarpets(); posRenderStatus();
+  });
+}
+function posCarpetPrice(id){
+  const c = posCfg().carpets.find(x=>x.id===id); if(!c) return;
+  const models = state.settings.kendaraan||[];
+  openModal(`<div class="modal-head"><h3>Harga ${posEsc(c.name)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <p class="ex-sub" style="margin:0 0 8px">Harga per seri Geely (Rp). Kosongkan kalau seri itu tidak tersedia.</p>
+    <div class="table-wrap"><table class="iss-table"><thead><tr><th>Seri</th>${c.packages.map(k=>`<th>${posEsc(k)}</th>`).join('')}</tr></thead><tbody>
+      ${models.map(m=>`<tr data-m="${posEsc(m)}"><td><strong>${posEsc(m)}</strong></td>${c.packages.map(k=>`<td><input type="number" min="0" data-k="${posEsc(k)}" value="${(c.prices[m]||{})[k]??''}" placeholder="Rp"></td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pcp_save">Simpan Harga</button></div>`, true);
+  document.getElementById('pcp_save').addEventListener('click', async ()=>{
+    const prices = {};
+    document.querySelectorAll('#modalBox tr[data-m]').forEach(tr=>{
+      const row = {}; tr.querySelectorAll('input[data-k]').forEach(i=>{ if(Number(i.value)>0) row[i.dataset.k] = Number(i.value); });
+      if(Object.keys(row).length) prices[tr.dataset.m] = row;
+    });
+    c.prices = prices; await posSave(); closeModal(); toast('Harga karpet disimpan'); posRenderCarpets(); posRenderStatus();
+  });
+}
+async function posCarpetToggle(id){ const c = posCfg().carpets.find(x=>x.id===id); if(!c) return; c.active = c.active===false; await posSave(); posRenderCarpets(); posRenderStatus(); }
+function posCarpetDelete(id){
+  const p = posCfg(); const c = p.carpets.find(x=>x.id===id); if(!c) return;
+  confirmModal('Hapus Brand Karpet', `Hapus ${posEsc(c.name)} beserta harga dan fotonya?`, async ()=>{
+    (c.images||[]).forEach(posDeleteImage);
+    p.carpets = p.carpets.filter(x=>x.id!==id);
+    state.settings.vouchers = (state.settings.vouchers||[]).filter(v=>!(v.scope==='karpet' && v.vendor===c.name));
+    await posSave(); toast('Brand karpet dihapus'); posRenderCarpets(); posRenderStatus();
+  });
+}
+
+/* ---- Banner ---- */
+function posLinkLabel(l){
+  if(!l || !l.type || l.type==='none') return 'tanpa link';
+  if(l.type==='film') return 'Kaca film: '+l.value;
+  if(l.type==='karpet') return 'Karpet: '+((posCfg().carpets.find(c=>c.id===l.value)||{}).name||'—');
+  if(l.type==='cat') return 'Kategori '+(l.value==='film'?'Kaca Film':'Karpet');
+  return l.value;
+}
+function posRenderBanners(){
+  const p = posCfg();
+  ['promo','iklan'].forEach(kind=>{
+    const list = p.banners.filter(b=>b.kind===kind);
+    const el = document.getElementById(kind==='promo'?'posBannerPromo':'posBannerIklan');
+    el.innerHTML = list.length ? list.map((b,i)=>`<div class="pos-banner-row">
+      ${posThumb(b.img,'pos-banner-img')}
+      <div style="flex:1;min-width:0"><strong>${posEsc(b.title||'(tanpa judul)')}</strong>${b.active===false?' <span class="pill">nonaktif</span>':''}<div class="ex-sub">${posEsc(posLinkLabel(b.link))}</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost sm" ${i===0?'disabled':''} onclick="posBannerMove('${b.id}',-1)">↑</button>
+        <button class="btn ghost sm" onclick="posBannerForm('${kind}','${b.id}')">✏️</button>
+        <button class="btn ghost sm" onclick="posBannerDelete('${b.id}')">🗑</button>
+      </div></div>`).join('') : '<div class="empty">Belum ada banner.</div>';
+    posHydrateImages(el);
+  });
+}
+function posBannerForm(kind, id){
+  const p = posCfg(); const b = p.banners.find(x=>x.id===id) || { kind, active:true, link:{type:'none', value:''} };
+  let img = b.img || '';
+  const filmOpts = (state.settings.windowFilmBrands||[]).map(x=>`<option ${b.link.type==='film'&&b.link.value===x?'selected':''}>${posEsc(x)}</option>`).join('');
+  const carpetOpts = p.carpets.map(c=>`<option value="${c.id}" ${b.link.type==='karpet'&&b.link.value===c.id?'selected':''}>${posEsc(c.name)}</option>`).join('');
+  openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Banner ${kind==='promo'?'Promosi':'Iklan'}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div id="pb_imgwrap" style="margin-bottom:12px"></div>
+    <div class="form-grid">
+      <div class="field full"><label>Judul (untuk pembaca layar &amp; admin)</label><input type="text" id="pb_title" value="${posEsc(b.title)}"></div>
+      <div class="field"><label>Saat diklik</label><select id="pb_ltype">
+        <option value="none" ${b.link.type==='none'?'selected':''}>Tidak ke mana-mana</option>
+        <option value="cat" ${b.link.type==='cat'?'selected':''}>Buka kategori</option>
+        <option value="film" ${b.link.type==='film'?'selected':''}>Buka produk kaca film</option>
+        <option value="karpet" ${b.link.type==='karpet'?'selected':''}>Buka produk karpet</option>
+        <option value="url" ${b.link.type==='url'?'selected':''}>Buka link luar</option></select></div>
+      <div class="field" id="pb_lvwrap"></div>
+      <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="pb_active" ${b.active!==false?'checked':''}> Tampilkan di toko</label></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pb_save">Simpan</button></div>`);
+  const drawImg = async ()=>{
+    const w = document.getElementById('pb_imgwrap');
+    w.innerHTML = img ? `<div class="pos-imgbox" style="width:100%">${posThumb(img,'pos-banner-preview')}</div><button class="btn ghost sm" style="margin-top:6px" id="pb_change">Ganti gambar</button>` : `<button class="pos-imgadd" style="width:100%;height:120px" id="pb_change">+ Upload gambar banner</button>`;
+    posHydrateImages(w);
+    document.getElementById('pb_change').onclick = async ()=>{ const nid = await posUploadImage(kind==='promo'?1400:1000); if(nid){ if(img && img!==b.img) posDeleteImage(img); img = nid; drawImg(); } };
+  };
+  const drawLink = ()=>{
+    const t = document.getElementById('pb_ltype').value; const w = document.getElementById('pb_lvwrap');
+    const cur = b.link.type===t ? b.link.value : '';
+    w.innerHTML = t==='cat' ? `<label>Kategori</label><select id="pb_lval"><option value="film" ${cur==='film'?'selected':''}>Kaca Film</option><option value="karpet" ${cur==='karpet'?'selected':''}>Karpet Custom</option></select>`
+      : t==='film' ? `<label>Produk</label><select id="pb_lval">${filmOpts}</select>`
+      : t==='karpet' ? `<label>Produk</label><select id="pb_lval">${carpetOpts}</select>`
+      : t==='url' ? `<label>Link</label><input type="url" id="pb_lval" value="${posEsc(cur)}" placeholder="https://">` : '';
+  };
+  document.getElementById('pb_ltype').addEventListener('change', drawLink);
+  drawImg(); drawLink();
+  document.getElementById('pb_save').addEventListener('click', async ()=>{
+    if(!img){ toast('Upload gambar banner dulu','err'); return; }
+    const t = document.getElementById('pb_ltype').value; const lv = document.getElementById('pb_lval');
+    const data = { kind, img, title:document.getElementById('pb_title').value.trim(), active:document.getElementById('pb_active').checked, link:{ type:t, value: lv ? lv.value.trim() : '' } };
+    if(t==='url' && !/^https?:\/\//.test(data.link.value)){ toast('Link harus diawali https://','err'); return; }
+    if(id){ if(b.img && b.img!==img) posDeleteImage(b.img); Object.assign(b, data); } else p.banners.push(Object.assign({ id:uid() }, data));
+    await posSave(); closeModal(); toast('Banner disimpan'); posRenderBanners(); posRenderStatus();
+  });
+}
+async function posBannerMove(id, dir){
+  const p = posCfg(); const b = p.banners.find(x=>x.id===id); if(!b) return;
+  const same = p.banners.filter(x=>x.kind===b.kind); const i = same.indexOf(b); const other = same[i+dir]; if(!other) return;
+  const ai = p.banners.indexOf(b), bi = p.banners.indexOf(other); p.banners[ai] = other; p.banners[bi] = b;
+  await posSave(); posRenderBanners();
+}
+function posBannerDelete(id){
+  confirmModal('Hapus Banner', 'Hapus banner ini dari toko?', async ()=>{
+    const p = posCfg(); const b = p.banners.find(x=>x.id===id); if(b) posDeleteImage(b.img);
+    p.banners = p.banners.filter(x=>x.id!==id); await posSave(); toast('Banner dihapus'); posRenderBanners(); posRenderStatus();
+  });
+}
+
+/* ---- Pembayaran & pengiriman ---- */
+function posRenderPayShip(){
+  const p = posCfg();
+  document.getElementById('posBankList').innerHTML = p.payments.banks.length ? p.payments.banks.map(b=>`<div class="vd-item"><div><strong>${posEsc(b.bank)}</strong> ${posEsc(b.no)}<div class="ex-sub">a.n. ${posEsc(b.name)}</div></div>
+    <div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="posBankForm('${b.id}')">✏️</button><button class="btn ghost sm" onclick="posBankDelete('${b.id}')">🗑</button></div></div>`).join('') : '<div class="empty">Belum ada rekening — pembeli tidak bisa memilih transfer bank.</div>';
+  document.getElementById('posQris').innerHTML = `
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      ${p.payments.qris ? posThumb(p.payments.qris,'pos-qris') : '<div class="pos-qris pos-thumb-empty">QRIS</div>'}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn ghost sm" onclick="posQrisUpload()">${p.payments.qris?'Ganti gambar QRIS':'Upload gambar QRIS'}</button>
+        ${p.payments.qris?'<button class="btn ghost sm" onclick="posQrisRemove()">Hapus QRIS</button>':''}
+        <label class="ex-check" style="width:max-content"><input type="checkbox" id="pos_payDealer" ${p.payments.payAtDealer!==false?'checked':''}> Izinkan bayar di dealer</label>
+      </div></div>`;
+  posHydrateImages(document.getElementById('posQris'));
+  document.getElementById('pos_payDealer').addEventListener('change', async e=>{ p.payments.payAtDealer = e.target.checked; await posSave(); });
+  const lbl = { all:'Semua produk', film:'Kaca film saja', karpet:'Karpet saja' };
+  document.getElementById('posShipList').innerHTML = p.shipping.length ? p.shipping.map(s=>`<div class="vd-item"><div><strong>${posEsc(s.name)}</strong> · ${s.fee?exRp(s.fee):'Gratis'}
+      <div class="ex-sub">${lbl[s.applies]||'Semua produk'}${s.needsAddress?' · butuh alamat':''}${s.note?' · '+posEsc(s.note):''}</div></div>
+    <div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="posShipForm('${s.id}')">✏️</button><button class="btn ghost sm" onclick="posShipDelete('${s.id}')">🗑</button></div></div>`).join('') : '<div class="empty">Belum ada opsi — pembeli tidak bisa checkout.</div>';
+}
+function posBankForm(id){
+  const p = posCfg(); const b = p.payments.banks.find(x=>x.id===id) || {};
+  openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Rekening</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid"><div class="field"><label>Bank</label><input type="text" id="pbk_bank" value="${posEsc(b.bank)}" placeholder="BCA"></div>
+    <div class="field"><label>No. Rekening</label><input type="text" id="pbk_no" value="${posEsc(b.no)}"></div>
+    <div class="field full"><label>Atas Nama</label><input type="text" id="pbk_name" value="${posEsc(b.name)}"></div></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pbk_save">Simpan</button></div>`);
+  document.getElementById('pbk_save').addEventListener('click', async ()=>{
+    const data = { bank:document.getElementById('pbk_bank').value.trim(), no:document.getElementById('pbk_no').value.trim(), name:document.getElementById('pbk_name').value.trim() };
+    if(!data.bank || !data.no || !data.name){ toast('Lengkapi bank, nomor dan nama','err'); return; }
+    if(id) Object.assign(b, data); else p.payments.banks.push(Object.assign({ id:uid() }, data));
+    await posSave(); closeModal(); toast('Rekening disimpan'); posRenderPayShip();
+  });
+}
+function posBankDelete(id){ confirmModal('Hapus Rekening','Hapus rekening ini dari pilihan pembayaran?', async ()=>{ const p = posCfg(); p.payments.banks = p.payments.banks.filter(x=>x.id!==id); await posSave(); posRenderPayShip(); }); }
+async function posQrisUpload(){ const p = posCfg(); const id = await posUploadImage(800); if(!id) return; if(p.payments.qris) posDeleteImage(p.payments.qris); p.payments.qris = id; await posSave(); toast('QRIS disimpan'); posRenderPayShip(); }
+async function posQrisRemove(){ const p = posCfg(); posDeleteImage(p.payments.qris); p.payments.qris=''; await posSave(); posRenderPayShip(); }
+function posShipForm(id){
+  const p = posCfg(); const s = p.shipping.find(x=>x.id===id) || { applies:'all', fee:0 };
+  openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Opsi Pengiriman</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid"><div class="field full"><label>Nama Opsi</label><input type="text" id="psh_name" value="${posEsc(s.name)}" placeholder="mis. Home Service Jabodetabek"></div>
+    <div class="field"><label>Biaya (Rp)</label><input type="number" min="0" id="psh_fee" value="${s.fee??0}"></div>
+    <div class="field"><label>Berlaku Untuk</label><select id="psh_app"><option value="all" ${s.applies==='all'?'selected':''}>Semua produk</option><option value="film" ${s.applies==='film'?'selected':''}>Kaca film saja</option><option value="karpet" ${s.applies==='karpet'?'selected':''}>Karpet saja</option></select></div>
+    <div class="field full"><label>Keterangan</label><input type="text" id="psh_note" value="${posEsc(s.note)}"></div>
+    <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="psh_addr" ${s.needsAddress?'checked':''}> Pembeli wajib isi alamat</label></div></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="psh_save">Simpan</button></div>`);
+  document.getElementById('psh_save').addEventListener('click', async ()=>{
+    const data = { name:document.getElementById('psh_name').value.trim(), fee:Number(document.getElementById('psh_fee').value)||0, applies:document.getElementById('psh_app').value, note:document.getElementById('psh_note').value.trim(), needsAddress:document.getElementById('psh_addr').checked };
+    if(!data.name){ toast('Nama opsi wajib diisi','err'); return; }
+    if(id) Object.assign(s, data); else p.shipping.push(Object.assign({ id:uid() }, data));
+    await posSave(); closeModal(); toast('Opsi pengiriman disimpan'); posRenderPayShip();
+  });
+}
+function posShipDelete(id){ confirmModal('Hapus Opsi','Hapus opsi pengiriman ini?', async ()=>{ const p = posCfg(); p.shipping = p.shipping.filter(x=>x.id!==id); await posSave(); posRenderPayShip(); }); }
+
+/* ---- Pengaturan toko ---- */
+function posShareLink(){
+  const p = posCfg(); const db = (state.settings.aiFollowUpFirebase||{}).databaseURL || '';
+  if(!p.store.url) return '';
+  return p.store.url + (p.store.url.includes('?')?'&':'?') + 'db=' + encodeURIComponent(db);
+}
+function posRenderStore(){
+  const s = posCfg().store;
+  document.getElementById('pos_name').value = s.name||''; document.getElementById('pos_tagline').value = s.tagline||'';
+  document.getElementById('pos_wa').value = s.wa||''; document.getElementById('pos_address').value = s.address||''; document.getElementById('pos_url').value = s.url||'';
+  document.getElementById('posLogo').innerHTML = `<div style="display:flex;gap:12px;align-items:center">${s.logo?posThumb(s.logo):'<div class="pos-thumb pos-thumb-empty">Logo</div>'}<button class="btn ghost sm" onclick="posLogoUpload()">${s.logo?'Ganti logo':'Upload logo'}</button></div>`;
+  posHydrateImages(document.getElementById('posLogo'));
+  document.getElementById('posDbUrl').textContent = (state.settings.aiFollowUpFirebase||{}).databaseURL || '(isi Database URL di Settings)';
+  document.getElementById('posShareLink').textContent = posShareLink() || '(isi Link Toko di atas, lalu simpan)';
+}
+async function posLogoUpload(){ const s = posCfg().store; const id = await posUploadImage(400); if(!id) return; if(s.logo) posDeleteImage(s.logo); s.logo = id; await posSave(); posRenderStore(); }
+document.getElementById('posStoreSave').addEventListener('click', async ()=>{
+  const s = posCfg().store;
+  s.name = document.getElementById('pos_name').value.trim() || 'Toko Aksesoris';
+  s.tagline = document.getElementById('pos_tagline').value.trim(); s.wa = document.getElementById('pos_wa').value.trim();
+  s.address = document.getElementById('pos_address').value.trim(); s.url = document.getElementById('pos_url').value.trim();
+  await posSave(); toast('Pengaturan toko disimpan'); posRenderStore(); posRenderStatus();
+});
+function posCopy(elId){ const t = document.getElementById(elId).textContent; navigator.clipboard.writeText(t).then(()=>toast('Disalin')).catch(()=>toast('Tidak bisa menyalin — salin manual','err')); }
+
+/* ---- Pesanan ---- */
+function posListenOrders(){
+  if(!aiFollowDb || posOrdersRef) return;
+  posOrdersRef = aiFollowDb.ref('pos/orders').limitToLast(500);
+  posOrdersRef.on('value', snap=>{
+    posOrders = snap.val() || {};
+    posUpdateBadge();
+    if(document.getElementById('view-toko').classList.contains('active') && posActiveTab()==='orders') posRenderOrders();
+  }, err=>{ console.error(err); toast('Tidak bisa membaca pesanan — cek rules Firebase','err'); });
+}
+function posUpdateBadge(){
+  const n = Object.values(posOrders).filter(o=>o && o.status==='baru').length;
+  const nav = document.getElementById('navTokoBadge'); if(nav) nav.textContent = n ? n : '';
+  const tb = document.getElementById('posNewBadge'); if(tb) tb.textContent = n ? `(${n})` : '';
+}
+function posStatusPill(k){ const s = POS_STATUS.find(x=>x.key===k) || POS_STATUS[0]; return `<span class="pos-pill" style="--c:${s.color}">${s.label}</span>`; }
+function posRenderOrders(){
+  const sel = document.getElementById('posOrderStatus');
+  if(sel.options.length<=1) sel.innerHTML += POS_STATUS.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
+  const q = (document.getElementById('posOrderSearch').value||'').toLowerCase().trim(); const st = sel.value;
+  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
+  document.getElementById('posOrderList').innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Pesanan</th><th>Pembeli</th><th>Item</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(([k,o])=>`<tr><td><strong>${posEsc(o.orderNo)}</strong><div class="ex-sub">${new Date(o.createdAt).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></td>
+      <td>${posEsc((o.customer||{}).nama)}<div class="ex-sub">${posEsc((o.customer||{}).wa)}</div></td>
+      <td>${(o.items||[]).map(i=>posEsc(i.title)).join('<br>')}</td>
+      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}</div></td>
+      <td>${posStatusPill(o.status)}</td>
+      <td><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button></td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="empty">Belum ada pesanan. Pesanan dari toko online akan muncul di sini secara otomatis.</div>';
+}
+document.getElementById('posOrderSearch').addEventListener('input', posRenderOrders);
+document.getElementById('posOrderStatus').addEventListener('change', posRenderOrders);
+function posOrderDetail(k){
+  const o = posOrders[k]; if(!o) return; const c = o.customer||{};
+  openModal(`<div class="modal-head"><h3>Pesanan ${posEsc(o.orderNo)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="detail-grid" style="margin-bottom:12px">
+      <div><div class="k">Pembeli</div><div class="v">${posEsc(c.nama)}<br><span class="ex-sub">${posEsc(c.wa)}${c.email?' · '+posEsc(c.email):''}</span></div></div>
+      <div><div class="k">Mobil</div><div class="v">${posEsc(c.mobil||'—')}</div></div>
+      <div><div class="k">Pengiriman</div><div class="v">${posEsc((o.shipping||{}).name)}${o.installDate?`<br><span class="ex-sub">Jadwal pasang: ${fmtDate(o.installDate)}</span>`:''}</div></div>
+      <div><div class="k">Pembayaran</div><div class="v">${posEsc((o.payment||{}).label)}</div></div>
+      ${c.alamat?`<div style="grid-column:1/-1"><div class="k">Alamat</div><div class="v">${posEsc(c.alamat)}</div></div>`:''}
+      ${o.note?`<div style="grid-column:1/-1"><div class="k">Catatan pembeli</div><div class="v">${posEsc(o.note)}</div></div>`:''}
+    </div>
+    <div class="section-title">Item</div>
+    ${(o.items||[]).map(i=>`<div class="vd-item"><div><strong>${posEsc(i.title)}</strong> × ${i.qty}<div class="ex-sub">${posEsc((i.options||[]).join(' · '))}${i.voucher?` · 🎟️ ${posEsc(i.voucher)}`:''}</div></div>
+      <div style="text-align:right">${i.discount?`<div class="ex-sub" style="text-decoration:line-through">${exRp(i.price*i.qty)}</div>`:''}<strong>${exRp(i.total)}</strong></div></div>`).join('')}
+    <div class="ex-calc">
+      <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${exRp(o.subtotal)}</span></div>
+      ${o.discountTotal?`<div style="display:flex;justify-content:space-between;color:var(--green)"><span>Potongan voucher</span><span>− ${exRp(o.discountTotal)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between"><span>Ongkir / biaya layanan</span><span>${exRp((o.shipping||{}).fee)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><span>Total</span><span>${exRp(o.grandTotal)}</span></div>
+    </div>
+    ${o.proof?`<div class="section-title">Bukti Pembayaran</div><img data-pproof="${k}" style="max-width:100%;max-height:360px;border-radius:10px;border:1px solid var(--line)">`:''}
+    <div class="section-title">Status</div>
+    <div class="form-grid"><div class="field"><select id="po_status">${POS_STATUS.map(s=>`<option value="${s.key}" ${s.key===o.status?'selected':''}>${s.label}</option>`).join('')}</select></div>
+      <div class="field"><input type="text" id="po_note" value="${posEsc(o.adminNote)}" placeholder="Catatan untuk pembeli (opsional)"></div></div>
+    <div class="modal-foot"><a class="btn ghost" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, terima kasih sudah berbelanja di ${posCfg().store.name}. Pesanan ${o.orderNo}: ${(POS_STATUS.find(s=>s.key===o.status)||{}).label||''}.`)}">💬 WhatsApp</a><button class="btn" id="po_save">Simpan Status</button></div>`, true);
+  const pi = document.querySelector('img[data-pproof]');
+  if(pi) aiFollowDb.ref('pos/proofs/'+k).once('value').then(s=>{ if(s.val()) pi.src = s.val(); });
+  document.getElementById('po_save').addEventListener('click', async ()=>{
+    const status = document.getElementById('po_status').value;
+    try{
+      await aiFollowDb.ref('pos/orders/'+k).update({ status, adminNote:document.getElementById('po_note').value.trim(), updatedAt:new Date().toISOString(),
+        ['history/'+Date.now()]: { status, at:new Date().toISOString() } });
+      closeModal(); toast('Status pesanan diperbarui');
+    }catch(e){ toast('Gagal menyimpan status','err'); }
+  });
+}
+
 /* ============================= AI FOLLOW UP GENERATOR ============================= */
 let aiFollowApp = null;
 let aiFollowDb = null;
@@ -6493,6 +7111,7 @@ function initAiFollowFirebase(showToast){
     if(aiFollowApp){ try{ aiFollowApp.delete(); }catch(e){} aiFollowApp = null; }
     aiFollowApp = firebase.initializeApp(cfg, 'aiFollowApp_'+Date.now());
     aiFollowDb = aiFollowApp.database();
+    if(typeof posOrdersRef!=='undefined'){ posOrdersRef = null; setTimeout(()=>{ try{ posListenOrders(); }catch(e){} }, 0); }
     if(showToast) toast('Firebase terhubung');
   }catch(e){
     console.error('Firebase init failed', e);
