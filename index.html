@@ -365,6 +365,19 @@ tbody tr:hover{background:#FAFBFE;}
         </div>
         <div class="pagination" id="overviewPagination"></div>
       </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <h2 style="margin:0">Mobil Terlaris <span class="muted">berdasarkan SPK</span></h2>
+          <select id="topCarPeriod" style="max-width:170px">
+            <option value="all">Semua waktu</option>
+            <option value="month">Bulan ini</option>
+            <option value="lastmonth">Bulan lalu</option>
+            <option value="year">Tahun ini</option>
+          </select>
+        </div>
+        <div id="topCarSummary" style="font-size:12.5px;color:var(--muted);margin-bottom:8px"></div>
+        <div id="topCarWrap" style="position:relative;height:240px"><canvas id="chartTopCarDash"></canvas></div>
+      </div>
       <div class="charts-grid">
         <div class="card">
           <h2>Lead Source Breakdown <span class="muted">all-time</span></h2>
@@ -2128,6 +2141,7 @@ function renderDashboard(){
   renderReminders();
   drawSourceChart('chartSourceDash', state.leads);
   drawConvChart('chartConvDash', state.leads);
+  drawTopCarChart('chartTopCarDash');
   renderInsuranceServiceOverview();
   renderTargetProgress();
 }
@@ -2210,6 +2224,64 @@ function drawSourceChart(canvasId, leads){
     });
   }catch(e){ console.error('Chart error', e); }
 }
+function drawTopCarChart(canvasId){
+  try{
+    const period = (document.getElementById('topCarPeriod')||{}).value || 'all';
+    const today = todayDate();
+    let from=null, to=null;
+    if(period==='month'){ from=new Date(today.getFullYear(),today.getMonth(),1); to=new Date(today.getFullYear(),today.getMonth()+1,0,23,59,59,999); }
+    else if(period==='lastmonth'){ from=new Date(today.getFullYear(),today.getMonth()-1,1); to=new Date(today.getFullYear(),today.getMonth(),0,23,59,59,999); }
+    else if(period==='year'){ from=new Date(today.getFullYear(),0,1); to=new Date(today.getFullYear(),11,31,23,59,59,999); }
+    const list = state.spk.filter(s=>{
+      if(!from) return true;
+      const d = parseDate(s.tglSPK);
+      return d && d>=from && d<=to;
+    });
+    const done={}, pend={};
+    list.forEach(s=>{
+      const l = getLead(s.leadId);
+      const k = (l && l.jenisKendaraan) ? l.jenisKendaraan : 'Tidak diketahui';
+      if(s.doStatus==='done') done[k]=(done[k]||0)+1; else pend[k]=(pend[k]||0)+1;
+    });
+    const keys = Array.from(new Set([...Object.keys(done),...Object.keys(pend)]));
+    const entries = keys.map(k=>[k,(done[k]||0)+(pend[k]||0)]).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+    const labels = entries.map(e=>e[0]);
+    const sum = document.getElementById('topCarSummary');
+    const wrap = document.getElementById('topCarWrap');
+    if(charts[canvasId]){ charts[canvasId].destroy(); delete charts[canvasId]; }
+    wrap.querySelectorAll('.empty').forEach(n=>n.remove());
+    const canvas = document.getElementById(canvasId);
+    if(!entries.length){
+      sum.textContent = '';
+      canvas.style.display='none';
+      wrap.style.height='auto';
+      wrap.insertAdjacentHTML('beforeend','<div class="empty">Belum ada SPK di periode ini.</div>');
+      return;
+    }
+    canvas.style.display='';
+    wrap.style.height = Math.max(180, labels.length*44 + 60) + 'px';
+    const total = list.length;
+    const top = entries[0];
+    sum.innerHTML = `Total <strong>${total}</strong> SPK · Terlaris: <strong>${escapeHtml(top[0])}</strong> (${top[1]} unit, ${Math.round(top[1]/total*100)}%)`;
+    if(typeof Chart === 'undefined'){ wrap.insertAdjacentHTML('beforeend','<div class="empty">Chart library unavailable — check your internet connection.</div>'); return; }
+    charts[canvasId] = new Chart(canvas.getContext('2d'), {
+      type:'bar',
+      data:{ labels, datasets:[
+        { label:'Sudah DO', data: labels.map(k=>done[k]||0), backgroundColor:'#1AA971', borderRadius:5, stack:'spk' },
+        { label:'Belum DO', data: labels.map(k=>pend[k]||0), backgroundColor:'#2E6BE6', borderRadius:5, stack:'spk' }
+      ]},
+      options:{
+        indexAxis:'y', maintainAspectRatio:false,
+        plugins:{
+          legend:{display:true, position:'bottom', labels:{boxWidth:12,font:{size:11}}},
+          tooltip:{ callbacks:{ footer:(items)=>{ const i=items[0].dataIndex; const t=entries[i][1]; return `Total: ${t} unit (${Math.round(t/total*100)}%)`; } } }
+        },
+        scales:{ x:{stacked:true, beginAtZero:true, ticks:{precision:0}}, y:{stacked:true} }
+      }
+    });
+  }catch(e){ console.error('Chart error', e); }
+}
+document.addEventListener('change', e=>{ if(e.target && e.target.id==='topCarPeriod') drawTopCarChart('chartTopCarDash'); });
 function drawConvChart(canvasId, leads){
   try{
     const spkCount = leads.filter(l=>l.status==='spk').length;
