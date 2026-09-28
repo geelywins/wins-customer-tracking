@@ -255,6 +255,7 @@ tbody tr:hover{background:#FAFBFE;}
 .pos-banner-img{width:150px;height:62px;border-radius:8px;object-fit:cover;background:#EEF1F6;}
 .pos-banner-preview{width:100%;max-height:220px;border-radius:10px;object-fit:cover;background:#EEF1F6;display:block;}
 .pos-qris{width:150px;height:150px;border-radius:10px;object-fit:contain;background:#EEF1F6;border:1px solid var(--line);}
+.pos-rules-help{background:#FFF7E8;border:1px solid #F5C87A;border-radius:10px;padding:12px 14px;}
 .pos-code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#F4F6FA;border:1px solid var(--line);border-radius:8px;padding:9px 11px;word-break:break-all;}
 .pos-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;color:var(--c);background:color-mix(in srgb, var(--c) 12%, white);}
 .ex-checks{display:flex;flex-wrap:wrap;gap:8px;}
@@ -6700,15 +6701,18 @@ async function posPublish(showToast){
     await aiFollowDb.ref('pos/catalog').set(JSON.parse(JSON.stringify(posBuildCatalog())));
     posLastPublish = new Date();
     if(showToast) toast('Katalog toko diperbarui');
-  }catch(e){ console.error(e); toast('Gagal update katalog toko — cek rules Firebase','err'); }
+  }catch(e){
+    console.error(e); posOrdersError = posOrdersError || 'PERMISSION_DENIED';
+    if(showToast || document.getElementById('view-toko').classList.contains('active')) toast('Gagal update katalog toko — rules Firebase belum mengizinkan path pos','err');
+  }
   posRenderStatus();
 }
 function posRenderStatus(){
   const el = document.getElementById('posStatus'); if(!el) return;
   const cat = posBuildCatalog();
   const url = posCfg().store.url;
-  el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-    <div><strong>${aiFollowDb?'🟢 Tersambung ke toko':'🔴 Firebase belum tersambung'}</strong>
+  el.innerHTML = (posOrdersError ? posRulesHelpHtml() : '') + `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap${posOrdersError?';margin-top:14px':''}">
+    <div><strong>${!aiFollowDb?'🔴 Firebase belum tersambung':posOrdersError?'🟠 Tersambung, tapi akses ke data toko ditolak':'🟢 Tersambung ke toko'}</strong>
       <div class="ex-sub">${cat.film.brands.length} brand kaca film · ${cat.carpets.length} karpet · ${cat.banners.length} banner aktif${posLastPublish?` · update terakhir ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn ghost sm" onclick="posPublish(true)">↻ Update katalog sekarang</button>
@@ -7033,8 +7037,30 @@ function posListenOrders(){
     posOrders = snap.val() || {};
     posUpdateBadge();
     if(document.getElementById('view-toko').classList.contains('active') && posActiveTab()==='orders') posRenderOrders();
-  }, err=>{ console.error(err); toast('Tidak bisa membaca pesanan — cek rules Firebase','err'); });
+    posOrdersError = null;
+  }, err=>{
+    console.error(err);
+    posOrdersError = err && err.code ? err.code : 'error';
+    posOrdersRef = null; // izinkan coba lagi setelah rules diperbaiki
+    if(document.getElementById('view-toko').classList.contains('active')){ posRenderStatus(); if(posActiveTab()==='orders') posRenderOrders(); }
+  });
 }
+let posOrdersError = null;
+const POS_RULES_SNIPPET = `"pos": {
+  "catalog": { ".read": true, ".write": true },
+  "images":  { ".read": true, ".write": true },
+  "orders":  { ".read": true, "$id": { ".write": true } },
+  "proofs":  { "$id": { ".read": true, ".write": true } }
+}`;
+function posRulesHelpHtml(){
+  return `<div class="pos-rules-help">
+    <strong>Firebase menolak akses ke data toko</strong>
+    <p class="ex-sub" style="margin:4px 0 8px">Rules database kamu belum mengizinkan path <code>pos</code>. Buka Firebase Console → Realtime Database → tab Rules, tambahkan blok ini di dalam <code>"rules": { ... }</code> (jangan hapus rules yang sudah ada), lalu klik Publish.</p>
+    <pre class="pos-code" id="posRulesCode" style="white-space:pre;overflow-x:auto;margin:0">${posEsc(POS_RULES_SNIPPET)}</pre>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn ghost sm" onclick="posCopy('posRulesCode')">Salin rules</button><button class="btn sm" onclick="posRetryOrders()">Coba lagi</button></div>
+  </div>`;
+}
+function posRetryOrders(){ posOrdersRef = null; posOrdersError = null; posListenOrders(); posPublish(false); setTimeout(()=>{ posRenderStatus(); posRenderOrders(); }, 1200); }
 function posUpdateBadge(){
   const n = Object.values(posOrders).filter(o=>o && o.status==='baru').length;
   const nav = document.getElementById('navTokoBadge'); if(nav) nav.textContent = n ? n : '';
@@ -7054,7 +7080,7 @@ function posRenderOrders(){
       <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}</div></td>
       <td>${posStatusPill(o.status)}</td>
       <td><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button></td></tr>`).join('')}</tbody></table></div>`
-    : '<div class="empty">Belum ada pesanan. Pesanan dari toko online akan muncul di sini secara otomatis.</div>';
+    : (posOrdersError ? '<div class="empty">Pesanan belum bisa dibaca — perbaiki rules Firebase (lihat kotak di atas), lalu tekan Coba lagi.</div>' : '<div class="empty">Belum ada pesanan. Pesanan dari toko online akan muncul di sini secara otomatis.</div>');
 }
 document.getElementById('posOrderSearch').addEventListener('input', posRenderOrders);
 document.getElementById('posOrderStatus').addEventListener('change', posRenderOrders);
