@@ -6657,10 +6657,12 @@ const POS_STATUS = [
 ];
 const POS_FILM_PACKAGES = {
   'Full': ['depan','sampingDepan','sampingBelakang','belakang'],
+  'Depan Saja': ['depan'],
+  'Samping Kiri Kanan Depan': ['sampingDepan'],
+  'Samping Kiri Kanan Belakang': ['sampingBelakang'],
   'Samping Kiri Kanan': ['sampingDepan','sampingBelakang'],
   'Samping Kiri Kanan dan Belakang': ['sampingDepan','sampingBelakang','belakang'],
-  'Belakang': ['belakang'],
-  'Depan Saja': ['depan']
+  'Belakang': ['belakang']
 };
 const POS_DEFAULT_CARS = [
   { brand:'Geely', models:['EX2','EX5','Starray EM-i','Coolray'] },
@@ -6740,7 +6742,32 @@ function posCfg(){
 function posCarLabels(){ return posCfg().cars.flatMap(c=>c.models.map(m=>`${c.brand} ${m}`)); }
 function posEsc(v){ return escapeHtml(v==null?'':String(v)); }
 function posCat(id){ return posCfg().categories.find(c=>c.id===id); }
-async function posSave(){ await saveSettings(); }
+let posUnpublished = false, posUnpubToastAt = 0;
+async function posSave(){
+  const p = state.settings.pos; if(p) p.rev = Date.now();
+  await saveSettings();
+  if(p && !posIsAdmin){
+    posUnpublished = true;
+    if(Date.now() - posUnpubToastAt > 15000){ posUnpubToastAt = Date.now(); toast('Tersimpan, tapi belum tampil di toko — login admin toko dulu (tab Pengaturan)','err'); }
+    const v = document.getElementById('view-toko'); if(v && v.classList.contains('active')) posRenderStatus();
+  }
+}
+/* simpan lalu langsung terbitkan ke toko dan beri tahu hasilnya */
+async function posSaveAndPublish(msg){
+  await posSave();
+  if(!posIsAdmin) return false;
+  await posPublish(false);
+  if(posPublishError){ toast('Tersimpan, tapi gagal memperbarui toko — cek Rules Firebase','err'); return false; }
+  toast(msg+' · toko sudah diperbarui'); return true;
+}
+async function posSyncCatalogIfStale(){
+  if(!posDb || !posIsAdmin || !state.settings.pos) return;
+  try{
+    const [vs, rs] = await Promise.all([posDb.ref('pos/catalog/v').once('value'), posDb.ref('pos/catalog/rev').once('value')]);
+    const v = Number(vs.val())||0, rev = Number(rs.val())||0, mine = Number(posCfg().rev)||0;
+    if(v < 4 || mine > rev) await posPublish(false);
+  }catch(e){ console.error(e); }
+}
 
 /* ---- koneksi & login admin ---- */
 function posInitApp(){
@@ -6758,7 +6785,7 @@ function posInitApp(){
       if(u){
         try{ const s = await posDb.ref('shop/admins/'+u.uid).once('value'); posIsAdmin = !!s.val(); }catch(e){ posIsAdmin = false; }
         posAdminChecked = true;
-        if(posIsAdmin){ posListenOrders(); posListenCustomers(); }
+        if(posIsAdmin){ posListenOrders(); posListenCustomers(); posSyncCatalogIfStale(); }
       } else posAdminChecked = true;
       posUpdateBadge();
       if(document.getElementById('view-toko').classList.contains('active')) renderToko();
@@ -6905,7 +6932,7 @@ function posBuildCatalog(){
   const catOn = id=>activeCats.some(c=>c.id===id);
   const dealOut = d=>posDealActive(d) ? { type:d.type, value:Number(d.value), until:d.until||'' } : null;
   return {
-    v:3, updatedAt:new Date().toISOString(),
+    v:4, rev:Number(p.rev)||0, updatedAt:new Date().toISOString(),
     store: p.store,
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
@@ -6930,7 +6957,8 @@ function schedulePosPublish_(){
 }
 async function posPublish(showToast){
   if(!posDb || !posIsAdmin){ if(showToast) toast('Login sebagai admin toko dulu','err'); return; }
-  try{ await posDb.ref('pos/catalog').set(JSON.parse(JSON.stringify(posBuildCatalog()))); posLastPublish = new Date(); posPublishError = null; if(showToast) toast('Katalog toko diperbarui'); }
+  clearTimeout(posPublishTimer);
+  try{ await posDb.ref('pos/catalog').set(JSON.parse(JSON.stringify(posBuildCatalog()))); posLastPublish = new Date(); posPublishError = null; posUnpublished = false; if(showToast) toast('Katalog toko diperbarui'); }
   catch(e){ console.error(e); posPublishError = e.code||'error'; if(showToast || document.getElementById('view-toko').classList.contains('active')) toast('Gagal update katalog — cek rules Firebase','err'); }
   posRenderStatus();
 }
@@ -6939,7 +6967,7 @@ function posRenderStatus(){
   const cat = posBuildCatalog(); const url = posCfg().store.url;
   const nProd = cat.film.brands.length + cat.carpets.length + cat.products.length;
   const state_ = !posUser ? ['🔒','Login admin toko diperlukan','Buka tab Pengaturan untuk login.'] :
-    !posIsAdmin ? ['🟠','Akun belum terdaftar sebagai admin','Ikuti langkah di tab Pengaturan.'] :
+    !posIsAdmin ? ['🟠','Akun belum terdaftar sebagai admin','Ikuti langkah di tab Pengaturan.'+(posUnpublished?' Perubahan terakhir belum tampil di toko.':'')] :
     (posPublishError || posOrdersError) ? ['🟠','Firebase menolak akses','Pastikan Rules sudah memakai versi di tab Pengaturan.'] :
     ['🟢','Toko tersambung', `${nProd} produk tampil · ${cat.banners.length} banner · ${cat.promos.length} kode promo aktif${posLastPublish?` · update ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}`];
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -7048,9 +7076,9 @@ function posFilmForm(id){
       <div class="field full"><label>Foto (maks. 4)</label><div id="posImgsWrap"></div></div>
     </div>
     <div class="section-title">Harga per paket &amp; ukuran mobil (Rp)</div>
-    <p class="ex-sub" style="margin:0 0 8px">Harga menyesuaikan ukuran mobil pembeli. Ukuran tiap tipe mobil diatur di tab <strong>Merek Mobil</strong>. Kosongkan kalau paket tidak tersedia untuk ukuran itu.</p>
+    <p class="ex-sub" style="margin:0 0 8px">Harga menyesuaikan ukuran mobil pembeli. Ukuran tiap tipe mobil diatur di tab <strong>Merek Mobil</strong>. Kosongkan kalau paket tidak tersedia untuk ukuran itu.<br>Pembeli juga bisa memilih bagian kaca sendiri (checklist). Kalau pilihan pembeli sama persis dengan satu paket, harga paket itu yang dipakai. Kombinasi lain dihitung otomatis dari paket yang cocok dengan total paling murah. Isi juga harga per bagian: <em>Depan Saja</em>, <em>Samping Kiri Kanan Depan</em>, <em>Samping Kiri Kanan Belakang</em>, dan <em>Belakang</em>.</p>
     <div class="table-wrap"><table class="iss-table size-table"><thead><tr><th>Paket</th>${POS_SIZES.map(sz=>`<th>${sz}</th>`).join('')}</tr></thead><tbody>
-      ${Object.keys(POS_FILM_PACKAGES).map(k=>`<tr><td><strong>${k==='Full'?'Full':'Partial · '+k}</strong><div class="ex-sub">${POS_FILM_PACKAGES[k].map(exSideLabel).join(', ')}</div></td>${POS_SIZES.map(sz=>`<td><input type="number" min="0" data-pkg="${k}" data-size="${sz}" value="${((b.prices||{})[sz]||{})[k]??''}" placeholder="Rp"></td>`).join('')}</tr>`).join('')}
+      ${Object.keys(POS_FILM_PACKAGES).map(k=>`<tr><td><strong>${posEsc(k)}</strong> ${POS_FILM_PACKAGES[k].length===1?'<span class="pill lead">satuan</span>':(k==='Full'?'':'<span class="pill">gabungan</span>')}<div class="ex-sub">${POS_FILM_PACKAGES[k].map(exSideLabel).join(', ')}</div></td>${POS_SIZES.map(sz=>`<td><input type="number" min="0" data-pkg="${k}" data-size="${sz}" value="${((b.prices||{})[sz]||{})[k]??''}" placeholder="Rp"></td>`).join('')}</tr>`).join('')}
     </tbody></table></div>
     <button class="btn ghost sm" id="pf_fill" style="margin-top:8px">Salin harga Small ke ukuran yang masih kosong</button>
     <div class="section-title">Pilihan kegelapan per sisi <span class="muted" style="text-transform:none;letter-spacing:0">(pisahkan koma)</span></div>
@@ -7072,7 +7100,7 @@ function posFilmForm(id){
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
     const data = { name, badge:document.getElementById('pf_badge').value.trim(), desc:document.getElementById('pf_desc').value.trim(), images:posCommitImages(b.images), prices, shades:sh, deal:dl.deal };
     if(id) Object.assign(b, data); else p.filmBrands.push(Object.assign({ id:'fb_'+uid(), active:true }, data));
-    await posSave(); closeModal(); toast('Kaca film disimpan'); posRenderProducts(); posRenderStatus();
+    closeModal(); await posSaveAndPublish('Kaca film disimpan'); posRenderProducts(); posRenderStatus();
   };
 }
 function posCarpetForm(id){
@@ -7229,7 +7257,8 @@ document.addEventListener('click', async e=>{
   const b = e.target.closest('#posCarSizes [data-sz]'); if(!b) return;
   const p = posCfg(); const c = p.cars[+b.dataset.ci]; if(!c) return; const m = c.models[+b.dataset.mi]; if(m==null) return;
   c.sizes = c.sizes||{}; c.sizes[m] = b.dataset.sz;
-  await posSave(); posRenderSizes(); posRenderStatus();
+  posRenderSizes();
+  await posSaveAndPublish(`${c.brand} ${m}: ${b.dataset.sz}`); posRenderStatus();
 });
 function posCarForm(i){
   const p = posCfg(); const c = i!=null ? p.cars[i] : { brand:'', models:[] };
