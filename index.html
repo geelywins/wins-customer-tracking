@@ -256,6 +256,17 @@ tbody tr:hover{background:#FAFBFE;}
 .pos-banner-img{width:150px;height:62px;border-radius:8px;object-fit:cover;background:#EEF1F6;}
 .pos-banner-preview{width:100%;max-height:220px;border-radius:10px;object-fit:cover;background:#EEF1F6;display:block;}
 .pos-qris{width:150px;height:150px;border-radius:10px;object-fit:contain;background:#EEF1F6;border:1px solid var(--line);}
+.sz-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.sz-chip{font-size:11.5px;background:var(--bg,#eef1f5);border-radius:20px;padding:4px 10px;color:var(--muted)}
+.sz-chip b{color:var(--ink,#16202B)}
+.sz-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px dashed var(--line)}
+.sz-name{font-weight:600;font-size:13.5px;min-width:120px}
+.sz-seg{display:flex;gap:6px;flex-wrap:wrap}
+.sz-seg button{all:unset;cursor:pointer;box-sizing:border-box;min-width:58px;text-align:center;padding:7px 10px;border:1.5px solid var(--line);border-radius:9px;font-size:12.5px;font-weight:700;background:#fff}
+.sz-seg button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.size-table input{min-width:88px}
+.size-table th:first-child,.size-table td:first-child{position:sticky;left:0;z-index:1;background:#fff;min-width:118px;box-shadow:2px 0 4px rgba(22,32,43,.06)}
+.size-table td:first-child .ex-sub{font-size:10.5px;line-height:1.3}
 .pos-rules-help{background:#FFF7E8;border:1px solid #F5C87A;border-radius:10px;padding:12px 14px;}
 .pos-code-tag{font-family:ui-monospace,Menlo,monospace;background:#EEF2FF;border:1px dashed var(--blue);padding:1px 8px;border-radius:6px;letter-spacing:.04em;}
 .pos-code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#F4F6FA;border:1px solid var(--line);border-radius:8px;padding:9px 11px;word-break:break-all;}
@@ -1401,6 +1412,13 @@ tbody tr:hover{background:#FAFBFE;}
           <div class="card">
             <div class="vd-head"><h2 style="margin:0">Merek &amp; Tipe Mobil <span class="muted">pilihan mobil pembeli</span></h2><button class="btn sm" onclick="posCarForm()">+ Merek</button></div>
             <div id="posCarList"></div>
+          </div>
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">Klasifikasi Ukuran <span class="muted">menentukan harga kaca film</span></h2></div>
+            <p class="ex-sub" style="margin:6px 0 10px">Ukuran kaca tiap mobil berbeda, jadi harga kaca film dibedakan per ukuran. Pilih ukuran untuk setiap tipe. Pilihan langsung tersimpan.</p>
+            <div id="posSizeLegend" class="sz-legend"></div>
+            <div id="posSizeWarn"></div>
+            <div id="posCarSizes"></div>
           </div>
         </div>
         <div class="pos-panel" id="ppanel-payship" style="display:none">
@@ -6648,6 +6666,12 @@ const POS_DEFAULT_CARS = [
   { brand:'Geely', models:['EX2','EX5','Starray EM-i','Coolray'] },
   { brand:'BYD', models:['Atto 1','Atto 3','Seal','Dolphin','Sealion','M6 EV','M6 DM'] }
 ];
+const POS_SIZES = ['Small','Medium','Large','XL'];
+const POS_SIZE_HINT = { Small:'City car & hatchback kecil', Medium:'Sedan & SUV kompak', Large:'SUV & MPV besar', XL:'SUV/MPV/van sangat besar' };
+/* saran awal saja — admin yang menentukan ukuran akhirnya */
+const POS_DEFAULT_CAR_SIZES = { 'Geely EX2':'Small','Geely EX5':'Medium','Geely Starray EM-i':'Large','Geely Coolray':'Medium','BYD Atto 1':'Small','BYD Dolphin':'Small','BYD Atto 3':'Medium','BYD Seal':'Medium','BYD Sealion':'Large','BYD M6 EV':'Large','BYD M6 DM':'Large' };
+function posFilmPriceVals(b){ return POS_SIZES.flatMap(sz=>Object.values((b.prices||{})[sz]||{})).map(Number).filter(v=>v>0); }
+function posUnsizedModels(){ return posCfg().cars.flatMap(c=>c.models.filter(m=>!(c.sizes||{})[m]).map(m=>`${c.brand} ${m}`)); }
 function posDefaultFilmShades(name){
   return { depan: /\bLX\b/i.test(name) ? ['10%','20%','30%'] : ['30%','40%'], sampingDepan:['30%','40%','60%','80%'], sampingBelakang:['30%','40%','60%','80%'], belakang:['60%','80%'] };
 }
@@ -6697,6 +6721,20 @@ function posCfg(){
   const d = posNewDefault();
   Object.keys(d).forEach(k=>{ if(p[k]===undefined) p[k] = d[k]; });
   (p.filmBrands||[]).forEach(b=>{ const pr = b.prices||{}; if(pr['Depan']!==undefined){ if(pr['Depan Saja']===undefined) pr['Depan Saja'] = pr['Depan']; delete pr['Depan']; } });
+  // harga kaca film per ukuran mobil: format lama (satu harga per paket) disalin ke semua ukuran agar toko tetap jalan
+  (p.filmBrands||[]).forEach(b=>{
+    const pr = b.prices = b.prices||{};
+    if(Object.keys(pr).some(k=>!POS_SIZES.includes(k))){
+      const flat = {}; Object.keys(pr).forEach(k=>{ if(!POS_SIZES.includes(k) && Number(pr[k])>0) flat[k] = Number(pr[k]); });
+      b.prices = {}; POS_SIZES.forEach(sz=>{ b.prices[sz] = Object.assign({}, flat); });
+    }
+  });
+  // klasifikasi ukuran mobil
+  p.cars.forEach(c=>{ c.sizes = c.sizes||{}; });
+  if(!p.sizesSeeded){
+    p.cars.forEach(c=>c.models.forEach(m=>{ const g = POS_DEFAULT_CAR_SIZES[`${c.brand} ${m}`]; if(g && !c.sizes[m]) c.sizes[m] = g; }));
+    p.sizesSeeded = true;
+  }
   return p;
 }
 function posCarLabels(){ return posCfg().cars.flatMap(c=>c.models.map(m=>`${c.brand} ${m}`)); }
@@ -6867,13 +6905,13 @@ function posBuildCatalog(){
   const catOn = id=>activeCats.some(c=>c.id===id);
   const dealOut = d=>posDealActive(d) ? { type:d.type, value:Number(d.value), until:d.until||'' } : null;
   return {
-    v:2, updatedAt:new Date().toISOString(),
+    v:3, updatedAt:new Date().toISOString(),
     store: p.store,
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
-    cars: p.cars.filter(c=>c.brand && c.models.length),
+    cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
     categories: activeCats.map(c=>({ id:c.id, name:c.name, icon:c.icon||'🛒', type:c.type })),
-    film:{ sides: EX_FILM_SIDES, packages: POS_FILM_PACKAGES,
-      brands: catOn('cat_film') ? p.filmBrands.filter(b=>b.active!==false && Object.values(b.prices||{}).some(v=>Number(v)>0))
+    film:{ sides: EX_FILM_SIDES, packages: POS_FILM_PACKAGES, sizes: POS_SIZES,
+      brands: catOn('cat_film') ? p.filmBrands.filter(b=>b.active!==false && posFilmPriceVals(b).length>0)
         .map(b=>({ id:b.id, name:b.name, desc:b.desc||'', badge:b.badge||'', images:b.images||[], prices:b.prices, shades:b.shades, deal:dealOut(b.deal) })) : [] },
     carpets: catOn('cat_karpet') ? p.carpets.filter(c=>c.active!==false && Object.keys(c.prices||{}).length)
       .map(c=>({ id:c.id, name:c.name, desc:c.desc||'', images:c.images||[], packages:c.packages||[], colors:c.colors||[], prices:c.prices||{}, deal:dealOut(c.deal) })) : [],
@@ -6956,8 +6994,8 @@ function posRenderProducts(){
       <div><strong>${posEsc(title)}</strong>${on?'':' <span class="pill">disembunyikan</span>'}<div class="ex-sub">${sub}</div></div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${btns}</div></div></div>`;
     if(c.type==='film'){
       addBtn = `<button class="btn sm" onclick="posFilmForm()">+ Brand Kaca Film</button>`;
-      body = p.filmBrands.map(b=>{ const pr = Object.values(b.prices||{}).filter(v=>v>0);
-        return row((b.images||[])[0], '🪟', b.name, priceInfo(pr.length?Math.min(...pr):0, `${pr.length}/${Object.keys(POS_FILM_PACKAGES).length} paket`, b.deal), b.active!==false,
+      body = p.filmBrands.map(b=>{ const pr = posFilmPriceVals(b); const nSz = POS_SIZES.filter(sz=>Object.values((b.prices||{})[sz]||{}).some(v=>Number(v)>0)).length;
+        return row((b.images||[])[0], '🪟', b.name, priceInfo(pr.length?Math.min(...pr):0, `${nSz}/${POS_SIZES.length} ukuran terisi`, b.deal), b.active!==false,
           `<button class="btn ghost sm" onclick="posFilmForm('${b.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('filmBrands','${b.id}')">${b.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('filmBrands','${b.id}')">🗑</button>`); }).join('');
     } else if(c.type==='karpet'){
       addBtn = `<button class="btn sm" onclick="posCarpetForm()">+ Brand Karpet</button>`;
@@ -7009,19 +7047,26 @@ function posFilmForm(id){
       <div class="field full"><label>Deskripsi</label><textarea id="pf_desc" rows="3">${posEsc(b.desc)}</textarea></div>
       <div class="field full"><label>Foto (maks. 4)</label><div id="posImgsWrap"></div></div>
     </div>
-    <div class="section-title">Harga per paket pemasangan (Rp)</div>
-    <div class="table-wrap"><table class="iss-table"><thead><tr><th>Paket</th><th>Sisi</th><th>Harga</th></tr></thead><tbody>
-      ${Object.keys(POS_FILM_PACKAGES).map(k=>`<tr><td><strong>${k==='Full'?'Full':'Partial · '+k}</strong></td><td class="ex-sub">${POS_FILM_PACKAGES[k].map(exSideLabel).join(', ')}</td><td><input type="number" min="0" data-pkg="${k}" value="${b.prices[k]??''}" placeholder="Rp"></td></tr>`).join('')}
+    <div class="section-title">Harga per paket &amp; ukuran mobil (Rp)</div>
+    <p class="ex-sub" style="margin:0 0 8px">Harga menyesuaikan ukuran mobil pembeli. Ukuran tiap tipe mobil diatur di tab <strong>Merek Mobil</strong>. Kosongkan kalau paket tidak tersedia untuk ukuran itu.</p>
+    <div class="table-wrap"><table class="iss-table size-table"><thead><tr><th>Paket</th>${POS_SIZES.map(sz=>`<th>${sz}</th>`).join('')}</tr></thead><tbody>
+      ${Object.keys(POS_FILM_PACKAGES).map(k=>`<tr><td><strong>${k==='Full'?'Full':'Partial · '+k}</strong><div class="ex-sub">${POS_FILM_PACKAGES[k].map(exSideLabel).join(', ')}</div></td>${POS_SIZES.map(sz=>`<td><input type="number" min="0" data-pkg="${k}" data-size="${sz}" value="${((b.prices||{})[sz]||{})[k]??''}" placeholder="Rp"></td>`).join('')}</tr>`).join('')}
     </tbody></table></div>
+    <button class="btn ghost sm" id="pf_fill" style="margin-top:8px">Salin harga Small ke ukuran yang masih kosong</button>
     <div class="section-title">Pilihan kegelapan per sisi <span class="muted" style="text-transform:none;letter-spacing:0">(pisahkan koma)</span></div>
     ${EX_FILM_SIDES.map(sd=>`<div class="iss-row" style="grid-template-columns:1fr 1.2fr"><div style="font-size:13px;font-weight:600;align-self:center">${sd.label}</div><input type="text" data-side="${sd.key}" value="${posEsc((shades[sd.key]||[]).join(', '))}"></div>`).join('')}
     ${posDealFields(b.deal)}
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pf_save">Simpan</button></div>`, true);
   posBindImages(b.images, 4);
+  document.getElementById('pf_fill').onclick = ()=>{
+    document.querySelectorAll('#modalBox input[data-size="Small"]').forEach(src=>{ if(!(Number(src.value)>0)) return; document.querySelectorAll(`#modalBox input[data-pkg="${src.dataset.pkg}"]`).forEach(i=>{ if(i!==src && !(Number(i.value)>0)) i.value = src.value; }); });
+    toast('Harga Small disalin ke ukuran yang kosong — sesuaikan lagi per ukuran');
+  };
   document.getElementById('pf_save').onclick = async ()=>{
     const name = document.getElementById('pf_name').value.trim(); if(!name){ toast('Nama brand wajib diisi','err'); return; }
     if(p.filmBrands.some(x=>x.name.toLowerCase()===name.toLowerCase() && x.id!==id)){ toast('Brand ini sudah ada','err'); return; }
-    const prices = {}; document.querySelectorAll('#modalBox input[data-pkg]').forEach(i=>{ if(Number(i.value)>0) prices[i.dataset.pkg] = Number(i.value); });
+    const prices = {}; POS_SIZES.forEach(sz=>{ prices[sz] = {}; });
+    document.querySelectorAll('#modalBox input[data-pkg]').forEach(i=>{ if(Number(i.value)>0) prices[i.dataset.size][i.dataset.pkg] = Number(i.value); });
     const sh = {}; let empty = null; document.querySelectorAll('#modalBox input[data-side]').forEach(i=>{ sh[i.dataset.side] = exParseShades(i.value); if(!sh[i.dataset.side].length && !empty) empty = exSideLabel(i.dataset.side); });
     if(empty){ toast(`Isi minimal satu kegelapan untuk ${empty}`,'err'); return; }
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
@@ -7167,13 +7212,31 @@ function posRenderCars(){
   document.getElementById('posCarList').innerHTML = p.cars.length ? p.cars.map((c,i)=>`<div class="vd-item"><div><strong>${posEsc(c.brand)}</strong>${i<2?' <span class="pill lead">utama</span>':''}<div class="ex-sub">${posEsc(c.models.join(', '))}</div></div>
     <div style="display:flex;gap:6px"><button class="btn ghost sm" ${i===0?'disabled':''} onclick="posCarMove(${i})">↑</button><button class="btn ghost sm" onclick="posCarForm(${i})">✏️</button><button class="btn ghost sm" onclick="posCarDelete(${i})">🗑</button></div></div>`).join('')
     : '<div class="empty">Belum ada merek mobil.</div>';
+  posRenderSizes();
 }
+function posRenderSizes(){
+  const p = posCfg(); const el = document.getElementById('posCarSizes'); if(!el) return;
+  document.getElementById('posSizeLegend').innerHTML = POS_SIZES.map(sz=>`<span class="sz-chip"><b>${sz}</b> ${POS_SIZE_HINT[sz]}</span>`).join('');
+  const un = posUnsizedModels();
+  document.getElementById('posSizeWarn').innerHTML = un.length ? `<div class="pos-rules-help" style="margin-bottom:10px"><strong>${un.length} tipe belum diatur ukurannya</strong><div class="ex-sub" style="margin-top:4px">Pembeli belum bisa membeli kaca film untuk tipe ini sampai ukurannya dipilih: ${posEsc(un.join(', '))}.</div></div>` : '';
+  el.innerHTML = p.cars.length ? p.cars.map((c,ci)=>`<div class="section-title" style="margin-top:12px">${posEsc(c.brand)}</div>`
+    + c.models.map((m,mi)=>{ const cur = (c.sizes||{})[m]||'';
+      return `<div class="sz-row"><div class="sz-name">${posEsc(m)}${cur?'':' <span class="st-warn">belum diatur</span>'}</div>
+        <div class="sz-seg" role="radiogroup" aria-label="Ukuran ${posEsc(c.brand+' '+m)}">${POS_SIZES.map(sz=>`<button type="button" role="radio" aria-checked="${sz===cur}" class="${sz===cur?'on':''}" data-ci="${ci}" data-mi="${mi}" data-sz="${sz}">${sz}</button>`).join('')}</div></div>`; }).join('')).join('')
+    : '<div class="empty">Tambah merek mobil dulu.</div>';
+}
+document.addEventListener('click', async e=>{
+  const b = e.target.closest('#posCarSizes [data-sz]'); if(!b) return;
+  const p = posCfg(); const c = p.cars[+b.dataset.ci]; if(!c) return; const m = c.models[+b.dataset.mi]; if(m==null) return;
+  c.sizes = c.sizes||{}; c.sizes[m] = b.dataset.sz;
+  await posSave(); posRenderSizes(); posRenderStatus();
+});
 function posCarForm(i){
   const p = posCfg(); const c = i!=null ? p.cars[i] : { brand:'', models:[] };
   openModal(`<div class="modal-head"><h3>${i!=null?'Edit':'Tambah'} Merek Mobil</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid"><div class="field full"><label>Merek</label><input type="text" id="pcar_brand" value="${posEsc(c.brand)}" placeholder="mis. Wuling"></div>
     <div class="field full"><label>Tipe (pisahkan koma)</label><textarea id="pcar_models" rows="3" placeholder="Air ev, BinguoEV, Cloud EV">${posEsc(c.models.join(', '))}</textarea></div></div>
-    <p class="ex-sub">Harga karpet yang sudah diisi memakai nama "Merek Tipe". Kalau nama tipe diganti, isi ulang harga karpet untuk tipe tersebut.</p>
+    <p class="ex-sub">Harga karpet yang sudah diisi memakai nama "Merek Tipe". Kalau nama tipe diganti, isi ulang harga karpet untuk tipe tersebut. Ukuran kaca film diatur di kartu Klasifikasi Ukuran setelah tipe disimpan.</p>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pcar_save">Simpan</button></div>`);
   document.getElementById('pcar_save').onclick = async ()=>{
     const brand = document.getElementById('pcar_brand').value.trim();
@@ -7181,7 +7244,8 @@ function posCarForm(i){
     if(!brand || !models.length){ toast('Isi merek dan minimal satu tipe','err'); return; }
     if(/[.#$\[\]\/]/.test(brand+models.join(''))){ toast('Nama tidak boleh berisi . # $ [ ] /','err'); return; }
     if(p.cars.some((x,j)=>x.brand.toLowerCase()===brand.toLowerCase() && j!==i)){ toast('Merek ini sudah ada','err'); return; }
-    if(i!=null) Object.assign(p.cars[i], { brand, models }); else p.cars.push({ brand, models });
+    if(i!=null){ Object.assign(p.cars[i], { brand, models }); const sz = p.cars[i].sizes = p.cars[i].sizes||{}; Object.keys(sz).forEach(k=>{ if(!models.includes(k)) delete sz[k]; }); }
+    else p.cars.push({ brand, models, sizes:{} });
     await posSave(); closeModal(); toast('Merek mobil disimpan'); posRenderCars();
   };
 }
