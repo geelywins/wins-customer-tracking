@@ -256,6 +256,9 @@ tbody tr:hover{background:#FAFBFE;}
 .pos-banner-img{width:150px;height:62px;border-radius:8px;object-fit:cover;background:#EEF1F6;}
 .pos-banner-preview{width:100%;max-height:220px;border-radius:10px;object-fit:cover;background:#EEF1F6;display:block;}
 .pos-qris{width:150px;height:150px;border-radius:10px;object-fit:contain;background:#EEF1F6;border:1px solid var(--line);}
+.pos-segchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.pos-segchip{all:unset;cursor:pointer;padding:7px 14px;border-radius:20px;background:#fff;border:1.5px solid var(--line);font-size:12.5px;font-weight:700}
+.pos-segchip.on{background:var(--blue);border-color:var(--blue);color:#fff}
 .pos-cat-ico{width:26px;height:26px;border-radius:8px;object-fit:cover;vertical-align:middle;margin-right:8px;display:inline-block;background:#EEF1F6}
 .pos-cat-emoji{display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
 .pos-thumb-empty .pos-cat-ico{width:34px;height:34px;margin:0}
@@ -1371,6 +1374,7 @@ tbody tr:hover{background:#FAFBFE;}
           <button class="growth-tab active" data-ptab="orders">🧾 Pesanan <span id="posNewBadge"></span></button>
           <button class="growth-tab" data-ptab="customers">👤 Pelanggan</button>
           <button class="growth-tab" data-ptab="products">📦 Produk &amp; Kategori</button>
+          <button class="growth-tab" data-ptab="frozen">🧊 Frozen Food</button>
           <button class="growth-tab" data-ptab="promos">🏷️ Kode Promo &amp; Deal</button>
           <button class="growth-tab" data-ptab="banners">🖼️ Banner</button>
           <button class="growth-tab" data-ptab="cars">🚗 Merek Mobil</button>
@@ -1381,6 +1385,7 @@ tbody tr:hover{background:#FAFBFE;}
           <div class="toolbar">
             <input type="search" id="posOrderSearch" placeholder="Cari no. pesanan, nama, WA...">
             <select id="posOrderStatus"><option value="">Semua status</option></select>
+            <select id="posOrderSeg"><option value="">Semua segmen</option><option value="otomotif">Otomotif</option><option value="frozen">Frozen Food</option></select>
           </div>
           <div class="card"><div id="posOrderList"></div></div>
         </div>
@@ -1389,11 +1394,19 @@ tbody tr:hover{background:#FAFBFE;}
           <div class="card"><div id="posCustList"></div></div>
         </div>
         <div class="pos-panel" id="ppanel-products" style="display:none">
+          <div id="posSegChips" class="pos-segchips"></div>
           <div class="card">
             <div class="vd-head"><h2 style="margin:0">Kategori</h2><button class="btn sm" onclick="posCategoryForm()">+ Kategori</button></div>
             <div id="posCatList"></div>
           </div>
           <div id="posProductSections"></div>
+        </div>
+        <div class="pos-panel" id="ppanel-frozen" style="display:none">
+          <div class="card"><div id="posFrozenCfg"></div></div>
+          <div class="card">
+            <div class="vd-head"><h2 style="margin:0">Stok Frozen Food <span class="muted">kosongkan = tidak dibatasi</span></h2><button class="btn sm" id="posFrozenStockSave">Simpan stok</button></div>
+            <div id="posFrozenStock"></div>
+          </div>
         </div>
         <div class="pos-panel" id="ppanel-promos" style="display:none">
           <div class="card">
@@ -6684,16 +6697,38 @@ function posUnsizedModels(){ return posCfg().cars.flatMap(c=>c.models.filter(m=>
 function posDefaultFilmShades(name){
   return { depan: /\bLX\b/i.test(name) ? ['10%','20%','30%'] : ['30%','40%'], sampingDepan:['30%','40%','60%','80%'], sampingBelakang:['30%','40%','60%','80%'], belakang:['60%','80%'] };
 }
+const POS_SEGMENTS = [ { key:'otomotif', name:'Otomotif' }, { key:'frozen', name:'Frozen Food' } ];
+function posSegName(k){ return k==='frozen' ? (((state.settings.pos||{}).frozen||{}).name || 'Frozen Food') : 'Otomotif'; }
+const POS_WEEKDAYS = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const POS_FROZEN_CATS = [
+  { id:'cat_fz_nugget', name:'Nugget & Sosis', icon:'🍗' },
+  { id:'cat_fz_dimsum', name:'Dimsum & Bakso', icon:'🥟' },
+  { id:'cat_fz_seafood', name:'Seafood', icon:'🦐' },
+  { id:'cat_fz_paket', name:'Paket Hemat', icon:'🎁' }
+];
+function posFrozenDefault(){
+  return { enabled:true, name:'Frozen Food', tagline:'Frozen food siap masak, dikemas dingin dan dikirim ke rumah kamu',
+    minOrder:50000, packFee:5000, packFreeFrom:150000, slots:['09.00–12.00','12.00–15.00','15.00–18.00'], prepHours:2, horizonDays:7,
+    closedWeekdays:[], closedDates:[], areas:[], courierName:'Kurir instan (Gojek / Grab)',
+    courierNote:'Ongkir ditanggung pembeli. Admin menghitung ongkir setelah pesanan masuk, lalu mengirim total pembayaran lewat WhatsApp.',
+    payTransfer:true, payQris:true };
+}
+function posFrozenOut(f){
+  return { minOrder:Number(f.minOrder)||0, packFee:Number(f.packFee)||0, packFreeFrom:Number(f.packFreeFrom)||0, slots:(f.slots||[]).filter(Boolean), prepHours:Number(f.prepHours)||0,
+    horizonDays:Math.max(1, Number(f.horizonDays)||7), closedWeekdays:f.closedWeekdays||[], closedDates:f.closedDates||[], areas:f.areas||[],
+    courierName:f.courierName||'Kurir instan', courierNote:f.courierNote||'', pay:{ transfer:f.payTransfer!==false, qris:f.payQris!==false } };
+}
+let posSegFilter = 'all';
 function posNewDefault(){
   return {
     v:2,
     store:{ name:'Toko Aksesoris Mobil', tagline:'Kaca film & karpet custom, dipasang di alamatmu', wa:'', area:'Jabodetabek', logo:'', url:'' },
     cars: JSON.parse(JSON.stringify(POS_DEFAULT_CARS)),
     categories:[
-      { id:'cat_film', name:'Kaca Film', icon:'🪟', type:'film', active:true },
-      { id:'cat_karpet', name:'Karpet Custom', icon:'🧶', type:'karpet', active:true }
+      { id:'cat_film', name:'Kaca Film', icon:'🪟', type:'film', segment:'otomotif', active:true },
+      { id:'cat_karpet', name:'Karpet Custom', icon:'🧶', type:'karpet', segment:'otomotif', active:true }
     ],
-    filmBrands:[], carpets:[], products:[], promos:[], banners:[],
+    filmBrands:[], carpets:[], products:[], promos:[], banners:[], frozen: posFrozenDefault(),
     payments:{ cash:true, transfer:true, qrisOn:true, banks:[], qris:'' },
     shipping:[
       { id:'ship_home', name:'Pemasangan di alamat kamu', fee:0, applies:'all', needsAddress:true, install:true, note:'Teknisi datang ke rumah / kantor sesuai jadwal' },
@@ -6744,6 +6779,13 @@ function posCfg(){
     p.cars.forEach(c=>c.models.forEach(m=>{ const g = POS_DEFAULT_CAR_SIZES[`${c.brand} ${m}`]; if(g && !c.sizes[m]) c.sizes[m] = g; }));
     p.sizesSeeded = true;
   }
+  // segmen toko: kategori lama = otomotif, Frozen Food ditambahkan sebagai segmen kedua
+  p.categories.forEach(c=>{ if(!c.segment) c.segment = 'otomotif'; });
+  const fzd = posFrozenDefault(); p.frozen = p.frozen || {}; Object.keys(fzd).forEach(k=>{ if(p.frozen[k]===undefined) p.frozen[k] = fzd[k]; });
+  if(!p.frozenSeeded){
+    POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
+    p.frozenSeeded = true;
+  }
   return p;
 }
 function posCarLabels(){ return posCfg().cars.flatMap(c=>c.models.map(m=>`${c.brand} ${m}`)); }
@@ -6772,7 +6814,7 @@ async function posSyncCatalogIfStale(){
   try{
     const [vs, rs] = await Promise.all([posDb.ref('pos/catalog/v').once('value'), posDb.ref('pos/catalog/rev').once('value')]);
     const v = Number(vs.val())||0, rev = Number(rs.val())||0, mine = Number(posCfg().rev)||0;
-    if(v < 4 || mine > rev) await posPublish(false);
+    if(v < 5 || mine > rev) await posPublish(false);
   }catch(e){ console.error(e); }
 }
 
@@ -6973,22 +7015,24 @@ function posReadDeal(){
 /* ---- publish katalog ---- */
 function posBuildCatalog(){
   const p = posCfg(); const fb = state.settings.aiFollowUpFirebase||{};
-  const activeCats = p.categories.filter(c=>c.active!==false);
+  const activeCats = p.categories.filter(c=>c.active!==false && ((c.segment||'otomotif')!=='frozen' || p.frozen.enabled));
   const catOn = id=>activeCats.some(c=>c.id===id);
   const dealOut = d=>posDealActive(d) ? { type:d.type, value:Number(d.value), until:d.until||'' } : null;
   return {
-    v:4, rev:Number(p.rev)||0, updatedAt:new Date().toISOString(),
+    v:5, rev:Number(p.rev)||0, updatedAt:new Date().toISOString(),
     store: p.store,
+    segments: [{ key:'otomotif', name:'Otomotif', tagline:p.store.tagline||'' }].concat(p.frozen.enabled ? [{ key:'frozen', name:p.frozen.name||'Frozen Food', tagline:p.frozen.tagline||'' }] : []),
+    frozen: p.frozen.enabled ? posFrozenOut(p.frozen) : null,
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
-    categories: activeCats.map(c=>{ const d = c.iconImg ? (posImgCache[c.iconImg]||'') : ''; return { id:c.id, name:c.name, icon:c.icon||'🛒', iconData: d.length<60000 ? d : '', type:c.type }; }),
+    categories: activeCats.map(c=>{ const d = c.iconImg ? (posImgCache[c.iconImg]||'') : ''; return { id:c.id, name:c.name, icon:c.icon||'🛒', iconData: d.length<60000 ? d : '', type:c.type, segment:c.segment||'otomotif' }; }),
     film:{ sides: EX_FILM_SIDES, packages: POS_FILM_PACKAGES, sizes: POS_SIZES,
       brands: catOn('cat_film') ? p.filmBrands.filter(b=>b.active!==false && posFilmPriceVals(b).length>0)
         .map(b=>({ id:b.id, name:b.name, desc:b.desc||'', badge:b.badge||'', images:b.images||[], prices:b.prices, shades:b.shades, deal:dealOut(b.deal) })) : [] },
     carpets: catOn('cat_karpet') ? p.carpets.filter(c=>c.active!==false && Object.keys(c.prices||{}).length)
       .map(c=>({ id:c.id, name:c.name, desc:c.desc||'', images:c.images||[], packages:c.packages||[], colors:c.colors||[], prices:c.prices||{}, deal:dealOut(c.deal) })) : [],
     products: p.products.filter(x=>x.active!==false && catOn(x.categoryId) && (x.variants||[]).some(v=>Number(v.price)>0))
-      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', deal:dealOut(x.deal) })),
+      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', deal:dealOut(x.deal) })),
     promos: p.promos.filter(x=>x.active!==false && (!x.until || x.until>=todayISO()))
       .map(x=>({ id:x.id, hash:x.hash, code: x.public ? x.code : '', type:x.type, value:Number(x.value)||0, scope:x.scope||'all', minSpend:Number(x.minSpend)||0, until:x.until||'', desc:x.desc||'', public:!!x.public })),
     banners: p.banners.filter(b=>b.active!==false && b.img),
@@ -7046,6 +7090,7 @@ function renderToko(){
   if(t==='orders') posRenderOrders();
   if(t==='customers') posRenderCustomers();
   if(t==='products') posRenderProducts();
+  if(t==='frozen') posRenderFrozen();
   if(t==='promos') posRenderPromos();
   if(t==='banners') posRenderBanners();
   if(t==='cars') posRenderCars();
@@ -7055,15 +7100,25 @@ function renderToko(){
 
 /* ---- kategori & produk ---- */
 function posCatIcon(c, cls){ return c.iconImg ? `<img class="${cls||'pos-cat-ico'}" data-pimg="${c.iconImg}" alt="">` : `<span class="${cls||'pos-cat-ico'} pos-cat-emoji">${posEsc(c.icon||'🛒')}</span>`; }
+function posSetSegFilter(k){ posSegFilter = k; posRenderProducts(); }
+function posVisibleCats(){ return posCfg().categories.filter(c=>posSegFilter==='all' || (c.segment||'otomotif')===posSegFilter); }
+function posStockSummary(x){
+  const vs = x.variants||[]; const lim = vs.filter(v=>v.stock!=null);
+  if(!lim.length) return 'stok tidak dibatasi';
+  const habis = lim.filter(v=>Number(v.stock)===0).length;
+  return `stok ${lim.reduce((a,v)=>a+Number(v.stock),0)}${habis?` · <span class="st-warn">${habis} varian habis</span>`:''}`;
+}
 function posRenderProducts(){
   const p = posCfg();
+  const chips = document.getElementById('posSegChips');
+  if(chips) chips.innerHTML = [['all','Semua segmen'],['otomotif','Otomotif'],['frozen',posSegName('frozen')]].map(([k,l])=>`<button type="button" class="pos-segchip ${posSegFilter===k?'on':''}" onclick="posSetSegFilter('${k}')">${posEsc(l)}</button>`).join('');
   const count = c=> c.type==='film' ? p.filmBrands.length : c.type==='karpet' ? p.carpets.length : p.products.filter(x=>x.categoryId===c.id).length;
-  document.getElementById('posCatList').innerHTML = p.categories.map(c=>`<div class="vd-item"><div><strong>${posCatIcon(c)}${posEsc(c.name)}</strong>${c.active===false?' <span class="pill">disembunyikan</span>':''}
+  document.getElementById('posCatList').innerHTML = posVisibleCats().map(c=>`<div class="vd-item"><div><strong>${posCatIcon(c)}${posEsc(c.name)}</strong> <span class="pill">${posEsc(posSegName(c.segment||'otomotif'))}</span>${c.active===false?' <span class="pill">disembunyikan</span>':''}
       <div class="ex-sub">${count(c)} produk${c.type!=='generic'?' · kategori bawaan':''}</div></div>
     <div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="posCategoryForm('${c.id}')">✏️</button>${c.type==='generic'?`<button class="btn ghost sm" onclick="posCategoryDelete('${c.id}')">🗑</button>`:''}</div></div>`).join('');
   posHydrateImages(document.getElementById('posCatList'));
   const sec = document.getElementById('posProductSections');
-  sec.innerHTML = p.categories.map(c=>{
+  sec.innerHTML = posVisibleCats().map(c=>{
     let body = '', addBtn = '';
     const priceInfo = (min, n, deal)=> min ? `mulai ${exRp(min)}${n?` · ${n}`:''}${posDealActive(deal)?` · <span class="st-ok">Deal ${posDealTag(deal)}</span>`:''}` : '<span class="st-warn">harga belum diisi — tidak tampil di toko</span>';
     const row = (img, icon, title, sub, on, btns)=>`<div class="vd-vendor"><div class="vd-head"><div style="display:flex;gap:10px;align-items:center">${img?posThumb(img):`<div class="pos-thumb pos-thumb-empty">${icon}</div>`}
@@ -7081,7 +7136,7 @@ function posRenderProducts(){
     } else {
       addBtn = `<button class="btn sm" onclick="posProductForm(null,'${c.id}')">+ Produk</button>`;
       body = p.products.filter(x=>x.categoryId===c.id).map(x=>{ const pr = (x.variants||[]).map(v=>Number(v.price)).filter(v=>v>0);
-        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil'}`, x.deal), x.active!==false,
+        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}`, x.deal), x.active!==false,
           `<button class="btn ghost sm" onclick="posProductForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('products','${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('products','${x.id}')">🗑</button>`); }).join('');
     }
     return `<div class="card"><div class="vd-head"><h2 style="margin:0">${posCatIcon(c)}${posEsc(c.name)}</h2>${addBtn}</div>${body||'<div class="empty">Belum ada produk.</div>'}</div>`;
@@ -7089,10 +7144,11 @@ function posRenderProducts(){
   posHydrateImages(sec);
 }
 function posCategoryForm(id){
-  const p = posCfg(); const c = p.categories.find(x=>x.id===id) || { icon:'🛒', type:'generic', active:true };
+  const p = posCfg(); const c = p.categories.find(x=>x.id===id) || { icon:'🛒', type:'generic', segment:(posSegFilter!=='all'?posSegFilter:'otomotif'), active:true };
   let pending = null, removed = false;
   openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Kategori</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid"><div class="field full"><label>Nama Kategori</label><input type="text" id="pcat_name" value="${posEsc(c.name)}" placeholder="mis. Dash Cam, Talang Air, Cover Bawah"></div>
+    <div class="field full"><label>Segmen toko</label><select id="pcat_seg" ${(c.type&&c.type!=='generic')?'disabled':''}><option value="otomotif" ${(c.segment||'otomotif')==='otomotif'?'selected':''}>Otomotif</option><option value="frozen" ${c.segment==='frozen'?'selected':''}>${posEsc(posSegName('frozen'))}</option></select></div>
     <div class="field full"><label>Ikon kategori</label>
       <div class="ico-edit"><div class="ico-prev" id="pcat_prev"></div>
         <div class="ico-ctl"><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn ghost sm" id="pcat_up">Pilih gambar dari galeri</button><button type="button" class="btn ghost sm" id="pcat_rm">Hapus gambar</button></div>
@@ -7115,7 +7171,7 @@ function posCategoryForm(id){
     let iconImg = c.iconImg || '';
     if(pending){ const nid = await posStoreImage(pending.data); if(!nid) return; if(c.iconImg) posDeleteImage(c.iconImg); iconImg = nid; }
     else if(removed && c.iconImg){ posDeleteImage(c.iconImg); iconImg = ''; }
-    const data = { name, iconImg, active:$('pcat_active').checked };
+    const data = { name, iconImg, segment:(c.type&&c.type!=='generic') ? 'otomotif' : $('pcat_seg').value, active:$('pcat_active').checked };
     if(id) Object.assign(c, data); else p.categories.push(Object.assign({ id:'cat_'+uid(), type:'generic', icon:'🛒' }, data));
     closeModal(); await posSaveAndPublish('Kategori disimpan'); posRenderProducts(); posRenderStatus();
   };
@@ -7215,20 +7271,27 @@ function posProductForm(id, catId){
   const cars = posCarLabels(); const sel = Array.isArray(x.cars) ? x.cars : [];
   openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Produk</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
-      <div class="field"><label>Kategori</label><select id="pp_cat">${gen.map(c=>`<option value="${c.id}" ${c.id===x.categoryId?'selected':''}>${posEsc(c.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Kategori</label><select id="pp_cat">${gen.map(c=>`<option value="${c.id}" ${c.id===x.categoryId?'selected':''}>${posEsc(c.name)} · ${posEsc(posSegName(c.segment||'otomotif'))}</option>`).join('')}</select></div>
       <div class="field"><label>Merek (opsional)</label><input type="text" id="pp_brand" value="${posEsc(x.brand)}"></div>
       <div class="field full"><label>Nama Produk</label><input type="text" id="pp_name" value="${posEsc(x.name)}" placeholder="mis. Dash Cam 4K Dual Channel"></div>
-      <div class="field full"><label>Variasi &amp; harga <span class="muted">— satu baris per variasi: <code>Nama = harga</code></span></label>
-        <textarea id="pp_var" rows="4" placeholder="Depan = 450000&#10;Samping = 600000&#10;Belakang = 450000&#10;Tengah = 500000">${posEsc((x.variants||[]).map(v=>`${v.name} = ${v.price}`).join('\n'))}</textarea></div>
+      <div class="field full"><label>Variasi, harga &amp; stok <span class="muted">— satu baris per variasi: <code>Nama = harga | stok</code> (stok boleh dikosongkan = tidak dibatasi)</span></label>
+        <textarea id="pp_var" rows="4" placeholder="Depan = 450000&#10;500 g = 35000 | 20&#10;1 kg = 65000 | 10">${posEsc((x.variants||[]).map(v=>`${v.name} = ${v.price}${v.stock!=null?` | ${v.stock}`:''}`).join('\n'))}</textarea></div>
       <div class="field full"><label>Deskripsi</label><textarea id="pp_desc" rows="3">${posEsc(x.desc)}</textarea></div>
-      <div class="field full"><label>Cocok untuk</label>
+      <div class="field full" id="pp_carBox"><label>Cocok untuk</label>
         <div class="radio-row" id="pp_carsMode"><label class="radio-opt ${x.cars==='all'||!x.cars?'checked':''}"><input type="radio" name="pp_cars" value="all" ${x.cars==='all'||!x.cars?'checked':''}> Semua mobil</label>
         <label class="radio-opt ${Array.isArray(x.cars)?'checked':''}"><input type="radio" name="pp_cars" value="some" ${Array.isArray(x.cars)?'checked':''}> Tipe tertentu</label></div>
         <div id="pp_carList" class="ex-checks" style="margin-top:8px;${Array.isArray(x.cars)?'':'display:none'}">${cars.map(m=>`<label class="ex-check"><input type="checkbox" value="${posEsc(m)}" ${sel.includes(m)?'checked':''}> ${posEsc(m)}</label>`).join('')}</div></div>
+      <div class="field full" id="pp_fzBox" style="display:none"><div class="form-grid">
+        <div class="field"><label>Masa simpan</label><input type="text" id="pp_shelf" value="${posEsc(x.shelfLife)}" placeholder="mis. 6 bulan di freezer"></div>
+        <div class="field"><label>Cara penyimpanan</label><input type="text" id="pp_storage" value="${posEsc(x.storage)}" placeholder="mis. Simpan di freezer -18°C"></div>
+        <div class="field full"><label>Cara olah</label><input type="text" id="pp_how" value="${posEsc(x.howTo)}" placeholder="mis. Goreng 5–7 menit, api sedang"></div></div></div>
       <div class="field full"><label>Foto (maks. 4)</label><div id="posImgsWrap"></div></div>
     </div>${posDealFields(x.deal)}
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pp_save">Simpan</button></div>`, true);
   posBindImages(x.images, 4);
+  const isFz = ()=>((p.categories.find(c=>c.id===document.getElementById('pp_cat').value)||{}).segment)==='frozen';
+  const syncSeg = ()=>{ document.getElementById('pp_fzBox').style.display = isFz() ? '' : 'none'; document.getElementById('pp_carBox').style.display = isFz() ? 'none' : ''; };
+  document.getElementById('pp_cat').onchange = syncSeg; syncSeg();
   document.querySelectorAll('#pp_carsMode input').forEach(r=>r.onchange = ()=>{
     document.querySelectorAll('#pp_carsMode .radio-opt').forEach(o=>o.classList.toggle('checked', o.querySelector('input').checked));
     document.getElementById('pp_carList').style.display = r.value==='some' && r.checked ? '' : 'none';
@@ -7237,18 +7300,21 @@ function posProductForm(id, catId){
     const name = document.getElementById('pp_name').value.trim(); if(!name){ toast('Nama produk wajib diisi','err'); return; }
     const variants = []; let bad = null;
     document.getElementById('pp_var').value.split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{
-      const m = l.split('='); const vn = (m.length>1 ? m[0] : 'Standar').trim(); const pr = Number(String(m.length>1?m[1]:m[0]).replace(/[^\d]/g,''));
-      if(!pr) bad = bad || l; else if(!variants.some(v=>v.name.toLowerCase()===vn.toLowerCase())) variants.push({ name:vn||'Standar', price:pr });
+      const parts = l.split('|'); const m = parts[0].split('=');
+      const vn = (m.length>1 ? m[0] : 'Standar').trim(); const pr = Number(String(m.length>1?m[1]:m[0]).replace(/[^\d]/g,''));
+      const stTxt = (parts[1]||'').replace(/[^\d]/g,''); const stock = stTxt!=='' ? parseInt(stTxt,10) : null;
+      if(!pr) bad = bad || l; else if(!variants.some(v=>v.name.toLowerCase()===vn.toLowerCase())) variants.push(stock===null ? { name:vn||'Standar', price:pr } : { name:vn||'Standar', price:pr, stock });
     });
-    if(bad){ toast(`Baris "${bad}" belum benar — contoh: Depan = 450000`,'err'); return; }
+    if(bad){ toast(`Baris "${bad}" belum benar — contoh: 500 g = 35000 | 20`,'err'); return; }
     if(!variants.length){ toast('Isi minimal satu variasi dan harga','err'); return; }
+    const fz = isFz();
     const mode = document.querySelector('input[name="pp_cars"]:checked').value;
-    const carsSel = mode==='all' ? 'all' : [...document.querySelectorAll('#pp_carList input:checked')].map(i=>i.value);
-    if(mode==='some' && !carsSel.length){ toast('Pilih minimal satu tipe mobil','err'); return; }
+    const carsSel = (fz || mode==='all') ? 'all' : [...document.querySelectorAll('#pp_carList input:checked')].map(i=>i.value);
+    if(!fz && mode==='some' && !carsSel.length){ toast('Pilih minimal satu tipe mobil','err'); return; }
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
-    const data = { categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal };
+    const data = { categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
     if(id) Object.assign(x, data); else p.products.push(Object.assign({ id:'pr_'+uid(), active:true }, data));
-    await posSave(); closeModal(); toast('Produk disimpan'); posRenderProducts(); posRenderStatus();
+    closeModal(); await posSaveAndPublish('Produk disimpan'); posRenderProducts(); posRenderStatus(); if(posActiveTab()==='frozen') posRenderFrozen();
   };
 }
 
@@ -7258,7 +7324,7 @@ async function posHash(code){
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 function posRenderPromos(){
-  const p = posCfg(); const catName = id=> id==='all' ? 'Semua produk' : ((posCat(id)||{}).name||'—');
+  const p = posCfg(); const catName = id=> id==='all' ? 'Semua produk' : String(id).indexOf('seg:')===0 ? 'Semua produk '+posSegName(String(id).slice(4)) : ((posCat(id)||{}).name||'—');
   document.getElementById('posPromoList').innerHTML = p.promos.length ? p.promos.map(x=>{
     const expired = x.until && x.until < todayISO();
     return `<div class="vd-item"><div><strong class="pos-code-tag">${posEsc(x.code)}</strong> ${x.active===false?'<span class="pill">nonaktif</span>':expired?'<span class="pill">kedaluwarsa</span>':''}${x.public?' <span class="pill lead">tampil di menu Promo</span>':''}
@@ -7274,7 +7340,7 @@ function posPromoForm(id){
   openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Kode Promo</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid">
       <div class="field"><label>Kode</label><input type="text" id="pm_code" value="${posEsc(x.code)}" placeholder="WIN10KF" style="text-transform:uppercase"></div>
-      <div class="field"><label>Berlaku untuk</label><select id="pm_scope"><option value="all">Semua produk</option>${p.categories.map(c=>`<option value="${c.id}" ${x.scope===c.id?'selected':''}>${posEsc(c.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Berlaku untuk</label><select id="pm_scope"><option value="all" ${x.scope==='all'?'selected':''}>Semua produk (semua segmen)</option><option value="seg:otomotif" ${x.scope==='seg:otomotif'?'selected':''}>Semua produk Otomotif</option><option value="seg:frozen" ${x.scope==='seg:frozen'?'selected':''}>Semua produk ${posEsc(posSegName('frozen'))}</option>${p.categories.map(c=>`<option value="${c.id}" ${x.scope===c.id?'selected':''}>${posEsc(c.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Jenis</label><select id="pm_type"><option value="persen" ${x.type==='persen'?'selected':''}>Diskon persen (%)</option><option value="nominal" ${x.type==='nominal'?'selected':''}>Potongan nominal (Rp)</option></select></div>
       <div class="field"><label>Nilai</label><input type="number" min="0" step="any" id="pm_value" value="${x.value??''}"></div>
       <div class="field"><label>Minimal belanja (opsional)</label><input type="number" min="0" id="pm_min" value="${x.minSpend||''}" placeholder="Rp"></div>
@@ -7359,7 +7425,7 @@ function posRenderBanners(){
     const list = p.banners.filter(b=>b.kind===kind);
     const el = document.getElementById(kind==='promo'?'posBannerPromo':'posBannerIklan');
     el.innerHTML = list.length ? list.map((b,i)=>`<div class="pos-banner-row">${posThumb(b.img,'pos-banner-img')}
-      <div style="flex:1;min-width:0"><strong>${posEsc(b.title||'(tanpa judul)')}</strong>${b.active===false?' <span class="pill">nonaktif</span>':''}<div class="ex-sub">${posEsc(posLinkLabel(b.link))}</div></div>
+      <div style="flex:1;min-width:0"><strong>${posEsc(b.title||'(tanpa judul)')}</strong>${b.active===false?' <span class="pill">nonaktif</span>':''}<div class="ex-sub">${posEsc(posLinkLabel(b.link))}${b.segment&&b.segment!=='all'?' · Tampil di '+posEsc(posSegName(b.segment)):''}</div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost sm" ${i===0?'disabled':''} onclick="posBannerMove('${b.id}',-1)">↑</button><button class="btn ghost sm" onclick="posBannerForm('${kind}','${b.id}')">✏️</button><button class="btn ghost sm" onclick="posBannerDelete('${b.id}')">🗑</button></div></div>`).join('')
       : '<div class="empty">Belum ada banner.</div>';
     posHydrateImages(el);
@@ -7378,6 +7444,7 @@ function posBannerForm(kind, id){
         <option value="page" ${b.link.type==='page'?'selected':''}>Buka halaman Promo / Deal</option>
         <option value="url" ${b.link.type==='url'?'selected':''}>Buka link luar</option></select></div>
       <div class="field" id="pb_lvwrap"></div>
+      <div class="field full"><label>Tampil di segmen</label><select id="pb_seg"><option value="all" ${(!b.segment||b.segment==='all')?'selected':''}>Semua segmen</option><option value="otomotif" ${b.segment==='otomotif'?'selected':''}>Otomotif saja</option><option value="frozen" ${b.segment==='frozen'?'selected':''}>${posEsc(posSegName('frozen'))} saja</option></select></div>
       <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="pb_active" ${b.active!==false?'checked':''}> Tampilkan di toko</label></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pb_save">Simpan</button></div>`);
@@ -7397,7 +7464,7 @@ function posBannerForm(kind, id){
   document.getElementById('pb_save').onclick = async ()=>{
     if(!img){ toast('Upload gambar banner dulu','err'); return; }
     const t = document.getElementById('pb_ltype').value; const lv = document.getElementById('pb_lval');
-    const data = { kind, img, title:document.getElementById('pb_title').value.trim(), active:document.getElementById('pb_active').checked, link:{ type:t, value: lv ? lv.value.trim() : '' } };
+    const data = { kind, img, segment:document.getElementById('pb_seg').value, title:document.getElementById('pb_title').value.trim(), active:document.getElementById('pb_active').checked, link:{ type:t, value: lv ? lv.value.trim() : '' } };
     if(t==='url' && !/^https?:\/\//.test(data.link.value)){ toast('Link harus diawali https://','err'); return; }
     if(id){ if(b.img && b.img!==img) posDeleteImage(b.img); Object.assign(b, data); } else p.banners.push(Object.assign({ id:uid() }, data));
     await posSave(); closeModal(); toast('Banner disimpan'); posRenderBanners(); posRenderStatus();
@@ -7510,32 +7577,50 @@ function posUpdateBadge(){
   const nav = document.getElementById('navTokoBadge'); if(nav) nav.textContent = n ? n : '';
   const tb = document.getElementById('posNewBadge'); if(tb) tb.textContent = n ? `(${n})` : '';
 }
-function posStatusPill(k){ const s = POS_STATUS.find(x=>x.key===k) || POS_STATUS[0]; return `<span class="pos-pill" style="--c:${s.color}">${s.label}</span>`; }
+function posStatusLabelFor(o, k){
+  if(o && o.segment==='frozen'){
+    if(k==='baru' && o.shipping && o.shipping.pending) return 'Menunggu ongkir';
+    return ({ baru:'Menunggu Pembayaran', dibayar:'Pembayaran Dikonfirmasi', diproses:'Sedang Dikemas', dikirim:'Dikirim (Kurir Instan)', selesai:'Selesai', batal:'Dibatalkan' })[k] || k;
+  }
+  return (POS_STATUS.find(x=>x.key===k)||{}).label || k;
+}
+function posStatusPill(k, o){ const s = POS_STATUS.find(x=>x.key===k) || POS_STATUS[0]; return `<span class="pos-pill" style="--c:${s.color}">${posEsc(posStatusLabelFor(o, s.key))}</span>`; }
+function posStockMove(items, dir){ const p = posCfg(); items.forEach(i=>{ const x = p.products.find(y=>y.id===i.pid); const v = x && (x.variants||[]).find(v=>v.name===i.variant); if(v && v.stock!=null) v.stock = Math.max(0, Number(v.stock) + dir*Number(i.qty)); }); }
+/* stok berkurang saat pesanan ditandai dibayar, dan dikembalikan bila dibatalkan */
+function posStockPlan(o, status){
+  const items = (o.items||[]).filter(i=>i.pid && i.variant!==undefined && Number(i.qty)>0);
+  if(!items.length) return null;
+  if(['dibayar','diproses','dikirim','selesai'].includes(status) && !o.stockApplied) return { apply:true, run:()=>posStockMove(items, -1) };
+  if(status==='batal' && o.stockApplied) return { apply:false, run:()=>posStockMove(items, +1) };
+  return null;
+}
 function posRenderOrders(){
   const el = document.getElementById('posOrderList');
   if(!posIsAdmin){ el.innerHTML = posNeedAdminHtml(); return; }
   const sel = document.getElementById('posOrderStatus');
   if(sel.options.length<=1) sel.innerHTML += POS_STATUS.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   const q = (document.getElementById('posOrderSearch').value||'').toLowerCase().trim(); const st = sel.value;
-  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa,(o.customer||{}).username].join(' ').toLowerCase().includes(q)))
+  const sg = (document.getElementById('posOrderSeg')||{}).value||'';
+  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!sg || (o.segment||'otomotif')===sg) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa,(o.customer||{}).username].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   el.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Pesanan</th><th>Pembeli</th><th>Item</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
-    ${rows.map(([k,o])=>`<tr><td><strong>${posEsc(o.orderNo)}</strong><div class="ex-sub">${new Date(o.createdAt).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></td>
+    ${rows.map(([k,o])=>`<tr><td><strong>${posEsc(o.orderNo)}</strong>${o.segment==='frozen'?' <span class="pill lead">Frozen</span>':''}<div class="ex-sub">${new Date(o.createdAt).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></td>
       <td>${posEsc((o.customer||{}).nama)}<div class="ex-sub">${posEsc((o.customer||{}).wa)}</div></td>
       <td>${(o.items||[]).map(i=>posEsc(i.title)).join('<br>')}</td>
-      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}${o.promo?` · 🏷️ ${posEsc(o.promo.code)}`:''}</div></td>
-      <td>${posStatusPill(o.status)}</td><td><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button></td></tr>`).join('')}</tbody></table></div>`
+      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}${o.promo?` · 🏷️ ${posEsc(o.promo.code)}`:''}${(o.shipping&&o.shipping.pending)?' · <span class="st-warn">ongkir belum dihitung</span>':''}</div></td>
+      <td>${posStatusPill(o.status, o)}</td><td><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button></td></tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">${posOrdersError?'Pesanan belum bisa dibaca — cek Rules Firebase di tab Pengaturan.':'Belum ada pesanan.'}</div>`;
 }
 document.getElementById('posOrderSearch').addEventListener('input', posRenderOrders);
 document.getElementById('posOrderStatus').addEventListener('change', posRenderOrders);
+document.getElementById('posOrderSeg').addEventListener('change', posRenderOrders);
 function posOrderDetail(k){
   const o = posOrders[k]; if(!o) return; const c = o.customer||{};
   openModal(`<div class="modal-head"><h3>Pesanan ${posEsc(o.orderNo)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="detail-grid" style="margin-bottom:12px">
       <div><div class="k">Pembeli</div><div class="v">${posEsc(c.nama)}${c.username?` <span class="ex-sub">@${posEsc(c.username)}</span>`:''}<br><span class="ex-sub">${posEsc(c.wa)}${c.email?' · '+posEsc(c.email):''}</span></div></div>
-      <div><div class="k">Mobil</div><div class="v">${posEsc(c.mobil||'—')}</div></div>
-      <div><div class="k">Pemasangan / Pengiriman</div><div class="v">${posEsc((o.shipping||{}).name)}${o.installDate?`<br><span class="ex-sub">Jadwal: ${fmtDate(o.installDate)}${o.installTime?' · '+posEsc(o.installTime):''}</span>`:''}</div></div>
+      ${o.segment==='frozen' ? `<div><div class="k">Area</div><div class="v">${posEsc(c.area||'—')}${c.mapLink?(/^https?:\/\//.test(c.mapLink)?`<br><a class="ex-sub" target="_blank" rel="noopener" href="${posEsc(c.mapLink)}">Buka lokasi di peta</a>`:`<br><span class="ex-sub">${posEsc(c.mapLink)}</span>`):''}</div></div>` : `<div><div class="k">Mobil</div><div class="v">${posEsc(c.mobil||'—')}</div></div>`}
+      <div><div class="k">Pemasangan / Pengiriman</div><div class="v">${posEsc((o.shipping||{}).name)}${o.installDate?`<br><span class="ex-sub">Jadwal: ${fmtDate(o.installDate)}${o.installTime?' · '+posEsc(o.installTime):''}</span>`:''}${o.delivery?`<br><span class="ex-sub">Kirim: ${fmtDate(o.delivery.date)} · ${posEsc(o.delivery.slot)}</span>`:''}</div></div>
       <div><div class="k">Pembayaran</div><div class="v">${posEsc((o.payment||{}).label)}</div></div>
       ${c.alamat?`<div style="grid-column:1/-1"><div class="k">Alamat</div><div class="v">${posEsc(c.alamat)}</div></div>`:''}
       ${o.note?`<div style="grid-column:1/-1"><div class="k">Catatan pembeli</div><div class="v">${posEsc(o.note)}</div></div>`:''}
@@ -7546,22 +7631,109 @@ function posOrderDetail(k){
     <div class="ex-calc">
       <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${exRp(o.subtotal)}</span></div>
       ${o.promo?`<div style="display:flex;justify-content:space-between;color:var(--green)"><span>Kode promo ${posEsc(o.promo.code)}</span><span>− ${exRp(o.promo.discount)}</span></div>`:''}
-      <div style="display:flex;justify-content:space-between"><span>Biaya pemasangan / kirim</span><span>${exRp((o.shipping||{}).fee)}</span></div>
+      ${o.packFee?`<div style="display:flex;justify-content:space-between"><span>Kemasan dingin</span><span>${exRp(o.packFee)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between"><span>${o.segment==='frozen'?'Ongkir kurir instan':'Biaya pemasangan / kirim'}</span><span>${(o.shipping&&o.shipping.pending)?'<span class="st-warn">belum dihitung</span>':exRp((o.shipping||{}).fee)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><span>Total</span><span>${exRp(o.grandTotal)}</span></div>
     </div>
+    ${o.segment==='frozen' ? `<div class="section-title">Ongkir kurir instan</div>
+      <div class="form-grid"><div class="field"><label>Ongkir (Rp)</label><input type="number" min="0" id="po_fee" value="${(o.shipping&&o.shipping.pending)?'':((o.shipping||{}).fee||0)}" placeholder="mis. 18000"></div>
+        <div class="field" style="align-self:end"><button class="btn green" id="po_feeSave">${(o.shipping&&o.shipping.pending)?'Simpan ongkir':'Ubah ongkir'}</button></div></div>
+      <div class="ex-sub">Setelah ongkir disimpan, total otomatis dihitung dan pembeli bisa melihat cara bayarnya di halaman pesanan.</div>
+      ${(o.shipping&&o.shipping.pending)?'':`<a class="btn ghost sm" style="margin-top:8px" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, pesanan ${o.orderNo} sudah kami hitung. Produk ${exRp(o.subtotal)}${o.promo?`, potongan ${exRp(o.promo.discount)}`:''}${o.packFee?`, kemasan ${exRp(o.packFee)}`:''}, ongkir kurir instan ${exRp((o.shipping||{}).fee)}. Total ${exRp(o.grandTotal)}.${posCfg().store.url?` Cara bayar & status pesanan: ${posCfg().store.url.replace(/\/+$/,'')}/#/order/${k}`:''}`)}">💬 Kirim total via WhatsApp</a>`}` : ''}
     ${o.proof?`<div class="section-title">Bukti Pembayaran</div><img data-pproof="${k}" style="max-width:100%;max-height:360px;border-radius:10px;border:1px solid var(--line)" alt="Bukti pembayaran">`:''}
     <div class="section-title">Status</div>
-    <div class="form-grid"><div class="field"><select id="po_status">${POS_STATUS.map(s=>`<option value="${s.key}" ${s.key===o.status?'selected':''}>${s.label}</option>`).join('')}</select></div>
+    <div class="form-grid"><div class="field"><select id="po_status">${POS_STATUS.map(s=>`<option value="${s.key}" ${s.key===o.status?'selected':''}>${posEsc(posStatusLabelFor(o, s.key))}</option>`).join('')}</select></div>
       <div class="field"><input type="text" id="po_note" value="${posEsc(o.adminNote)}" placeholder="Pesan untuk pembeli (opsional)"></div></div>
-    <div class="modal-foot"><a class="btn ghost" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, terima kasih sudah berbelanja di ${posCfg().store.name}. Pesanan ${o.orderNo}: ${(POS_STATUS.find(s=>s.key===o.status)||{}).label||''}.`)}">💬 WhatsApp</a><button class="btn" id="po_save">Simpan Status</button></div>`, true);
+    <div class="modal-foot"><a class="btn ghost" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, terima kasih sudah berbelanja di ${posCfg().store.name}. Pesanan ${o.orderNo}: ${posStatusLabelFor(o, o.status)}.`)}">💬 WhatsApp</a><button class="btn" id="po_save">Simpan Status</button></div>`, true);
   const pi = document.querySelector('img[data-pproof]');
   if(pi) posDb.ref('pos/proofs/'+k).once('value').then(s=>{ if(s.val()) pi.src = s.val(); }).catch(()=>{});
   document.getElementById('po_save').onclick = async ()=>{
     const status = document.getElementById('po_status').value; const at = new Date().toISOString();
-    try{ await posDb.ref('pos/orders/'+k).update({ status, adminNote:document.getElementById('po_note').value.trim(), updatedAt:at, ['history/'+Date.now()]:{ status, at } }); closeModal(); toast('Status pesanan diperbarui'); }
-    catch(e){ toast('Gagal menyimpan status','err'); }
+    try{
+      const stk = posStockPlan(o, status);
+      const upd = { status, adminNote:document.getElementById('po_note').value.trim(), updatedAt:at, ['history/'+Date.now()]:{ status, at } };
+      if(stk) upd.stockApplied = stk.apply;
+      await posDb.ref('pos/orders/'+k).update(upd);
+      if(stk){ stk.run(); o.stockApplied = stk.apply; closeModal(); await posSaveAndPublish(stk.apply ? 'Stok dikurangi' : 'Stok dikembalikan'); }
+      else { closeModal(); toast('Status pesanan diperbarui'); }
+    }
+    catch(e){ console.error(e); toast('Gagal menyimpan status','err'); }
+  };
+  const fb = document.getElementById('po_feeSave');
+  if(fb) fb.onclick = async ()=>{
+    const fee = Math.round(Number(document.getElementById('po_fee').value));
+    if(!(fee>=0) || document.getElementById('po_fee').value==='' ){ toast('Isi ongkir dulu (boleh 0)','err'); return; }
+    const grand = (Number(o.subtotal)||0) - (o.promo?Number(o.promo.discount)||0:0) + (Number(o.packFee)||0) + fee;
+    try{
+      await posDb.ref('pos/orders/'+k).update({ 'shipping/fee':fee, 'shipping/pending':false, grandTotal:grand, feeAt:new Date().toISOString(), updatedAt:new Date().toISOString() });
+      o.shipping = Object.assign({}, o.shipping, { fee, pending:false }); o.grandTotal = grand;
+      toast(`Ongkir disimpan · total ${exRp(grand)}`); posOrderDetail(k); posRenderOrders();
+    }catch(e){ console.error(e); toast('Gagal menyimpan ongkir','err'); }
   };
 }
+
+/* ---- segmen Frozen Food ---- */
+function posFrozenProducts(){ return posCfg().products.filter(x=>((posCat(x.categoryId)||{}).segment)==='frozen'); }
+function posRenderFrozen(){
+  const p = posCfg(); const f = p.frozen; const el = document.getElementById('posFrozenCfg'); if(!el) return;
+  el.innerHTML = `<h2 style="margin:0 0 6px">Pengaturan Frozen Food</h2>
+    <p class="ex-sub" style="margin:0 0 12px">Segmen ini tampil sebagai pilihan kedua di toko, terpisah dari Otomotif. Pengiriman memakai kurir instan dan ongkir ditanggung pembeli. Kategori dan produknya diatur di tab Produk &amp; Kategori.</p>
+    <label class="ex-check" style="width:max-content"><input type="checkbox" id="fz_enabled" ${f.enabled?'checked':''}> Tampilkan segmen Frozen Food di toko</label>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="field"><label>Nama segmen</label><input type="text" id="fz_name" value="${posEsc(f.name)}"></div>
+      <div class="field"><label>Tagline</label><input type="text" id="fz_tagline" value="${posEsc(f.tagline)}"></div>
+    </div>
+    <div class="section-title">Aturan pesanan</div>
+    <div class="form-grid">
+      <div class="field"><label>Minimal belanja (Rp)</label><input type="number" min="0" id="fz_min" value="${f.minOrder||''}"></div>
+      <div class="field"><label>Biaya kemasan dingin (Rp)</label><input type="number" min="0" id="fz_pack" value="${f.packFee||''}"></div>
+      <div class="field"><label>Gratis kemasan jika belanja ≥ (Rp)</label><input type="number" min="0" id="fz_free" value="${f.packFreeFrom||''}"></div>
+    </div>
+    <div class="section-title">Jadwal pengiriman</div>
+    <div class="form-grid">
+      <div class="field full"><label>Slot jam kirim <span class="muted">— pisahkan koma</span></label><input type="text" id="fz_slots" value="${posEsc((f.slots||[]).join(', '))}" placeholder="09.00–12.00, 12.00–15.00, 15.00–18.00"></div>
+      <div class="field"><label>Waktu persiapan (jam)</label><input type="number" min="0" id="fz_prep" value="${f.prepHours??2}"></div>
+      <div class="field"><label>Jumlah hari pilihan tanggal</label><input type="number" min="1" max="30" id="fz_days" value="${f.horizonDays||7}"></div>
+      <div class="field full"><label>Hari libur rutin</label><div class="ex-checks">${POS_WEEKDAYS.map((d,i)=>`<label class="ex-check"><input type="checkbox" class="fz_wd" value="${i}" ${(f.closedWeekdays||[]).includes(i)?'checked':''}> ${d}</label>`).join('')}</div></div>
+      <div class="field full"><label>Tanggal libur khusus <span class="muted">— satu per baris, format 2026-10-17</span></label><textarea id="fz_closed" rows="2">${posEsc((f.closedDates||[]).join('\n'))}</textarea></div>
+    </div>
+    <div class="section-title">Pengiriman &amp; pembayaran</div>
+    <div class="form-grid">
+      <div class="field"><label>Nama kurir</label><input type="text" id="fz_courier" value="${posEsc(f.courierName)}"></div>
+      <div class="field"><label>Area layanan <span class="muted">— pisahkan koma; kosong = pembeli mengetik sendiri</span></label><input type="text" id="fz_areas" value="${posEsc((f.areas||[]).join(', '))}" placeholder="BSD City, Serpong, Pamulang"></div>
+      <div class="field full"><label>Catatan untuk pembeli</label><textarea id="fz_note" rows="2">${posEsc(f.courierNote)}</textarea></div>
+      <div class="field full"><div class="ex-checks"><label class="ex-check"><input type="checkbox" id="fz_payT" ${f.payTransfer!==false?'checked':''}> Transfer bank</label><label class="ex-check"><input type="checkbox" id="fz_payQ" ${f.payQris!==false?'checked':''}> QRIS</label></div>
+        <div class="ex-sub">Pembayaran diminta setelah admin mengisi ongkir, jadi Cash tidak ditawarkan untuk frozen food. Rekening dan QRIS diatur di tab Pembayaran &amp; Pemasangan.</div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="fz_save">Simpan pengaturan</button></div>`;
+  document.getElementById('fz_save').onclick = async ()=>{
+    const slots = document.getElementById('fz_slots').value.split(',').map(x=>x.trim()).filter(Boolean);
+    if(!slots.length || slots.some(x=>!/\d{1,2}[.:]\d{2}/.test(x))){ toast('Isi slot jam kirim, contoh: 09.00–12.00','err'); return; }
+    const closed = document.getElementById('fz_closed').value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(closed.some(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x))){ toast('Tanggal libur harus berformat 2026-10-17, satu per baris','err'); return; }
+    const payT = document.getElementById('fz_payT').checked, payQ = document.getElementById('fz_payQ').checked;
+    if(document.getElementById('fz_enabled').checked && !payT && !payQ){ toast('Aktifkan minimal satu metode bayar (Transfer atau QRIS)','err'); return; }
+    Object.assign(f, {
+      enabled:document.getElementById('fz_enabled').checked, name:document.getElementById('fz_name').value.trim()||'Frozen Food', tagline:document.getElementById('fz_tagline').value.trim(),
+      minOrder:Math.max(0, Number(document.getElementById('fz_min').value)||0), packFee:Math.max(0, Number(document.getElementById('fz_pack').value)||0), packFreeFrom:Math.max(0, Number(document.getElementById('fz_free').value)||0),
+      slots, prepHours:Math.max(0, Number(document.getElementById('fz_prep').value)||0), horizonDays:Math.min(30, Math.max(1, Number(document.getElementById('fz_days').value)||7)),
+      closedWeekdays:[...document.querySelectorAll('.fz_wd:checked')].map(i=>Number(i.value)), closedDates:closed,
+      courierName:document.getElementById('fz_courier').value.trim()||'Kurir instan', areas:document.getElementById('fz_areas').value.split(',').map(x=>x.trim()).filter(Boolean),
+      courierNote:document.getElementById('fz_note').value.trim(), payTransfer:payT, payQris:payQ });
+    await posSaveAndPublish('Pengaturan Frozen Food disimpan'); posRenderFrozen(); posRenderStatus();
+  };
+  posRenderFrozenStock();
+}
+function posRenderFrozenStock(){
+  const list = posFrozenProducts(); const el = document.getElementById('posFrozenStock'); if(!el) return;
+  el.innerHTML = list.length ? `<div class="table-wrap"><table class="iss-table"><thead><tr><th>Produk</th><th>Varian</th><th>Harga</th><th>Stok</th></tr></thead><tbody>${list.map(x=>(x.variants||[]).map((v,vi)=>`<tr><td>${vi===0?`<strong>${posEsc(x.name)}</strong>`:''}</td><td>${posEsc(v.name)}</td><td>${exRp(v.price)}</td><td><input type="number" min="0" data-pid="${x.id}" data-vi="${vi}" value="${v.stock??''}" placeholder="tak terbatas"></td></tr>`).join('')).join('')}</tbody></table></div>`
+    : '<div class="empty">Belum ada produk frozen food. Tambahkan di tab Produk &amp; Kategori (pilih kategori frozen).</div>';
+}
+document.getElementById('posFrozenStockSave').addEventListener('click', async ()=>{
+  const p = posCfg();
+  document.querySelectorAll('#posFrozenStock input[data-pid]').forEach(i=>{ const x = p.products.find(y=>y.id===i.dataset.pid); const v = x && (x.variants||[])[+i.dataset.vi]; if(!v) return; if(i.value==='') delete v.stock; else v.stock = Math.max(0, parseInt(i.value,10)||0); });
+  await posSaveAndPublish('Stok disimpan'); posRenderFrozenStock();
+});
 
 /* ---- pelanggan toko (terpisah dari leads Geely) ---- */
 function posRenderCustomers(){
