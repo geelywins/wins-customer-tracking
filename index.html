@@ -6848,7 +6848,8 @@ function posAdminBoxHtml(){
   if(!posUser) return `<p class="ex-sub" style="margin:0 0 10px">Login dengan akun admin Firebase untuk mengelola toko. Belum punya? Isi email &amp; password lalu tekan <b>Buat akun admin</b>.</p>
     <div class="form-grid"><div class="field"><label>Email</label><input type="email" id="pa_email" autocomplete="username"></div>
     <div class="field"><label>Password</label><input type="password" id="pa_pass" autocomplete="current-password"></div></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" onclick="posAdminLogin(false)">Login</button><button class="btn ghost" onclick="posAdminLogin(true)">Buat akun admin</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn" onclick="posAdminLogin(false)">Login</button><button class="btn ghost" onclick="posAdminLogin(true)">Buat akun admin</button><button class="btn ghost" onclick="posAdminForgot()">Lupa password?</button></div>
+    <div id="pa_err" role="alert" style="margin-top:10px;font-size:13px;font-weight:600;color:#D6371F;line-height:1.45"></div>
     <p class="ex-sub" style="margin:10px 0 0">Aktifkan dulu metode <b>Email/Password</b> di Firebase Console → Authentication → Sign-in method.</p>`;
   return `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
     <div><strong>${posEsc(posUser.email)}</strong><div class="ex-sub">${posIsAdmin ? '<span class="st-ok">✓ Terdaftar sebagai admin toko</span>' : posAdminChecked ? '<span class="st-warn">Belum terdaftar sebagai admin</span>' : 'Memeriksa...'}</div></div>
@@ -6859,22 +6860,37 @@ function posAdminBoxHtml(){
       <div class="pos-code" id="posUid">${posEsc(posUser.uid)}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn ghost sm" onclick="posCopy('posUid')">Salin UID</button><button class="btn sm" onclick="posRecheckAdmin()">Periksa lagi</button></div></div>` : ''}`;
 }
+function posLoginMsg(msg, ok){ const el = document.getElementById('pa_err'); if(el){ el.style.color = ok ? '#12A36B' : '#D6371F'; el.textContent = msg; } toast(msg, ok ? undefined : 'err'); }
 async function posAdminLogin(create){
   const email = (document.getElementById('pa_email').value||'').trim(), pass = document.getElementById('pa_pass').value||'';
-  if(!email || pass.length<6){ toast('Isi email dan password (min. 6 karakter)','err'); return; }
+  if(!email || pass.length<6){ posLoginMsg('Isi email dan password (min. 6 karakter)'); return; }
+  if(!posAuth){ posLoginMsg('Firebase belum terhubung. Isi API Key dan Database URL di menu Settings, lalu muat ulang halaman.'); return; }
+  posLoginMsg('Memeriksa...', true);
   try{
     if(create) await posAuth.createUserWithEmailAndPassword(email, pass); else await posAuth.signInWithEmailAndPassword(email, pass);
-    toast(create ? 'Akun admin dibuat' : 'Login berhasil');
-  }catch(e){ toast(posAuthErr(e),'err'); }
+    posLoginMsg(create ? 'Akun admin dibuat' : 'Login berhasil', true);
+  }catch(e){ console.error(e); posLoginMsg(posAuthErr(e)); }
+}
+async function posAdminForgot(){
+  const email = (document.getElementById('pa_email').value||'').trim();
+  if(!email){ posLoginMsg('Isi email admin dulu, lalu tekan Lupa password.'); return; }
+  if(!posAuth){ posLoginMsg('Firebase belum terhubung. Isi API Key dan Database URL di menu Settings.'); return; }
+  try{ await posAuth.sendPasswordResetEmail(email); posLoginMsg('Link reset dikirim ke ' + email + '. Cek Inbox dan folder Spam.', true); }
+  catch(e){ console.error(e); posLoginMsg(posAuthErr(e)); }
 }
 function posAuthErr(e){
   const c = (e && e.code)||'';
-  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'Email atau password salah';
-  if(c.includes('email-already-in-use')) return 'Email sudah terdaftar — gunakan Login';
-  if(c.includes('operation-not-allowed')) return 'Aktifkan Email/Password di Firebase Authentication dulu';
-  if(c.includes('invalid-email')) return 'Format email tidak valid';
-  if(c.includes('too-many-requests')) return 'Terlalu banyak percobaan, coba lagi nanti';
-  return 'Gagal: '+(e.message||c);
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'Email atau password salah. Kalau lupa password, tekan Lupa password.';
+  if(c.includes('email-already-in-use')) return 'Email sudah terdaftar. Gunakan Login, bukan Buat akun admin.';
+  if(c.includes('operation-not-allowed')) return 'Metode Email/Password belum aktif. Aktifkan di Firebase Console, Authentication, Sign-in method.';
+  if(c.includes('invalid-email')) return 'Format email tidak valid.';
+  if(c.includes('too-many-requests')) return 'Terlalu banyak percobaan. Tunggu sekitar 15-60 menit, atau tekan Lupa password untuk membuat password baru.';
+  if(c.includes('user-disabled')) return 'Akun ini dinonaktifkan di Firebase (Authentication, Users).';
+  if(c.includes('network-request-failed')) return 'Tidak ada koneksi internet atau Firebase tidak bisa dijangkau. Coba lagi.';
+  if(c.includes('api-key-not-valid') || c.includes('invalid-api-key')) return 'API Key Firebase salah. Salin Web API Key dari Firebase Console, Project settings, General, lalu tempel di Settings Drive Desk.';
+  if(c.includes('unauthorized-domain') || /referer|referrer/i.test(e && e.message || '')) return 'Alamat web ini diblokir oleh API Key. Tambahkan geelywins.github.io di pembatasan API Key (Google Cloud Console), atau hapus pembatasannya.';
+  if(c.includes('weak-password')) return 'Password terlalu lemah (minimal 6 karakter).';
+  return 'Gagal masuk (' + (c || 'tidak dikenal') + '): ' + ((e && e.message) || '');
 }
 async function posRecheckAdmin(){
   if(!posUser) return;
