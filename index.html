@@ -1548,7 +1548,9 @@ tbody tr:hover{background:#FAFBFE;}
           </div>
           <div class="card">
             <h2>Menghubungkan toko.html</h2>
-            <p style="font-size:13px;margin:0 0 6px">Tempel alamat ini di baris <code>const DB_URL = ''</code> di toko.html:</p>
+            <p style="font-size:13px;margin:0 0 8px"><b>Cara disarankan:</b> unduh <code>config.js</code>, lalu unggah <b>sekali</b> ke repo toko (satu folder dengan index.html). Alamat database tidak perlu ditempel lagi saat toko.html diperbarui, dan tetap jalan di domain baru.</p>
+            <button class="btn sm" onclick="posDownloadConfig()">Unduh config.js</button>
+            <p style="font-size:13px;margin:14px 0 6px">Cara lama: tempel alamat ini di baris <code>const DB_URL = ''</code> di toko.html:</p>
             <div class="pos-code" id="posDbUrl"></div>
             <p style="font-size:13px;margin:12px 0 6px">Atau bagikan link toko yang sudah membawa alamat database:</p>
             <div class="pos-code" id="posShareLink"></div>
@@ -7144,7 +7146,7 @@ function posAuthErr(e){
   if(c.includes('user-disabled')) return 'Akun ini dinonaktifkan di Firebase (Authentication, Users).';
   if(c.includes('network-request-failed')) return 'Tidak ada koneksi internet atau Firebase tidak bisa dijangkau. Coba lagi.';
   if(c.includes('api-key-not-valid') || c.includes('invalid-api-key')) return 'API Key Firebase salah. Salin Web API Key dari Firebase Console, Project settings, General, lalu tempel di Settings Drive Desk.';
-  if(c.includes('unauthorized-domain') || /referer|referrer/i.test(e && e.message || '')) return 'Alamat web ini diblokir oleh API Key. Tambahkan geelywins.github.io di pembatasan API Key (Google Cloud Console), atau hapus pembatasannya.';
+  if(c.includes('unauthorized-domain') || /referer|referrer/i.test(e && e.message || '')) return 'Alamat web ini diblokir oleh API Key. Tambahkan alamat toko dan alamat Drive Desk di pembatasan API Key (Google Cloud Console), atau hapus pembatasannya.';
   if(c.includes('weak-password')) return 'Password terlalu lemah (minimal 6 karakter).';
   return 'Gagal masuk (' + (c || 'tidak dikenal') + '): ' + ((e && e.message) || '');
 }
@@ -8131,6 +8133,13 @@ function posShipForm(id){
 function posShipDelete(id){ confirmModal('Hapus Opsi','Hapus opsi ini?', async ()=>{ const p = posCfg(); p.shipping = p.shipping.filter(x=>x.id!==id); await posSave(); posRenderPayShip(); }); }
 
 /* ---- pengaturan ---- */
+function posDownloadConfig(){
+  const db = ((state.settings.aiFollowUpFirebase||{}).databaseURL || '').trim().replace(/\/+$/,'');
+  if(!db){ toast('Isi Database URL di menu Settings dulu','err'); return; }
+  const text = '/* Pengaturan toko. Unggah sekali ke repo toko (satu folder dengan index.html). Tidak perlu diubah saat toko.html diperbarui. */\nwindow.TOKO_CONFIG = { dbUrl: ' + JSON.stringify(db) + ' };\n';
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type:'text/javascript;charset=utf-8' })); a.download = 'config.js'; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500); toast('config.js diunduh. Unggah ke repo toko.');
+}
 function posShareLink(){
   const p = posCfg(); const db = (state.settings.aiFollowUpFirebase||{}).databaseURL || '';
   if(!p.store.url) return '';
