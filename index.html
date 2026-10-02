@@ -7363,9 +7363,13 @@ function posAffSectionHtml(k, o){
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
           ${url ? `<a class="btn sm green" target="_blank" rel="noopener noreferrer" href="${posEsc(url)}">Checkout di toko asal ↗</a>` : '<span class="st-warn">Link toko asal belum diisi di produk</span>'}
           <button class="btn ghost sm" data-aff-copy>Salin data penerima</button></div>
-        <div style="margin-top:8px">${done
-          ? `<span class="st-ok">✓ Sudah di-checkout ${new Date(a.rec.at).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}${a.rec.ref ? ' · ' + posEsc(a.rec.ref) : ''}</span> <button class="link-btn" data-aff-undo="${a.idx}">Batalkan</button>`
-          : `<div style="display:flex;gap:6px;flex-wrap:wrap"><input type="text" id="aff_ref_${a.idx}" placeholder="No. pesanan / resi toko asal (opsional)" style="flex:1;min-width:150px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px"><button class="btn sm" data-aff-done="${a.idx}">Tandai sudah di-checkout</button></div>`}</div>
+        <div style="margin-top:8px">${done ? `<span class="st-ok">✓ Sudah di-checkout ${new Date(a.rec.at).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span> <button class="link-btn" data-aff-undo="${a.idx}">Batalkan</button>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <input type="text" id="aff_kurir_${a.idx}" value="${posEsc(a.rec && a.rec.kurir)}" placeholder="Kurir, mis. SPX" style="width:110px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px">
+            <input type="text" id="aff_resi_${a.idx}" value="${posEsc(a.rec && a.rec.resi)}" placeholder="No. resi (tampil ke pembeli)" style="flex:1;min-width:150px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px">
+            ${done ? `<button class="btn sm" data-aff-resi="${a.idx}">Simpan resi</button>` : `<button class="btn sm" data-aff-done="${a.idx}">Tandai sudah di-checkout</button>`}</div>
+          ${done && a.rec.resi && o.customer && o.customer.wa ? `<a class="btn ghost sm" style="margin-top:6px" target="_blank" rel="noopener noreferrer" href="${waLink(o.customer.wa, `Halo ${o.customer.nama||''}, pesanan ${o.orderNo}: ${a.item.title} sudah dikirim${a.rec.kurir ? ' via ' + a.rec.kurir : ''}. Nomor resi: ${a.rec.resi}.${posCfg().store.url ? ' Status pesanan: ' + String(posCfg().store.url).replace(/\/+$/,'') + '/#/order/' + k : ''}`)}">💬 Kirim resi via WhatsApp</a>` : ''}
+          <div class="ex-sub">Kurir dan resi tampil di halaman pesanan pembeli.</div></div>
       </div></div>`; }).join('')}`;
 }
 function posAffBind(k, o){
@@ -7375,8 +7379,13 @@ function posAffBind(k, o){
     try{ await navigator.clipboard.writeText(t); toast('Data penerima disalin'); }catch(e){ window.prompt('Salin data penerima:', t); }
   });
   document.querySelectorAll('#modalBox [data-aff-done]').forEach(b=>b.onclick = async ()=>{
-    const idx = b.dataset.affDone; const ref = ((document.getElementById('aff_ref_'+idx)||{}).value || '').trim(); const rec = { done:true, ref, at:new Date().toISOString() };
+    const idx = b.dataset.affDone; const val = n=>((document.getElementById(n+idx)||{}).value || '').trim(); const rec = { done:true, kurir:val('aff_kurir_'), resi:val('aff_resi_'), at:new Date().toISOString() };
     try{ await posDb.ref('pos/orders/'+k+'/affOrders/i'+idx).set(rec); o.affOrders = Object.assign({}, o.affOrders || {}, { ['i'+idx]:rec }); toast('Ditandai sudah di-checkout'); posOrderDetail(k); posRenderOrders(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
+  });
+  document.querySelectorAll('#modalBox [data-aff-resi]').forEach(b=>b.onclick = async ()=>{
+    const idx = b.dataset.affResi; const val = n=>((document.getElementById(n+idx)||{}).value || '').trim(); const upd = { kurir:val('aff_kurir_'), resi:val('aff_resi_'), resiAt:new Date().toISOString() };
+    try{ await posDb.ref('pos/orders/'+k+'/affOrders/i'+idx).update(upd); const m = Object.assign({}, o.affOrders || {}); m['i'+idx] = Object.assign({}, m['i'+idx] || {}, upd); o.affOrders = m; toast('Resi disimpan'); posOrderDetail(k); }
     catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
   });
   document.querySelectorAll('#modalBox [data-aff-undo]').forEach(b=>b.onclick = async ()=>{
