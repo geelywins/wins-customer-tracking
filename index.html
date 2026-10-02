@@ -286,6 +286,13 @@ tbody tr:hover{background:#FAFBFE;}
 .sch-missed{font-size:11px;font-weight:600;color:var(--amber);margin-left:4px}
 .sch-days{display:flex;gap:10px;flex-wrap:wrap}.sch-days label{display:flex;align-items:center;gap:5px;font-size:13px}
 @media (max-width:520px){.sch-row{grid-template-columns:26px 48px 8px 1fr 28px;gap:8px}}
+.rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.rep-card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(22,32,43,.06);border-left:4px solid var(--blue);display:flex;flex-direction:column;gap:3px}
+.rep-card span{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}.rep-card b{font-size:19px;font-family:'Manrope',sans-serif}.rep-card small{font-size:12px;color:var(--muted)}
+.rep-card.rep-main{border-left-color:var(--green)}.rep-card.rep-warn{border-left-color:var(--amber);background:#FFF9EC}
+.rep-days{display:grid;gap:8px}.rep-day{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;font-size:13px}.rep-day small{grid-column:2/4;color:var(--muted);margin-top:-6px;font-size:11.5px}
+.rep-bar{height:8px;background:#E8ECF4;border-radius:8px;overflow:hidden}.rep-bar i{display:block;height:100%;background:var(--blue);border-radius:8px}
+.rf-evid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rf-evid img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#EEF1F6}
 .pos-segchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .pos-segchip{all:unset;cursor:pointer;padding:7px 14px;border-radius:20px;background:#fff;border:1.5px solid var(--line);font-size:12.5px;font-weight:700}
 .pos-segchip.on{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -1416,6 +1423,7 @@ tbody tr:hover{background:#FAFBFE;}
           <button class="growth-tab active" data-ptab="orders">🧾 Pesanan <span id="posNewBadge"></span></button>
           <button class="growth-tab" data-ptab="customers">👤 Pelanggan</button>
           <button class="growth-tab" data-ptab="products">📦 Produk &amp; Kategori</button>
+          <button class="growth-tab" data-ptab="reports">📊 Laporan</button>
           <button class="growth-tab" data-ptab="frozen">🧊 Frozen Food</button>
           <button class="growth-tab" data-ptab="promos">🏷️ Kode Promo &amp; Deal</button>
           <button class="growth-tab" data-ptab="banners">🖼️ Banner</button>
@@ -1428,7 +1436,7 @@ tbody tr:hover{background:#FAFBFE;}
             <input type="search" id="posOrderSearch" placeholder="Cari no. pesanan, nama, WA...">
             <select id="posOrderStatus"><option value="">Semua status</option></select>
             <select id="posOrderSeg"><option value="">Semua segmen</option><option value="otomotif">Otomotif</option><option value="frozen">Frozen Food</option></select>
-            <select id="posOrderAff"><option value="">Semua pesanan</option><option value="todo">Perlu checkout affiliate</option></select>
+            <select id="posOrderAff"><option value="">Semua pesanan</option><option value="todo">Perlu checkout affiliate</option><option value="refund">Refund perlu diproses</option></select>
           </div>
           <div class="card"><div id="posOrderList"></div></div>
         </div>
@@ -1443,6 +1451,18 @@ tbody tr:hover{background:#FAFBFE;}
             <div id="posCatList"></div>
           </div>
           <div id="posProductSections"></div>
+        </div>
+        <div class="pos-panel" id="ppanel-reports" style="display:none">
+          <div class="card">
+            <div class="toolbar">
+              <select id="posRepPeriod"><option value="today">Hari ini</option><option value="7d">7 hari terakhir</option><option value="30d" selected>30 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option><option value="custom">Pilih tanggal</option></select>
+              <input type="date" id="posRepFrom" style="display:none"><input type="date" id="posRepTo" style="display:none">
+              <select id="posRepSeg"><option value="">Semua segmen</option><option value="otomotif">Otomotif</option><option value="frozen">Frozen Food</option></select>
+            </div>
+            <div class="sch-actions" style="margin-top:8px"><button class="btn sm" onclick="posRepExport('xlsx')">Export Excel (.xlsx)</button><button class="btn ghost sm" onclick="posRepExport('csv')">Export CSV pesanan</button></div>
+            <div class="ex-sub" style="margin-top:6px">Excel berisi 4 lembar: Ringkasan, Pesanan, Item, dan Refund (termasuk data rekening refund, simpan dengan hati-hati).</div>
+          </div>
+          <div id="posReportBody"></div>
         </div>
         <div class="pos-panel" id="ppanel-frozen" style="display:none">
           <div class="card"><div id="posFrozenCfg"></div></div>
@@ -1500,6 +1520,10 @@ tbody tr:hover{background:#FAFBFE;}
           <div class="card">
             <div class="vd-head"><h2 style="margin:0">Opsi Pemasangan / Pengiriman</h2><button class="btn sm" onclick="posShipForm()">+ Opsi</button></div>
             <div id="posShipList"></div>
+          </div>
+          <div class="card">
+            <h2>Kebijakan Refund &amp; Retur</h2>
+            <div id="posRefundPolicy"></div>
           </div>
         </div>
         <div class="pos-panel" id="ppanel-store" style="display:none">
@@ -6958,8 +6982,9 @@ function posNewDefault(){
     payments:{ cash:true, transfer:true, qrisOn:true, banks:[], qris:'' },
     shipping:[
       { id:'ship_home', name:'Pemasangan di alamat kamu', fee:0, applies:'all', needsAddress:true, install:true, note:'Teknisi datang ke rumah / kantor sesuai jadwal' },
-      { id:'ship_kurir', name:'Kirim via kurir (tanpa pemasangan)', fee:50000, applies:'cat_karpet', needsAddress:true, install:false, note:'Estimasi 2–4 hari kerja' }
-    ]
+      { id:'ship_kurir', name:'Kirim via kurir (tanpa pemasangan)', fee:50000, applies:'cat_karpet', needsAddress:true, install:false, note:'Estimasi 2–4 hari kerja' },
+      { id:'ship_other', name:'Pengiriman kurir (ongkir dihitung admin)', fee:0, feeMode:'admin', applies:'other', needsAddress:true, install:false, note:'Ongkos kirim dihitung admin setelah pesanan masuk' }
+    ], shipOtherSeeded:true
   };
 }
 let posApp = null, posAuth = null, posDb = null, posUser = null, posIsAdmin = false, posAdminChecked = false;
@@ -7011,6 +7036,13 @@ function posCfg(){
   if(!p.frozenSeeded){
     POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
     p.frozenSeeded = true;
+  }
+  /* pemasangan hanya untuk kaca film & karpet; produk lain butuh opsi pengiriman sendiri */
+  p.refundPolicy = p.refundPolicy || { returnDays:7, note:'' };
+  p.shipping = p.shipping || [];
+  if(!p.shipOtherSeeded){
+    if(!p.shipping.some(x=>x.applies==='other')) p.shipping.push({ id:'ship_other', name:'Pengiriman kurir (ongkir dihitung admin)', fee:0, feeMode:'admin', applies:'other', needsAddress:true, install:false, note:'Ongkos kirim dihitung admin setelah pesanan masuk' });
+    p.shipOtherSeeded = true;
   }
   return p;
 }
@@ -7141,8 +7173,13 @@ function posRulesJson(){
         "$id": { ".read": A+" || (auth != null && data.child('uid').val() === auth.uid)",
                  ".write": A+" || (auth != null && !data.exists() && newData.child('uid').val() === auth.uid)",
                  "proof": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid" },
-                 "proofAt": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid" } } },
-      "proofs": { "$id": { ".read": A, ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid" } }
+                 "proofAt": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid" },
+                 "status": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid && data.val() === 'baru' && newData.val() === 'batal' && !data.parent().child('proof').exists()" },
+                 "cancel": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid && !data.exists()" },
+                 "refund": { "request": { ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid && !data.exists()" } } } },
+      "proofs": { "$id": { ".read": A, ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid" } },
+      "evidence": { "$id": { ".read": A+" || (auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid)", ".write": A,
+                     "$n": { ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid && !root.child('pos/orders').child($id).child('refund').child('request').exists()", ".validate": "$n.matches(/^[0-4]$/) && newData.isString() && newData.val().length < 450000" } } }
     },
     "shop": {
       "admins": { "$uid": { ".read": "auth != null && auth.uid === $uid" } },
@@ -7265,6 +7302,7 @@ function posBuildCatalog(){
     store: p.store,
     segments: [{ key:'otomotif', name:'Otomotif', tagline:p.store.tagline||'' }].concat(p.frozen.enabled ? [{ key:'frozen', name:p.frozen.name||'Frozen Food', tagline:p.frozen.tagline||'' }] : []),
     frozen: p.frozen.enabled ? posFrozenOut(p.frozen) : null,
+    refundPolicy: { returnDays:Number((p.refundPolicy||{}).returnDays) || 7, note:(p.refundPolicy||{}).note || '' },
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
     categories: activeCats.map(c=>{ const d = c.iconImg ? (posImgCache[c.iconImg]||'') : ''; return { id:c.id, name:c.name, icon:c.icon||'🛒', iconData: d.length<60000 ? d : '', type:c.type, segment:c.segment||'otomotif' }; }),
@@ -7274,7 +7312,7 @@ function posBuildCatalog(){
     carpets: catOn('cat_karpet') ? p.carpets.filter(c=>c.active!==false && Object.keys(c.prices||{}).length)
       .map(c=>({ id:c.id, name:c.name, desc:c.desc||'', images:c.images||[], packages:c.packages||[], colors:c.colors||[], prices:c.prices||{}, deal:dealOut(c.deal) })) : [],
     products: p.products.filter(x=>x.active!==false && catOn(x.categoryId) && (x.variants||[]).some(v=>Number(v.price)>0))
-      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', source:(x.source==='affiliate'?'affiliate':'own'), eta:(x.source==='affiliate'?(x.eta||''):''), deal:dealOut(x.deal) })),
+      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', source:(x.source==='affiliate'?'affiliate':'own'), eta:(x.source==='affiliate' && x.affMode!=='redirect'?(x.eta||''):''), buyUrl:(x.source==='affiliate' && x.affMode==='redirect' ? posSafeUrl(x.affUrl) : ''), platform:(x.source==='affiliate' && x.affMode==='redirect' ? (x.affPlatform||'') : ''), deal:dealOut(x.deal) })),
     promos: p.promos.filter(x=>x.active!==false && (!x.until || x.until>=todayISO()))
       .map(x=>({ id:x.id, hash:x.hash, code: x.public ? x.code : '', type:x.type, value:Number(x.value)||0, scope:x.scope||'all', minSpend:Number(x.minSpend)||0, until:x.until||'', desc:x.desc||'', public:!!x.public })),
     banners: p.banners.filter(b=>b.active!==false && b.img),
@@ -7333,6 +7371,7 @@ function renderToko(){
   if(t==='customers') posRenderCustomers();
   if(t==='products') posRenderProducts();
   if(t==='frozen') posRenderFrozen();
+  if(t==='reports') posRenderReports();
   if(t==='promos') posRenderPromos();
   if(t==='banners') posRenderBanners();
   if(t==='cars') posRenderCars();
@@ -7394,6 +7433,231 @@ function posAffBind(k, o){
     catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
   });
 }
+/* ---- refund, pembatalan, hapus pesanan ---- */
+function posRefundState(o){
+  const rq = o.refund && o.refund.request, dc = o.refund && o.refund.decision;
+  if(!rq) return (o.cancel && o.status==='batal') ? { key:'cancelled', label:'Dibatalkan pembeli', cls:'' } : null;
+  const st = dc && dc.status;
+  if(!st) return { key:'new', label:'Refund diajukan', cls:'st-warn' };
+  if(st==='disetujui') return { key:'approved', label: (rq.type==='defect' && !dc.goodsAt) ? 'Refund disetujui · tunggu barang' : 'Refund disetujui · proses dana', cls:'st-warn' };
+  if(st==='ditolak') return { key:'rejected', label:'Refund ditolak', cls:'' };
+  return { key:'done', label:'Refund selesai', cls:'st-ok' };
+}
+function posRefundOpen(o){ const s = posRefundState(o); return !!(s && (s.key==='new' || s.key==='approved')); }
+function posRefundBadge(o){ const s = posRefundState(o); return s ? ` · <span class="${s.cls}">${posEsc(s.label)}</span>` : ''; }
+function posLightbox(src){
+  if(!src) return; const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(10,15,25,.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out';
+  d.innerHTML = `<img src="${src}" alt="Bukti" style="max-width:100%;max-height:100%;border-radius:10px">`; d.onclick = ()=>d.remove(); document.body.appendChild(d);
+}
+function posRefundSectionHtml(k, o){
+  const rq = o.refund && o.refund.request;
+  if(!rq) return o.cancel && o.status==='batal' ? `<div class="section-title">Pembatalan</div><div class="ex-sub" style="color:var(--ink)">Dibatalkan oleh pembeli pada ${new Date(o.cancel.at).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}${o.cancel.reason ? ' · Alasan: ' + posEsc(o.cancel.reason) : ''}</div>` : '';
+  const dc = (o.refund && o.refund.decision) || null, st = posRefundState(o), defect = rq.type==='defect';
+  const items = (rq.items||[]).map(i=>(o.items||[])[i]).filter(Boolean);
+  const hasEv = Number(rq.evN) > 0 || !!posSafeUrl(rq.videoUrl);
+  const bank = rq.bank;
+  let decision = '';
+  if(!dc){
+    decision = `<div class="form-grid" style="margin-top:10px"><div class="field"><label>Nominal disetujui (Rp)</label><input type="number" min="0" id="rf_amt" value="${Number(rq.amount)||0}"></div>
+      <div class="field full"><label>Catatan untuk pembeli</label><textarea id="rf_note" rows="2" placeholder="${defect?'mis. Kirim barang kembali ke alamat kami, sertakan nomor pesanan':'Alasan atau keterangan'}"></textarea></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn green" id="rf_ok" ${defect && !hasEv ? 'disabled' : ''}>Setujui</button><button class="btn danger" id="rf_no">Tolak</button></div>
+      ${defect && !hasEv ? '<div class="st-warn" style="margin-top:6px">Belum ada foto atau video bukti, jadi pengajuan ini belum bisa disetujui.</div>' : ''}`;
+  } else if(dc.status==='ditolak'){
+    decision = `<div class="ex-sub" style="color:var(--ink);margin-top:8px"><b>Ditolak.</b> ${posEsc(dc.note||'')}</div>`;
+  } else {
+    const done = dc.status==='selesai';
+    decision = `<div class="ex-sub" style="color:var(--ink);margin-top:8px"><b>${done?'Selesai':'Disetujui'}</b> · nominal ${exRp(dc.amount)}${dc.note?' · '+posEsc(dc.note):''}${dc.goodsAt?`<br>Barang diterima kembali ${new Date(dc.goodsAt).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}`:''}${done && dc.refundedAt?`<br>Dana dikembalikan ${new Date(dc.refundedAt).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}${dc.ref?' · Ref: '+posEsc(dc.ref):''}`:''}</div>`;
+    if(!done){
+      decision += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${defect && !dc.goodsAt ? '<button class="btn ghost sm" id="rf_goods">Barang sudah diterima kembali</button>' : ''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><input type="text" id="rf_ref" placeholder="No. referensi transfer (opsional)" style="flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px"><button class="btn sm" id="rf_paid">Dana sudah dikembalikan</button></div>
+        <div class="ex-sub">Transfer ${exRp(dc.amount)} ke rekening pembeli di atas, lalu tekan tombol ini.</div>`;
+    }
+  }
+  return `<div class="section-title">${defect?'Refund barang cacat':'Pembatalan setelah bayar'} · <span class="${st.cls}">${posEsc(st.label)}</span></div>
+    <div class="ex-calc" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between"><span>Diajukan</span><span>${new Date(rq.at).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Nominal diajukan</span><b>${exRp(rq.amount)}</b></div></div>
+    <div class="ex-sub" style="color:var(--ink)"><b>Alasan:</b> ${posEsc(rq.reason)}${rq.detail ? ' · ' + posEsc(rq.detail) : ''}</div>
+    ${items.length ? `<div class="ex-sub" style="color:var(--ink)"><b>Barang:</b> ${items.map(i=>posEsc(i.title)+' × '+i.qty).join(', ')}</div>` : ''}
+    ${Number(rq.evN)>0 ? `<div class="rf-evid">${Array.from({length:Number(rq.evN)},(_,i)=>`<img data-evid="${i}" alt="Bukti ${i+1}" style="cursor:zoom-in">`).join('')}</div>` : ''}
+    ${posSafeUrl(rq.videoUrl) ? `<div style="margin-top:6px"><a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${posEsc(posSafeUrl(rq.videoUrl))}">Buka link video bukti ↗</a></div>` : ''}
+    ${bank ? `<div class="ex-sub" style="color:var(--ink);margin-top:8px"><b>Rekening refund:</b> ${posEsc(bank.name)} · <b>${posEsc(bank.no)}</b> · a.n. ${posEsc(bank.holder)} <button class="link-btn" id="rf_copy">Salin no.</button></div>` : '<div class="ex-sub">Tidak ada dana yang perlu dikembalikan.</div>'}
+    ${decision}`;
+}
+function posRefundBind(k, o){
+  const rq = o.refund && o.refund.request; if(!rq) return;
+  document.querySelectorAll('#modalBox img[data-evid]').forEach(img=>{
+    posDb.ref('pos/evidence/'+k+'/'+img.dataset.evid).once('value').then(s=>{ if(s.val()) img.src = s.val(); }).catch(()=>{});
+    img.onclick = ()=>posLightbox(img.src);
+  });
+  const cp = document.getElementById('rf_copy'); if(cp) cp.onclick = async ()=>{ try{ await navigator.clipboard.writeText(rq.bank.no); toast('Nomor rekening disalin'); }catch(e){ window.prompt('Nomor rekening:', rq.bank.no); } };
+  const done = ()=>{ posOrderDetail(k); posRenderOrders(); };
+  const ok = document.getElementById('rf_ok');
+  if(ok) ok.onclick = async ()=>{
+    const amt = Math.round(Number(document.getElementById('rf_amt').value));
+    if(!(amt>=0) || amt > (Number(o.grandTotal)||0)){ toast('Nominal tidak valid (maksimal total pesanan)','err'); return; }
+    const note = document.getElementById('rf_note').value.trim(), at = new Date().toISOString(), money = !!rq.bank && amt>0;
+    const dec = { status: money ? 'disetujui' : 'selesai', amount:(rq.bank ? amt : 0), note, approvedAt:at }; if(!money) dec.refundedAt = at;
+    const upd = { 'refund/decision':dec, updatedAt:at }; let stk = null;
+    if(rq.type==='cancel'){ upd.status = 'batal'; upd['history/'+Date.now()] = { status:'batal', at }; stk = posStockPlan(o, 'batal'); if(stk) upd.stockApplied = stk.apply; }
+    try{
+      await posDb.ref('pos/orders/'+k).update(upd);
+      o.refund = Object.assign({}, o.refund, { decision:dec }); if(rq.type==='cancel') o.status = 'batal';
+      if(stk){ stk.run(); o.stockApplied = stk.apply; await posSaveAndPublish('Stok dikembalikan'); }
+      toast(rq.type==='cancel' ? 'Pembatalan disetujui' : 'Refund disetujui'); done();
+    }catch(e){ console.error(e); toast('Gagal menyimpan keputusan','err'); }
+  };
+  const no = document.getElementById('rf_no');
+  if(no) no.onclick = async ()=>{
+    const note = document.getElementById('rf_note').value.trim(); if(!note){ toast('Isi catatan alasan penolakan untuk pembeli','err'); return; }
+    const at = new Date().toISOString(); const dec = { status:'ditolak', note, decidedAt:at };
+    try{ await posDb.ref('pos/orders/'+k).update({ 'refund/decision':dec, updatedAt:at }); o.refund = Object.assign({}, o.refund, { decision:dec }); toast('Pengajuan ditolak'); done(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan keputusan','err'); }
+  };
+  const gd = document.getElementById('rf_goods');
+  if(gd) gd.onclick = async ()=>{
+    const at = new Date().toISOString();
+    try{ await posDb.ref('pos/orders/'+k).update({ 'refund/decision/goodsAt':at }); o.refund = Object.assign({}, o.refund, { decision:Object.assign({}, o.refund.decision, { goodsAt:at }) }); toast('Barang ditandai sudah diterima'); done(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
+  };
+  const pd = document.getElementById('rf_paid');
+  if(pd) pd.onclick = async ()=>{
+    const ref = ((document.getElementById('rf_ref')||{}).value||'').trim(), at = new Date().toISOString();
+    try{ await posDb.ref('pos/orders/'+k).update({ 'refund/decision/status':'selesai', 'refund/decision/refundedAt':at, 'refund/decision/ref':ref, updatedAt:at });
+      o.refund = Object.assign({}, o.refund, { decision:Object.assign({}, o.refund.decision, { status:'selesai', refundedAt:at, ref }) }); toast('Refund ditandai selesai'); done(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
+  };
+}
+function posOrderDelete(k){
+  const o = posOrders[k]; if(!o) return;
+  confirmModal('Hapus pesanan', `Hapus pesanan ${o.orderNo} secara permanen? Data pesanan, bukti pembayaran, dan bukti refund ikut terhapus dan tidak bisa dikembalikan. Pesanan ini juga hilang dari laporan. Untuk membatalkan tanpa menghapus data, ubah statusnya menjadi Dibatalkan.`, async ()=>{
+    try{
+      const stk = posStockPlan(o, 'batal');            // hanya ada bila stok pernah dikurangi
+      await posDb.ref('pos/orders/'+k).remove();
+      try{ await posDb.ref('pos/proofs/'+k).remove(); }catch(e){}
+      try{ await posDb.ref('pos/evidence/'+k).remove(); }catch(e){}
+      delete posOrders[k];
+      if(stk){ stk.run(); await posSaveAndPublish('Stok dikembalikan'); }
+      closeModal(); toast('Pesanan dihapus'); posRenderOrders(); posRenderStatus();
+    }catch(e){ console.error(e); toast('Gagal menghapus pesanan','err'); }
+  });
+}
+function posRenderRefundPolicy(){
+  const el = document.getElementById('posRefundPolicy'); if(!el) return; const rp = posCfg().refundPolicy;
+  el.innerHTML = `<div class="form-grid"><div class="field"><label>Batas pengajuan refund barang (hari)</label><input type="number" min="1" max="60" id="rfp_days" value="${Number(rp.returnDays)||7}"></div>
+    <div class="field full"><label>Catatan untuk pembeli <span class="muted">(tampil di halaman pengajuan)</span></label><input type="text" id="rfp_note" value="${posEsc(rp.note)}" placeholder="mis. Barang harus dikirim kembali dalam kondisi dan kemasan semula"></div></div>
+    <div class="ex-sub">Batas dihitung sejak pesanan berstatus Dikirim atau Selesai. Pembatalan sebelum barang dikirim tidak dibatasi.</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn sm" id="rfp_save">Simpan kebijakan</button></div>`;
+  document.getElementById('rfp_save').onclick = async ()=>{
+    const d = Math.round(Number(document.getElementById('rfp_days').value)); if(!(d>=1 && d<=60)){ toast('Isi batas hari antara 1 dan 60','err'); return; }
+    posCfg().refundPolicy = { returnDays:d, note:document.getElementById('rfp_note').value.trim() };
+    await posSaveAndPublish('Kebijakan refund disimpan');
+  };
+}
+
+/* ---- laporan & export ---- */
+const POS_PAID_ST = ['dibayar','diproses','dikirim','selesai'];
+let posRep = { period:'30d', from:'', to:'', seg:'' };
+function posRepRange(){
+  const now = new Date(); const sod = d=>new Date(d.getFullYear(), d.getMonth(), d.getDate()); const today = sod(now);
+  let from = today, to = new Date(today.getTime() + 86399999);
+  if(posRep.period==='7d') from = new Date(today.getTime() - 6*86400000);
+  else if(posRep.period==='30d') from = new Date(today.getTime() - 29*86400000);
+  else if(posRep.period==='month') from = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if(posRep.period==='lastmonth'){ from = new Date(now.getFullYear(), now.getMonth()-1, 1); to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999); }
+  else if(posRep.period==='custom'){ if(posRep.from) from = new Date(posRep.from + 'T00:00:00'); if(posRep.to) to = new Date(posRep.to + 'T23:59:59.999'); }
+  return [from, to];
+}
+function posRepCompute(){
+  const [from, to] = posRepRange();
+  const R = { from, to, orders:[], gross:0, paidN:0, cancelN:0, newN:0, refundDefect:0, refundDefectN:0, cancelRefund:0, cancelRefundN:0, refundOpen:0, bySeg:{}, byPay:{}, byStatus:{}, byDay:{}, prod:{}, aff:{ items:0, revenue:0, margin:0, noCost:0 } };
+  const p = posCfg();
+  Object.entries(posOrders).forEach(([k, o])=>{
+    if(!o) return; const d = new Date(o.createdAt); if(isNaN(d) || d < from || d > to) return;
+    const sg = o.segment || 'otomotif'; if(posRep.seg && sg !== posRep.seg) return;
+    R.orders.push({ k, o, d }); const st = o.status || 'baru'; R.byStatus[st] = (R.byStatus[st] || 0) + 1;
+    const rq = o.refund && o.refund.request, dc = o.refund && o.refund.decision;
+    if(rq && (!dc || dc.status==='disetujui')) R.refundOpen++;
+    const doneAmt = (rq && rq.bank && dc && dc.status==='selesai') ? (Number(dc.amount) || 0) : 0;
+    if(st==='batal'){ R.cancelN++; if(doneAmt){ R.cancelRefund += doneAmt; R.cancelRefundN++; } return; }
+    if(st==='baru'){ R.newN++; return; }
+    const total = Number(o.grandTotal) || 0; R.paidN++; R.gross += total;
+    const sgn = posSegName(sg); const a = R.bySeg[sgn] = R.bySeg[sgn] || { n:0, v:0 }; a.n++; a.v += total;
+    const pl = (o.payment && o.payment.label) || '-'; const b = R.byPay[pl] = R.byPay[pl] || { n:0, v:0 }; b.n++; b.v += total;
+    const day = d.toLocalISODate(); const c = R.byDay[day] = R.byDay[day] || { n:0, v:0 }; c.n++; c.v += total;
+    (o.items || []).forEach(i=>{
+      const q = Number(i.qty) || 0, amt = (Number(i.price) || 0) * q; const e = R.prod[i.title] = R.prod[i.title] || { qty:0, v:0 }; e.qty += q; e.v += amt;
+      const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null;
+      if(i.src==='affiliate' || (prod && prod.source==='affiliate')){ R.aff.items += q; R.aff.revenue += amt; const cost = prod ? Number(prod.affCost) || 0 : 0; if(cost) R.aff.margin += (Number(i.price) - cost) * q; else R.aff.noCost += q; }
+    });
+    if(doneAmt && rq.type==='defect'){ R.refundDefect += doneAmt; R.refundDefectN++; }
+  });
+  R.net = R.gross - R.refundDefect; R.aov = R.paidN ? R.gross / R.paidN : 0;
+  return R;
+}
+function posRenderReports(){
+  const el = document.getElementById('posReportBody'); if(!el) return;
+  if(!posIsAdmin){ el.innerHTML = '<div class="card">' + posNeedAdminHtml() + '</div>'; return; }
+  const R = posRepCompute();
+  const fmt = d=>d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+  const card = (l, v, sub, cls)=>`<div class="rep-card ${cls||''}"><span>${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;
+  const tbl = (head, rows)=>rows.length ? `<div class="table-wrap"><table><thead><tr>${head.map((h,i)=>`<th${i?' style="text-align:right"':''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : '<div class="empty" style="padding:10px 0">Belum ada data di periode ini.</div>';
+  const days = Object.keys(R.byDay).sort().reverse(); const maxDay = Math.max(1, ...Object.values(R.byDay).map(x=>x.v));
+  const prods = Object.entries(R.prod).sort((a,b)=>b[1].v - a[1].v).slice(0, 10);
+  const stRows = Object.entries(R.byStatus).map(([k,n])=>`<tr><td>${posEsc(posStatusLabelFor({}, k))}</td><td style="text-align:right">${n}</td></tr>`);
+  el.innerHTML = `<div class="ex-sub" style="margin:0 2px 10px">Periode ${fmt(R.from)} – ${fmt(R.to)}${posRep.seg ? ' · ' + posEsc(posSegName(posRep.seg)) : ' · semua segmen'}. Omzet dihitung dari pesanan berstatus dibayar atau lebih.</div>
+    <div class="rep-cards">
+      ${card('Omzet bersih', exRp(R.net), 'kotor ' + exRp(R.gross) + (R.refundDefect ? ' − refund ' + exRp(R.refundDefect) : ''), 'rep-main')}
+      ${card('Pesanan dibayar', R.paidN, 'rata-rata ' + exRp(R.aov))}
+      ${card('Pesanan masuk', R.orders.length, R.newN + ' belum dibayar')}
+      ${card('Dibatalkan', R.cancelN, R.cancelRefundN ? R.cancelRefundN + ' dengan refund ' + exRp(R.cancelRefund) : 'tanpa refund dana')}
+      ${card('Refund barang cacat', R.refundDefectN, exRp(R.refundDefect))}
+      ${card('Refund perlu diproses', R.refundOpen, R.refundOpen ? 'cek menu Pesanan' : 'tidak ada', R.refundOpen ? 'rep-warn' : '')}
+    </div>
+    <div class="card"><h2>Per hari</h2>${days.length ? `<div class="rep-days">${days.map(d=>`<div class="rep-day"><span>${new Date(d+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span><div class="rep-bar"><i style="width:${Math.max(2, R.byDay[d].v/maxDay*100)}%"></i></div><b>${exRp(R.byDay[d].v)}</b><small>${R.byDay[d].n} pesanan</small></div>`).join('')}</div>` : '<div class="empty" style="padding:10px 0">Belum ada pesanan dibayar di periode ini.</div>'}</div>
+    <div class="card"><h2>Produk terlaris</h2>${tbl(['Produk','Terjual','Omzet'], prods.map(([t,e])=>`<tr><td>${posEsc(t)}</td><td style="text-align:right">${e.qty}</td><td style="text-align:right">${exRp(e.v)}</td></tr>`))}</div>
+    <div class="card"><h2>Per segmen &amp; metode bayar</h2>${tbl(['Segmen','Pesanan','Omzet'], Object.entries(R.bySeg).map(([t,e])=>`<tr><td>${posEsc(t)}</td><td style="text-align:right">${e.n}</td><td style="text-align:right">${exRp(e.v)}</td></tr>`))}
+      <div style="height:10px"></div>${tbl(['Metode bayar','Pesanan','Omzet'], Object.entries(R.byPay).map(([t,e])=>`<tr><td>${posEsc(t)}</td><td style="text-align:right">${e.n}</td><td style="text-align:right">${exRp(e.v)}</td></tr>`))}</div>
+    <div class="card"><h2>Produk affiliate</h2>${R.aff.items ? `<div class="ex-calc"><div style="display:flex;justify-content:space-between"><span>Barang affiliate terjual</span><b>${R.aff.items}</b></div><div style="display:flex;justify-content:space-between"><span>Omzet affiliate</span><b>${exRp(R.aff.revenue)}</b></div><div style="display:flex;justify-content:space-between"><span>Estimasi margin</span><b>${exRp(R.aff.margin)}</b></div></div>${R.aff.noCost ? `<div class="ex-sub">${R.aff.noCost} barang belum punya harga modal, jadi belum masuk hitungan margin.</div>` : ''}` : '<div class="empty" style="padding:10px 0">Belum ada penjualan produk affiliate di periode ini.</div>'}</div>
+    <div class="card"><h2>Status pesanan</h2>${tbl(['Status','Jumlah'], stRows)}</div>`;
+}
+function posRepSheets(R){
+  const safe = v=>(typeof v==='string' && /^[=+\-@]/.test(v)) ? "'" + v : v;
+  const fmtD = d=>d.toLocalISODate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  const p = posCfg(); const sorted = R.orders.slice().sort((a,b)=>a.d - b.d);
+  const rfLabel = o=>{ const s = posRefundState(o); return s ? s.label : ''; };
+  const clean = rows=>rows.map(r=>{ const x = {}; Object.keys(r).forEach(k=>{ x[k] = safe(r[k]); }); return x; });
+  const orders = clean(sorted.map(({ o, d })=>{ const c = o.customer || {}, sh = o.shipping || {}, rq = o.refund && o.refund.request, dc = o.refund && o.refund.decision;
+    return { 'No. Pesanan':o.orderNo, 'Tanggal':fmtD(d), 'Segmen':posSegName(o.segment || 'otomotif'), 'Status':posStatusLabelFor(o, o.status), 'Pembeli':c.nama || '', 'WhatsApp':c.wa || '', 'Alamat':c.alamat || '',
+      'Item':(o.items || []).map(i=>i.title + ' x' + i.qty).join('; '), 'Subtotal':Number(o.subtotal) || 0, 'Kode promo':o.promo ? o.promo.code : '', 'Potongan promo':o.promo ? Number(o.promo.discount) || 0 : 0,
+      'Kemasan':Number(o.packFee) || 0, 'Pemasangan / ongkir':Number(sh.fee) || 0, 'Total':Number(o.grandTotal) || 0, 'Metode bayar':(o.payment && o.payment.label) || '', 'Bukti bayar':o.proof ? 'Ya' : 'Tidak',
+      'Refund':rfLabel(o), 'Nominal refund':(rq && dc && dc.status==='selesai') ? Number(dc.amount) || 0 : 0, 'Catatan pembeli':o.note || '' }; }));
+  const items = clean(sorted.flatMap(({ o, d })=>(o.items || []).map(i=>{ const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null; const aff = i.src==='affiliate' || (prod && prod.source==='affiliate'); const cost = aff && prod ? Number(prod.affCost) || 0 : 0; const q = Number(i.qty) || 0;
+    return { 'No. Pesanan':o.orderNo, 'Tanggal':fmtD(d), 'Status':posStatusLabelFor(o, o.status), 'Produk':i.title, 'Pilihan':(i.options || []).join(' / '), 'Qty':q, 'Harga satuan':Number(i.price) || 0, 'Jumlah':(Number(i.price) || 0) * q, 'Sumber':aff ? 'Affiliate' : 'Sendiri', 'Modal':cost ? cost * q : '', 'Estimasi margin':cost ? ((Number(i.price) || 0) - cost) * q : '' }; })));
+  const refunds = clean(sorted.filter(({ o })=>o.refund && o.refund.request).map(({ o, d })=>{ const rq = o.refund.request, dc = o.refund.decision || {};
+    return { 'No. Pesanan':o.orderNo, 'Tanggal pesanan':fmtD(d), 'Jenis':rq.type==='defect' ? 'Barang cacat' : 'Pembatalan', 'Alasan':rq.reason + (rq.detail ? ' - ' + rq.detail : ''), 'Diajukan':fmtD(new Date(rq.at)), 'Nominal diajukan':Number(rq.amount) || 0, 'Status':posRefundState(o).label,
+      'Nominal disetujui':dc.amount != null ? Number(dc.amount) : '', 'Bank':rq.bank ? rq.bank.name : '', 'No. rekening':rq.bank ? rq.bank.no : '', 'Atas nama':rq.bank ? rq.bank.holder : '', 'Dana dikembalikan':dc.refundedAt ? fmtD(new Date(dc.refundedAt)) : '', 'Referensi transfer':dc.ref || '', 'Catatan admin':dc.note || '' }; }));
+  const sum = [['Laporan Toko Online'], ['Periode', R.from.toLocalISODate() + ' s/d ' + R.to.toLocalISODate()], ['Segmen', posRep.seg ? posSegName(posRep.seg) : 'Semua'], [],
+    ['Omzet kotor (pesanan dibayar)', R.gross], ['Refund barang cacat', R.refundDefect], ['Omzet bersih', R.net], ['Pesanan dibayar', R.paidN], ['Rata-rata per pesanan', Math.round(R.aov)], ['Pesanan masuk', R.orders.length], ['Belum dibayar', R.newN], ['Dibatalkan', R.cancelN], ['Refund pembatalan (dana kembali)', R.cancelRefund], ['Refund perlu diproses', R.refundOpen],
+    [], ['Estimasi margin affiliate', R.aff.margin]];
+  return { sum, orders, items, refunds };
+}
+function posRepExport(kind){
+  if(typeof XLSX === 'undefined'){ toast('Pustaka Excel belum termuat. Muat ulang halaman lalu coba lagi.', 'err'); return; }
+  if(!posIsAdmin){ toast('Login admin toko dulu', 'err'); return; }
+  const R = posRepCompute(); const S = posRepSheets(R); const base = 'laporan-toko-' + R.from.toLocalISODate() + '_sd_' + R.to.toLocalISODate();
+  const sheet = rows=>{ const ws = rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['Tidak ada data']]); if(rows.length){ const keys = Object.keys(rows[0]); ws['!cols'] = keys.map(k=>({ wch:Math.min(46, Math.max(k.length + 2, ...rows.slice(0, 80).map(r=>String(r[k] == null ? '' : r[k]).length + 2))) })); } return ws; };
+  if(kind==='csv'){
+    const csv = '\ufeff' + XLSX.utils.sheet_to_csv(sheet(S.orders)); const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); a.download = base + '-pesanan.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast(S.orders.length + ' pesanan diekspor (CSV)'); return;
+  }
+  const wb = XLSX.utils.book_new(); const ws0 = XLSX.utils.aoa_to_sheet(S.sum); ws0['!cols'] = [{ wch:36 }, { wch:26 }];
+  XLSX.utils.book_append_sheet(wb, ws0, 'Ringkasan'); XLSX.utils.book_append_sheet(wb, sheet(S.orders), 'Pesanan'); XLSX.utils.book_append_sheet(wb, sheet(S.items), 'Item'); XLSX.utils.book_append_sheet(wb, sheet(S.refunds), 'Refund');
+  XLSX.writeFile(wb, base + '.xlsx'); toast('Laporan Excel diunduh (' + S.orders.length + ' pesanan)');
+}
+
 function posSetSegFilter(k){ posSegFilter = k; posRenderProducts(); }
 function posVisibleCats(){ return posCfg().categories.filter(c=>posSegFilter==='all' || (c.segment||'otomotif')===posSegFilter); }
 function posStockSummary(x){
@@ -7430,7 +7694,7 @@ function posRenderProducts(){
     } else {
       addBtn = `<button class="btn sm" onclick="posProductForm(null,'${c.id}')">+ Produk</button>`;
       body = p.products.filter(x=>x.categoryId===c.id).map(x=>{ const pr = (x.variants||[]).map(v=>Number(v.price)).filter(v=>v>0);
-        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}${x.source==='affiliate' ? ' · <span class="pill lead">Affiliate</span>'+(x.affStore?' '+posEsc(x.affStore):'') : ''}`, x.deal), x.active!==false,
+        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}${x.source==='affiliate' ? ' · <span class="pill lead">Affiliate</span> '+(x.affMode==='redirect' ? 'ke '+posEsc(x.affPlatform||'toko asal') : (x.affStore?posEsc(x.affStore):'')) : ''}`, x.deal), x.active!==false,
           `${x.source==='affiliate' && posSafeUrl(x.affUrl) ? `<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${posEsc(posSafeUrl(x.affUrl))}">↗ Toko asal</a>` : ''}<button class="btn ghost sm" onclick="posProductForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('products','${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('products','${x.id}')">🗑</button>`); }).join('');
     }
     return `<div class="card"><div class="vd-head"><h2 style="margin:0">${posCatIcon(c)}${posEsc(c.name)}</h2>${addBtn}</div>${body||'<div class="empty">Belum ada produk.</div>'}</div>`;
@@ -7572,12 +7836,18 @@ function posProductForm(id, catId){
         <div class="radio-row" id="pp_srcMode"><label class="radio-opt ${x.source==='affiliate'?'':'checked'}"><input type="radio" name="pp_src" value="own" ${x.source==='affiliate'?'':'checked'}> Produk sendiri</label>
         <label class="radio-opt ${x.source==='affiliate'?'checked':''}"><input type="radio" name="pp_src" value="affiliate" ${x.source==='affiliate'?'checked':''}> Affiliate (dibeli di toko lain)</label></div></div>
       <div class="field full" id="pp_affBox" style="${x.source==='affiliate'?'':'display:none'}"><div class="form-grid">
-        <div class="field full"><label>Link produk di toko asal *</label><input type="url" id="pp_affUrl" value="${posEsc(x.affUrl)}" placeholder="https://shopee.co.id/..."></div>
-        <div class="field"><label>Nama toko / marketplace</label><input type="text" id="pp_affStore" value="${posEsc(x.affStore)}" placeholder="mis. Shopee - Toko ABC"></div>
-        <div class="field"><label>Harga beli / modal (Rp)</label><input type="number" min="0" id="pp_affCost" value="${x.affCost||''}" placeholder="opsional"></div>
-        <div class="field"><label>Estimasi tiba <span class="muted">(tampil ke pembeli)</span></label><input type="text" id="pp_eta" value="${posEsc(x.eta)}" placeholder="mis. 3-7 hari kerja"></div>
-        <div class="field"><label>Catatan checkout <span class="muted">(hanya admin)</span></label><input type="text" id="pp_affNote" value="${posEsc(x.affNote)}" placeholder="mis. pilih warna hitam"></div>
-        <div class="ex-sub">Harga jual diatur di Variasi di bawah. Link, nama toko, modal dan catatan hanya terlihat di backend dan tidak masuk ke katalog toko.</div></div></div>
+        <div class="field full"><label>Cara pembelian</label>
+          <div class="radio-row" id="pp_affMode"><label class="radio-opt ${x.affMode==='redirect'?'':'checked'}"><input type="radio" name="pp_affmode" value="dropship" ${x.affMode==='redirect'?'':'checked'}> Checkout di LapakMu</label>
+          <label class="radio-opt ${x.affMode==='redirect'?'checked':''}"><input type="radio" name="pp_affmode" value="redirect" ${x.affMode==='redirect'?'checked':''}> Arahkan pembeli ke toko asal</label></div>
+          <div class="ex-sub" id="pp_affHint"></div></div>
+        <div class="field full"><label id="pp_affUrlLbl">Link produk di toko asal *</label><input type="url" id="pp_affUrl" value="${posEsc(x.affUrl)}" placeholder="https://shopee.co.id/..."></div>
+        <div class="field full" id="pp_platBox"><label>Nama marketplace <span class="muted">(tampil di tombol pembeli)</span></label><input type="text" id="pp_affPlatform" value="${posEsc(x.affPlatform)}" placeholder="mis. Shopee"></div>
+        <div class="field full" id="pp_dsBox"><div class="form-grid">
+          <div class="field"><label>Nama toko / marketplace</label><input type="text" id="pp_affStore" value="${posEsc(x.affStore)}" placeholder="mis. Shopee - Toko ABC"></div>
+          <div class="field"><label>Harga beli / modal (Rp)</label><input type="number" min="0" id="pp_affCost" value="${x.affCost||''}" placeholder="opsional"></div>
+          <div class="field"><label>Estimasi tiba <span class="muted">(tampil ke pembeli)</span></label><input type="text" id="pp_eta" value="${posEsc(x.eta)}" placeholder="mis. 3-7 hari kerja"></div>
+          <div class="field"><label>Catatan checkout <span class="muted">(hanya admin)</span></label><input type="text" id="pp_affNote" value="${posEsc(x.affNote)}" placeholder="mis. pilih warna hitam"></div></div></div>
+        <div class="ex-sub">Harga di Variasi di bawah adalah harga jual. Untuk mode arahkan ke toko asal, harga itu hanya harga acuan.</div></div></div>
       <div class="field full"><label>Variasi, harga &amp; stok <span class="muted">— satu baris per variasi: <code>Nama = harga | stok</code> (stok boleh dikosongkan = tidak dibatasi)</span></label>
         <textarea id="pp_var" rows="4" placeholder="Depan = 450000&#10;500 g = 35000 | 20&#10;1 kg = 65000 | 10">${posEsc((x.variants||[]).map(v=>`${v.name} = ${v.price}${v.stock!=null?` | ${v.stock}`:''}`).join('\n'))}</textarea></div>
       <div class="field full"><label>Deskripsi</label><textarea id="pp_desc" rows="3">${posEsc(x.desc)}</textarea></div>
@@ -7596,6 +7866,16 @@ function posProductForm(id, catId){
   const isFz = ()=>((p.categories.find(c=>c.id===document.getElementById('pp_cat').value)||{}).segment)==='frozen';
   const syncSeg = ()=>{ document.getElementById('pp_fzBox').style.display = isFz() ? '' : 'none'; document.getElementById('pp_carBox').style.display = isFz() ? 'none' : ''; };
   document.getElementById('pp_cat').onchange = syncSeg; syncSeg();
+  const syncAff = ()=>{
+    const red = (document.querySelector('input[name="pp_affmode"]:checked')||{}).value==='redirect';
+    document.querySelectorAll('#pp_affMode .radio-opt').forEach(o=>o.classList.toggle('checked', o.querySelector('input').checked));
+    document.getElementById('pp_platBox').style.display = red ? '' : 'none'; document.getElementById('pp_dsBox').style.display = red ? 'none' : '';
+    document.getElementById('pp_affUrlLbl').textContent = red ? 'Link affiliate kamu di toko asal *' : 'Link produk di toko asal *';
+    document.getElementById('pp_affHint').textContent = red
+      ? 'Pembeli membuka toko asal lewat tombol dan checkout di sana. Tempel link affiliate-mu agar komisi tercatat. Link ini tampil publik di toko dan harus jelas terbaca sebagai link marketplace.'
+      : 'Pembeli membayar ke LapakMu, kamu yang membeli di toko asal. Pakai link produk biasa, bukan link affiliate sendiri, karena membeli lewat link affiliate-mu sendiri berisiko komisi dibatalkan.';
+  };
+  document.querySelectorAll('#pp_affMode input').forEach(r=>r.onchange = syncAff); syncAff();
   document.querySelectorAll('#pp_srcMode input').forEach(r=>r.onchange = ()=>{
     document.querySelectorAll('#pp_srcMode .radio-opt').forEach(o=>o.classList.toggle('checked', o.querySelector('input').checked));
     document.getElementById('pp_affBox').style.display = document.querySelector('input[name="pp_src"]:checked').value==='affiliate' ? '' : 'none';
@@ -7622,9 +7902,12 @@ function posProductForm(id, catId){
     const aff = document.querySelector('input[name="pp_src"]:checked').value==='affiliate';
     const affUrl = aff ? posSafeUrl(document.getElementById('pp_affUrl').value) : '';
     if(aff && !affUrl){ toast('Isi link produk di toko asal (diawali https://)','err'); return; }
+    const red = aff && document.querySelector('input[name="pp_affmode"]:checked').value==='redirect';
+    const platform = red ? document.getElementById('pp_affPlatform').value.trim() : '';
+    if(red && !platform){ toast('Isi nama marketplace untuk tombol pembeli (mis. Shopee)','err'); return; }
     const costN = Number(document.getElementById('pp_affCost').value);
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
-    const data = { source:(aff?'affiliate':'own'), affUrl, affStore:(aff?document.getElementById('pp_affStore').value.trim():''), affCost:(aff && costN>0 ? Math.round(costN) : null), affNote:(aff?document.getElementById('pp_affNote').value.trim():''), eta:(aff?document.getElementById('pp_eta').value.trim():''), categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
+    const data = { source:(aff?'affiliate':'own'), affMode:(aff?(red?'redirect':'dropship'):''), affPlatform:platform, affUrl, affStore:(aff&&!red?document.getElementById('pp_affStore').value.trim():''), affCost:(aff&&!red&&costN>0 ? Math.round(costN) : null), affNote:(aff&&!red?document.getElementById('pp_affNote').value.trim():''), eta:(aff&&!red?document.getElementById('pp_eta').value.trim():''), categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
     if(id) Object.assign(x, data); else p.products.push(Object.assign({ id:'pr_'+uid(), active:true }, data));
     closeModal(); await posSaveAndPublish('Produk disimpan'); posRenderProducts(); posRenderStatus(); if(posActiveTab()==='frozen') posRenderFrozen();
   };
@@ -7803,8 +8086,9 @@ function posRenderPayShip(){
   document.getElementById('posQris').innerHTML = `<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">${pay.qris ? posThumb(pay.qris,'pos-qris') : '<div class="pos-qris pos-thumb-empty">QRIS</div>'}
     <div style="display:flex;flex-direction:column;gap:8px"><button class="btn ghost sm" onclick="posQrisUpload()">${pay.qris?'Ganti gambar QRIS':'Upload gambar QRIS'}</button>${pay.qris?'<button class="btn ghost sm" onclick="posQrisRemove()">Hapus QRIS</button>':''}</div></div>`;
   posHydrateImages(document.getElementById('posQris'));
-  document.getElementById('posShipList').innerHTML = p.shipping.length ? p.shipping.map(s=>`<div class="vd-item"><div><strong>${posEsc(s.name)}</strong> · ${s.fee?exRp(s.fee):'Gratis'}
-      <div class="ex-sub">${s.applies==='all'||!s.applies?'Semua produk':'Khusus '+posEsc((posCat(s.applies)||{}).name||'—')}${s.install!==false?' · dengan pemasangan':' · tanpa pemasangan'}${s.note?' · '+posEsc(s.note):''}</div></div>
+  posRenderRefundPolicy();
+  document.getElementById('posShipList').innerHTML = p.shipping.length ? p.shipping.map(s=>`<div class="vd-item"><div><strong>${posEsc(s.name)}</strong> · ${s.feeMode==='admin'?'Ongkir dihitung admin':(s.fee?exRp(s.fee):'Gratis')}
+      <div class="ex-sub">${s.applies==='all'||!s.applies?'Semua produk':s.applies==='other'?'Produk selain kaca film & karpet':'Khusus '+posEsc((posCat(s.applies)||{}).name||'—')}${s.install!==false?' · dengan pemasangan':' · tanpa pemasangan'}${s.note?' · '+posEsc(s.note):''}</div></div>
     <div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="posShipForm('${s.id}')">✏️</button><button class="btn ghost sm" onclick="posShipDelete('${s.id}')">🗑</button></div></div>`).join('') : '<div class="empty">Belum ada opsi — pembeli tidak bisa checkout.</div>';
 }
 function posBankForm(id){
@@ -7829,13 +8113,17 @@ function posShipForm(id){
   openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Opsi Pemasangan / Pengiriman</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-grid"><div class="field full"><label>Nama Opsi</label><input type="text" id="psh_name" value="${posEsc(s.name)}" placeholder="mis. Pemasangan di alamat kamu (luar Jabodetabek)"></div>
     <div class="field"><label>Biaya (Rp)</label><input type="number" min="0" id="psh_fee" value="${s.fee??0}"></div>
-    <div class="field"><label>Berlaku untuk</label><select id="psh_app"><option value="all">Semua produk</option>${p.categories.map(c=>`<option value="${c.id}" ${s.applies===c.id?'selected':''}>Khusus ${posEsc(c.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Berlaku untuk</label><select id="psh_app"><option value="all" ${(!s.applies||s.applies==='all')?'selected':''}>Semua produk</option><option value="other" ${s.applies==='other'?'selected':''}>Produk selain kaca film & karpet</option>${p.categories.map(c=>`<option value="${c.id}" ${s.applies===c.id?'selected':''}>Khusus ${posEsc(c.name)}</option>`).join('')}</select></div>
     <div class="field full"><label>Keterangan</label><input type="text" id="psh_note" value="${posEsc(s.note)}"></div>
-    <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="psh_inst" ${s.install!==false?'checked':''}> Termasuk pemasangan — pembeli memilih jadwal</label></div></div>
+    <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="psh_inst" ${s.install!==false?'checked':''}> Termasuk pemasangan — hanya untuk Kaca Film &amp; Karpet (pembeli memilih jadwal)</label>
+      <label class="ex-check" style="width:max-content;margin-top:6px"><input type="checkbox" id="psh_adm" ${s.feeMode==='admin'?'checked':''}> Ongkir dihitung admin setelah pesanan masuk (khusus tanpa pemasangan)</label>
+      <div class="ex-sub">Produk selain Kaca Film dan Karpet otomatis hanya mendapat opsi tanpa pemasangan.</div></div></div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="psh_save">Simpan</button></div>`);
   document.getElementById('psh_save').onclick = async ()=>{
-    const data = { name:document.getElementById('psh_name').value.trim(), fee:Number(document.getElementById('psh_fee').value)||0, applies:document.getElementById('psh_app').value, note:document.getElementById('psh_note').value.trim(), needsAddress:true, install:document.getElementById('psh_inst').checked };
+    const inst = document.getElementById('psh_inst').checked, adm = document.getElementById('psh_adm').checked && !inst, app = document.getElementById('psh_app').value;
+    const data = { name:document.getElementById('psh_name').value.trim(), fee:adm ? 0 : (Number(document.getElementById('psh_fee').value)||0), feeMode:adm?'admin':'fixed', applies:app, note:document.getElementById('psh_note').value.trim(), needsAddress:true, install:inst };
     if(!data.name){ toast('Nama opsi wajib diisi','err'); return; }
+    if(inst){ const ct = (posCat(app)||{}).type; if(app==='other' || (app!=='all' && ct!=='film' && ct!=='karpet')){ toast('Opsi pemasangan hanya untuk Kaca Film dan Karpet','err'); return; } }
     if(id) Object.assign(s, data); else p.shipping.push(Object.assign({ id:uid() }, data));
     await posSave(); closeModal(); toast('Opsi disimpan'); posRenderPayShip();
   };
@@ -7893,10 +8181,12 @@ function posUpdateBadge(){
   const tb = document.getElementById('posNewBadge'); if(tb) tb.textContent = n ? `(${n})` : '';
 }
 function posStatusLabelFor(o, k){
+  if(o && o.shipping && o.shipping.pending && k==='baru') return 'Menunggu ongkir';
   if(o && o.segment==='frozen'){
     if(k==='baru' && o.shipping && o.shipping.pending) return 'Menunggu ongkir';
     return ({ baru:'Menunggu Pembayaran', dibayar:'Pembayaran Dikonfirmasi', diproses:'Sedang Dikemas', dikirim:'Dikirim (Kurir Instan)', selesai:'Selesai', batal:'Dibatalkan' })[k] || k;
   }
+  if(o && o.segment!=='frozen' && o.shipping && o.shipping.install===false) return ({ baru:'Menunggu Pembayaran', dibayar:'Pembayaran Dikonfirmasi', diproses:'Sedang Dikemas', dikirim:'Dikirim', selesai:'Selesai', batal:'Dibatalkan' })[k] || k;
   return (POS_STATUS.find(x=>x.key===k)||{}).label || k;
 }
 function posStatusPill(k, o){ const s = POS_STATUS.find(x=>x.key===k) || POS_STATUS[0]; return `<span class="pos-pill" style="--c:${s.color}">${posEsc(posStatusLabelFor(o, s.key))}</span>`; }
@@ -7934,7 +8224,7 @@ function invDate(x){ const d = /^\d{4}-\d{2}-\d{2}$/.test(String(x)) ? new Date(
 function invStatus(o){
   const sh = o.shipping || {};
   if(o.status==='batal') return { t:'DIBATALKAN', c:[120,128,140] };
-  if(o.segment==='frozen' && sh.pending && o.status==='baru') return { t:'MENUNGGU ONGKIR', c:[217,119,6] };
+  if(sh.pending && o.status==='baru') return { t:'MENUNGGU ONGKIR', c:[217,119,6] };
   if(o.status==='baru') return { t: (o.payment && o.payment.method==='cash') ? 'BAYAR DI TEMPAT' : 'BELUM DIBAYAR', c:[217,119,6] };
   return { t:'LUNAS', c:[22,163,74] };
 }
@@ -7943,7 +8233,7 @@ function invoiceDoc(JsPDF, o, info){
   const S = t=>String(t==null?'':t).replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u20AC]/g,'');
   const st = info.store || {}, c = o.customer || {}, sh = o.shipping || {}, pay = o.payment || {};
   const storeName = S(st.name || 'LapakMu');
-  const fz = o.segment==='frozen', pending = !!(fz && sh.pending);
+  const fz = o.segment==='frozen', pending = !!sh.pending;
   const doc = new JsPDF({ unit:'mm', format:'a4' });
   const W = 210, M = 15, R = W - M, BOTTOM = 274;
   const INK = [22,32,43], GRAY = [110,120,132], RED = [212,0,0], LINE = [225,229,236];
@@ -8010,10 +8300,10 @@ function invoiceDoc(JsPDF, o, info){
   row('Subtotal', invRp(o.subtotal));
   if(o.promo) row('Kode promo ' + (o.promo.code||''), '- ' + invRp(o.promo.discount).replace('-', ''), { col:[22,163,74] });
   if(fz) row('Kemasan dingin', Number(o.packFee) ? invRp(o.packFee) : 'Gratis');
-  row(fz ? 'Ongkir kurir instan' : (sh.install ? 'Biaya pemasangan' : 'Ongkos kirim'), pending ? 'Dihitung admin' : (Number(sh.fee) ? invRp(sh.fee) : 'Gratis'));
+  row(fz ? 'Ongkir kurir instan' : ((sh.parts && sh.parts.length>1) ? 'Pemasangan & pengiriman' : (sh.install ? 'Biaya pemasangan' : 'Ongkos kirim')), pending ? 'Dihitung admin' : (Number(sh.fee) ? invRp(sh.fee) : 'Gratis'));
   doc.setDrawColor.apply(doc, RED); doc.setLineWidth(0.5); doc.line(tx, y - 2, R, y - 2); y += 3;
   row(pending ? 'TOTAL SEMENTARA' : 'TOTAL', invRp(o.grandTotal), { bold:true, size:13, gap:7 });
-  if(pending){ font('normal', 8.5, GRAY); txt('Belum termasuk ongkir kurir instan. Admin akan mengirim total akhir lewat WhatsApp.', R - 3, y - 1, { align:'right' }); y += 5; }
+  if(pending){ font('normal', 8.5, GRAY); txt('Belum termasuk ongkos kirim. Admin akan mengirim total akhir lewat WhatsApp.', R - 3, y - 1, { align:'right' }); y += 5; }
   /* cara bayar */
   y += 4; const banks = info.banks || [];
   if(y + 34 > BOTTOM) newPage(false);
@@ -8058,20 +8348,25 @@ function posRenderOrders(){
   if(sel.options.length<=1) sel.innerHTML += POS_STATUS.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   const q = (document.getElementById('posOrderSearch').value||'').toLowerCase().trim(); const st = sel.value;
   const sg = (document.getElementById('posOrderSeg')||{}).value||''; const af = (document.getElementById('posOrderAff')||{}).value||'';
-  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!sg || (o.segment||'otomotif')===sg) && (!af || posAffPending(o).length>0) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa,(o.customer||{}).username].join(' ').toLowerCase().includes(q)))
+  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!sg || (o.segment||'otomotif')===sg) && (!af || (af==='todo' ? posAffPending(o).length>0 : posRefundOpen(o))) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa,(o.customer||{}).username].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   el.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Pesanan</th><th>Pembeli</th><th>Item</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
     ${rows.map(([k,o])=>`<tr><td><strong>${posEsc(o.orderNo)}</strong>${o.segment==='frozen'?' <span class="pill lead">Frozen</span>':''}${posAffItems(o).length?' <span class="pill lead">Affiliate</span>':''}<div class="ex-sub">${new Date(o.createdAt).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></td>
       <td>${posEsc((o.customer||{}).nama)}<div class="ex-sub">${posEsc((o.customer||{}).wa)}</div></td>
       <td>${(o.items||[]).map(i=>posEsc(i.title)).join('<br>')}</td>
-      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}${o.promo?` · 🏷️ ${posEsc(o.promo.code)}`:''}${(o.shipping&&o.shipping.pending)?' · <span class="st-warn">ongkir belum dihitung</span>':''}${posAffPending(o).length?` · <span class="st-warn">affiliate belum di-checkout (${posAffPending(o).length})</span>`:(posAffItems(o).length&&o.status!=='batal'?' · <span class="st-ok">affiliate selesai</span>':'')}</div></td>
-      <td>${posStatusPill(o.status, o)}</td><td style="white-space:nowrap"><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button> <button class="btn ghost sm" title="Cetak / unduh invoice" onclick="posInvoice('${k}','print')">Invoice</button>${posAffPending(o).filter(a=>a.prod && posSafeUrl(a.prod.affUrl)).slice(0,2).map(a=>`<div style="margin-top:6px"><a class="btn sm green" target="_blank" rel="noopener noreferrer" title="Checkout ${posEsc(a.item.title)} di toko asal" href="${posEsc(posSafeUrl(a.prod.affUrl))}">Checkout ${posEsc((a.prod.affStore||'toko asal').slice(0,22))} ↗</a></div>`).join('')}</td></tr>`).join('')}</tbody></table></div>`
+      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}${o.promo?` · 🏷️ ${posEsc(o.promo.code)}`:''}${(o.shipping&&o.shipping.pending)?' · <span class="st-warn">ongkir belum dihitung</span>':''}${posAffPending(o).length?` · <span class="st-warn">affiliate belum di-checkout (${posAffPending(o).length})</span>`:(posAffItems(o).length&&o.status!=='batal'?' · <span class="st-ok">affiliate selesai</span>':'')}${posRefundBadge(o)}</div></td>
+      <td>${posStatusPill(o.status, o)}</td><td style="white-space:nowrap"><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button> <button class="btn ghost sm" title="Cetak / unduh invoice" onclick="posInvoice('${k}','print')">Invoice</button> <button class="btn ghost sm" title="Hapus pesanan" onclick="posOrderDelete('${k}')">🗑</button>${posAffPending(o).filter(a=>a.prod && posSafeUrl(a.prod.affUrl)).slice(0,2).map(a=>`<div style="margin-top:6px"><a class="btn sm green" target="_blank" rel="noopener noreferrer" title="Checkout ${posEsc(a.item.title)} di toko asal" href="${posEsc(posSafeUrl(a.prod.affUrl))}">Checkout ${posEsc((a.prod.affStore||'toko asal').slice(0,22))} ↗</a></div>`).join('')}</td></tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">${posOrdersError?'Pesanan belum bisa dibaca — cek Rules Firebase di tab Pengaturan.':'Belum ada pesanan.'}</div>`;
 }
 document.getElementById('posOrderSearch').addEventListener('input', posRenderOrders);
 document.getElementById('posOrderStatus').addEventListener('change', posRenderOrders);
 document.getElementById('posOrderSeg').addEventListener('change', posRenderOrders);
 document.getElementById('posOrderAff').addEventListener('change', posRenderOrders);
+(function(){
+  const per = document.getElementById('posRepPeriod'), fr = document.getElementById('posRepFrom'), to = document.getElementById('posRepTo'), sg = document.getElementById('posRepSeg');
+  const upd = ()=>{ posRep.period = per.value; posRep.from = fr.value; posRep.to = to.value; posRep.seg = sg.value; fr.style.display = to.style.display = per.value==='custom' ? '' : 'none'; posRenderReports(); };
+  [per, fr, to, sg].forEach(e=>e.addEventListener('change', upd));
+})();
 function posOrderDetail(k){
   const o = posOrders[k]; if(!o) return; const c = o.customer||{};
   openModal(`<div class="modal-head"><h3>Pesanan ${posEsc(o.orderNo)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -8093,19 +8388,20 @@ function posOrderDetail(k){
       <div style="display:flex;justify-content:space-between"><span>${o.segment==='frozen'?'Ongkir kurir instan':'Biaya pemasangan / kirim'}</span><span>${(o.shipping&&o.shipping.pending)?'<span class="st-warn">belum dihitung</span>':exRp((o.shipping||{}).fee)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><span>Total</span><span>${exRp(o.grandTotal)}</span></div>
     </div>
+    ${posRefundSectionHtml(k, o)}
     ${posAffSectionHtml(k, o)}
     <div class="section-title">Invoice</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="po_invPdf">Unduh PDF</button><button class="btn ghost sm" id="po_invPrint">Cetak invoice</button></div>
-    ${o.segment==='frozen' ? `<div class="section-title">Ongkir kurir instan</div>
-      <div class="form-grid"><div class="field"><label>Ongkir (Rp)</label><input type="number" min="0" id="po_fee" value="${(o.shipping&&o.shipping.pending)?'':((o.shipping||{}).fee||0)}" placeholder="mis. 18000"></div>
+    ${(o.segment==='frozen' || (o.shipping && (o.shipping.pending || o.shipping.adminFee!==undefined))) ? `<div class="section-title">Ongkir ${o.segment==='frozen'?'kurir instan':'pengiriman'}</div>
+      <div class="form-grid"><div class="field"><label>Ongkir (Rp)</label><input type="number" min="0" id="po_fee" value="${(o.shipping&&o.shipping.pending)?'':(o.shipping&&o.shipping.adminFee!==undefined ? o.shipping.adminFee : (((o.shipping||{}).fee||0)-((o.shipping||{}).fixedFee||0)))}" placeholder="mis. 18000"></div>
         <div class="field" style="align-self:end"><button class="btn green" id="po_feeSave">${(o.shipping&&o.shipping.pending)?'Simpan ongkir':'Ubah ongkir'}</button></div></div>
       <div class="ex-sub">Setelah ongkir disimpan, total otomatis dihitung dan pembeli bisa melihat cara bayarnya di halaman pesanan.</div>
-      ${(o.shipping&&o.shipping.pending)?'':`<a class="btn ghost sm" style="margin-top:8px" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, pesanan ${o.orderNo} sudah kami hitung. Produk ${exRp(o.subtotal)}${o.promo?`, potongan ${exRp(o.promo.discount)}`:''}${o.packFee?`, kemasan ${exRp(o.packFee)}`:''}, ongkir kurir instan ${exRp((o.shipping||{}).fee)}. Total ${exRp(o.grandTotal)}.${posCfg().store.url?` Cara bayar & status pesanan: ${posCfg().store.url.replace(/\/+$/,'')}/#/order/${k}`:''}`)}">💬 Kirim total via WhatsApp</a>`}` : ''}
+      ${(o.shipping&&o.shipping.pending)?'':`<a class="btn ghost sm" style="margin-top:8px" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, pesanan ${o.orderNo} sudah kami hitung. Produk ${exRp(o.subtotal)}${o.promo?`, potongan ${exRp(o.promo.discount)}`:''}${o.packFee?`, kemasan ${exRp(o.packFee)}`:''}, ongkir ${exRp((o.shipping||{}).adminFee!==undefined?o.shipping.adminFee:(o.shipping||{}).fee)}. Total ${exRp(o.grandTotal)}.${posCfg().store.url?` Cara bayar & status pesanan: ${posCfg().store.url.replace(/\/+$/,'')}/#/order/${k}`:''}`)}">💬 Kirim total via WhatsApp</a>`}` : ''}
     ${o.proof?`<div class="section-title">Bukti Pembayaran</div><img data-pproof="${k}" style="max-width:100%;max-height:360px;border-radius:10px;border:1px solid var(--line)" alt="Bukti pembayaran">`:''}
     <div class="section-title">Status</div>
     <div class="form-grid"><div class="field"><select id="po_status">${POS_STATUS.map(s=>`<option value="${s.key}" ${s.key===o.status?'selected':''}>${posEsc(posStatusLabelFor(o, s.key))}</option>`).join('')}</select></div>
       <div class="field"><input type="text" id="po_note" value="${posEsc(o.adminNote)}" placeholder="Pesan untuk pembeli (opsional)"></div></div>
-    <div class="modal-foot"><a class="btn ghost" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, terima kasih sudah berbelanja di ${posCfg().store.name}. Pesanan ${o.orderNo}: ${posStatusLabelFor(o, o.status)}.`)}">💬 WhatsApp</a><button class="btn" id="po_save">Simpan Status</button></div>`, true);
+    <div class="modal-foot"><button class="btn danger sm" id="po_del" style="margin-right:auto">Hapus</button><a class="btn ghost" target="_blank" href="${waLink(c.wa, `Halo ${c.nama}, terima kasih sudah berbelanja di ${posCfg().store.name}. Pesanan ${o.orderNo}: ${posStatusLabelFor(o, o.status)}.`)}">💬 WhatsApp</a><button class="btn" id="po_save">Simpan Status</button></div>`, true);
   const pi = document.querySelector('img[data-pproof]');
   if(pi) posDb.ref('pos/proofs/'+k).once('value').then(s=>{ if(s.val()) pi.src = s.val(); }).catch(()=>{});
   document.getElementById('po_save').onclick = async ()=>{
@@ -8120,17 +8416,20 @@ function posOrderDetail(k){
     }
     catch(e){ console.error(e); toast('Gagal menyimpan status','err'); }
   };
+  posRefundBind(k, o);
   posAffBind(k, o);
+  document.getElementById('po_del').onclick = ()=>posOrderDelete(k);
   document.getElementById('po_invPdf').onclick = ()=>posInvoice(k, 'save');
   document.getElementById('po_invPrint').onclick = ()=>posInvoice(k, 'print');
   const fb = document.getElementById('po_feeSave');
   if(fb) fb.onclick = async ()=>{
     const fee = Math.round(Number(document.getElementById('po_fee').value));
     if(!(fee>=0) || document.getElementById('po_fee').value==='' ){ toast('Isi ongkir dulu (boleh 0)','err'); return; }
-    const grand = (Number(o.subtotal)||0) - (o.promo?Number(o.promo.discount)||0:0) + (Number(o.packFee)||0) + fee;
+    const fixed = Number((o.shipping||{}).fixedFee)||0; const totalShip = fixed + fee;
+    const grand = (Number(o.subtotal)||0) - (o.promo?Number(o.promo.discount)||0:0) + (Number(o.packFee)||0) + totalShip;
     try{
-      await posDb.ref('pos/orders/'+k).update({ 'shipping/fee':fee, 'shipping/pending':false, grandTotal:grand, feeAt:new Date().toISOString(), updatedAt:new Date().toISOString() });
-      o.shipping = Object.assign({}, o.shipping, { fee, pending:false }); o.grandTotal = grand;
+      await posDb.ref('pos/orders/'+k).update({ 'shipping/fee':totalShip, 'shipping/adminFee':fee, 'shipping/pending':false, grandTotal:grand, feeAt:new Date().toISOString(), updatedAt:new Date().toISOString() });
+      o.shipping = Object.assign({}, o.shipping, { fee:totalShip, adminFee:fee, pending:false }); o.grandTotal = grand;
       toast(`Ongkir disimpan · total ${exRp(grand)}`); posOrderDetail(k); posRenderOrders();
     }catch(e){ console.error(e); toast('Gagal menyimpan ongkir','err'); }
   };
