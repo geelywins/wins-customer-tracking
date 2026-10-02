@@ -1428,6 +1428,7 @@ tbody tr:hover{background:#FAFBFE;}
             <input type="search" id="posOrderSearch" placeholder="Cari no. pesanan, nama, WA...">
             <select id="posOrderStatus"><option value="">Semua status</option></select>
             <select id="posOrderSeg"><option value="">Semua segmen</option><option value="otomotif">Otomotif</option><option value="frozen">Frozen Food</option></select>
+            <select id="posOrderAff"><option value="">Semua pesanan</option><option value="todo">Perlu checkout affiliate</option></select>
           </div>
           <div class="card"><div id="posOrderList"></div></div>
         </div>
@@ -7273,7 +7274,7 @@ function posBuildCatalog(){
     carpets: catOn('cat_karpet') ? p.carpets.filter(c=>c.active!==false && Object.keys(c.prices||{}).length)
       .map(c=>({ id:c.id, name:c.name, desc:c.desc||'', images:c.images||[], packages:c.packages||[], colors:c.colors||[], prices:c.prices||{}, deal:dealOut(c.deal) })) : [],
     products: p.products.filter(x=>x.active!==false && catOn(x.categoryId) && (x.variants||[]).some(v=>Number(v.price)>0))
-      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', deal:dealOut(x.deal) })),
+      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', source:(x.source==='affiliate'?'affiliate':'own'), eta:(x.source==='affiliate'?(x.eta||''):''), deal:dealOut(x.deal) })),
     promos: p.promos.filter(x=>x.active!==false && (!x.until || x.until>=todayISO()))
       .map(x=>({ id:x.id, hash:x.hash, code: x.public ? x.code : '', type:x.type, value:Number(x.value)||0, scope:x.scope||'all', minSpend:Number(x.minSpend)||0, until:x.until||'', desc:x.desc||'', public:!!x.public })),
     banners: p.banners.filter(b=>b.active!==false && b.img),
@@ -7341,6 +7342,49 @@ function renderToko(){
 
 /* ---- kategori & produk ---- */
 function posCatIcon(c, cls){ return c.iconImg ? `<img class="${cls||'pos-cat-ico'}" data-pimg="${c.iconImg}" alt="">` : `<span class="${cls||'pos-cat-ico'} pos-cat-emoji">${posEsc(c.icon||'🛒')}</span>`; }
+/* ---- produk affiliate: link toko asal hanya ada di backend, tidak ikut ke katalog publik ---- */
+function posSafeUrl(u){ u = String(u||'').trim(); return /^https?:\/\/\S+$/i.test(u) ? u : ''; }
+function posAffItems(o){
+  const p = posCfg(); const out = [];
+  (o.items||[]).forEach((i, idx)=>{ const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null;
+    if(i.src==='affiliate' || (prod && prod.source==='affiliate')) out.push({ idx, item:i, prod, rec:((o.affOrders||{})['i'+idx]||null) }); });
+  return out;
+}
+function posAffPending(o){ return o.status==='batal' ? [] : posAffItems(o).filter(a=>!(a.rec && a.rec.done)); }
+function posAffSectionHtml(k, o){
+  const list = posAffItems(o); if(!list.length) return '';
+  return `<div class="section-title">Produk affiliate · checkout di toko asal</div>
+    <div class="ex-sub" style="margin-bottom:8px">Beli barang ini di toko asalnya dengan alamat pembeli sebagai penerima, lalu tandai selesai.</div>
+    ${list.map(a=>{ const pr = a.prod || {}; const url = posSafeUrl(pr.affUrl); const done = a.rec && a.rec.done; const cost = Number(pr.affCost)||0;
+      return `<div class="vd-item aff-item" style="align-items:flex-start"><div style="flex:1;min-width:0">
+        <strong>${posEsc(a.item.title)}</strong> × ${a.item.qty}${a.item.variant && a.item.variant!=='Standar' ? ` <span class="pill">${posEsc(a.item.variant)}</span>` : ''}
+        <div class="ex-sub">${posEsc(pr.affStore || 'Nama toko asal belum diisi')}${pr.affNote ? ` · Catatan: ${posEsc(pr.affNote)}` : ''}</div>
+        ${cost ? `<div class="ex-sub">Modal ${exRp(cost*a.item.qty)} · estimasi margin ${exRp((a.item.price-cost)*a.item.qty)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          ${url ? `<a class="btn sm green" target="_blank" rel="noopener noreferrer" href="${posEsc(url)}">Checkout di toko asal ↗</a>` : '<span class="st-warn">Link toko asal belum diisi di produk</span>'}
+          <button class="btn ghost sm" data-aff-copy>Salin data penerima</button></div>
+        <div style="margin-top:8px">${done
+          ? `<span class="st-ok">✓ Sudah di-checkout ${new Date(a.rec.at).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}${a.rec.ref ? ' · ' + posEsc(a.rec.ref) : ''}</span> <button class="link-btn" data-aff-undo="${a.idx}">Batalkan</button>`
+          : `<div style="display:flex;gap:6px;flex-wrap:wrap"><input type="text" id="aff_ref_${a.idx}" placeholder="No. pesanan / resi toko asal (opsional)" style="flex:1;min-width:150px;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px"><button class="btn sm" data-aff-done="${a.idx}">Tandai sudah di-checkout</button></div>`}</div>
+      </div></div>`; }).join('')}`;
+}
+function posAffBind(k, o){
+  const c = o.customer || {};
+  document.querySelectorAll('#modalBox [data-aff-copy]').forEach(b=>b.onclick = async ()=>{
+    const t = `Nama: ${c.nama||''}\nNo. HP: ${c.wa||''}\nAlamat: ${c.alamat||''}${c.area ? '\nArea: ' + c.area : ''}`;
+    try{ await navigator.clipboard.writeText(t); toast('Data penerima disalin'); }catch(e){ window.prompt('Salin data penerima:', t); }
+  });
+  document.querySelectorAll('#modalBox [data-aff-done]').forEach(b=>b.onclick = async ()=>{
+    const idx = b.dataset.affDone; const ref = ((document.getElementById('aff_ref_'+idx)||{}).value || '').trim(); const rec = { done:true, ref, at:new Date().toISOString() };
+    try{ await posDb.ref('pos/orders/'+k+'/affOrders/i'+idx).set(rec); o.affOrders = Object.assign({}, o.affOrders || {}, { ['i'+idx]:rec }); toast('Ditandai sudah di-checkout'); posOrderDetail(k); posRenderOrders(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
+  });
+  document.querySelectorAll('#modalBox [data-aff-undo]').forEach(b=>b.onclick = async ()=>{
+    const idx = b.dataset.affUndo;
+    try{ await posDb.ref('pos/orders/'+k+'/affOrders/i'+idx).remove(); const m = Object.assign({}, o.affOrders || {}); delete m['i'+idx]; o.affOrders = m; toast('Tanda dibatalkan'); posOrderDetail(k); posRenderOrders(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan','err'); }
+  });
+}
 function posSetSegFilter(k){ posSegFilter = k; posRenderProducts(); }
 function posVisibleCats(){ return posCfg().categories.filter(c=>posSegFilter==='all' || (c.segment||'otomotif')===posSegFilter); }
 function posStockSummary(x){
@@ -7377,8 +7421,8 @@ function posRenderProducts(){
     } else {
       addBtn = `<button class="btn sm" onclick="posProductForm(null,'${c.id}')">+ Produk</button>`;
       body = p.products.filter(x=>x.categoryId===c.id).map(x=>{ const pr = (x.variants||[]).map(v=>Number(v.price)).filter(v=>v>0);
-        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}`, x.deal), x.active!==false,
-          `<button class="btn ghost sm" onclick="posProductForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('products','${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('products','${x.id}')">🗑</button>`); }).join('');
+        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}${x.source==='affiliate' ? ' · <span class="pill lead">Affiliate</span>'+(x.affStore?' '+posEsc(x.affStore):'') : ''}`, x.deal), x.active!==false,
+          `${x.source==='affiliate' && posSafeUrl(x.affUrl) ? `<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${posEsc(posSafeUrl(x.affUrl))}">↗ Toko asal</a>` : ''}<button class="btn ghost sm" onclick="posProductForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('products','${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('products','${x.id}')">🗑</button>`); }).join('');
     }
     return `<div class="card"><div class="vd-head"><h2 style="margin:0">${posCatIcon(c)}${posEsc(c.name)}</h2>${addBtn}</div>${body||'<div class="empty">Belum ada produk.</div>'}</div>`;
   }).join('');
@@ -7515,6 +7559,16 @@ function posProductForm(id, catId){
       <div class="field"><label>Kategori</label><select id="pp_cat">${gen.map(c=>`<option value="${c.id}" ${c.id===x.categoryId?'selected':''}>${posEsc(c.name)} · ${posEsc(posSegName(c.segment||'otomotif'))}</option>`).join('')}</select></div>
       <div class="field"><label>Merek (opsional)</label><input type="text" id="pp_brand" value="${posEsc(x.brand)}"></div>
       <div class="field full"><label>Nama Produk</label><input type="text" id="pp_name" value="${posEsc(x.name)}" placeholder="mis. Dash Cam 4K Dual Channel"></div>
+      <div class="field full"><label>Sumber produk</label>
+        <div class="radio-row" id="pp_srcMode"><label class="radio-opt ${x.source==='affiliate'?'':'checked'}"><input type="radio" name="pp_src" value="own" ${x.source==='affiliate'?'':'checked'}> Produk sendiri</label>
+        <label class="radio-opt ${x.source==='affiliate'?'checked':''}"><input type="radio" name="pp_src" value="affiliate" ${x.source==='affiliate'?'checked':''}> Affiliate (dibeli di toko lain)</label></div></div>
+      <div class="field full" id="pp_affBox" style="${x.source==='affiliate'?'':'display:none'}"><div class="form-grid">
+        <div class="field full"><label>Link produk di toko asal *</label><input type="url" id="pp_affUrl" value="${posEsc(x.affUrl)}" placeholder="https://shopee.co.id/..."></div>
+        <div class="field"><label>Nama toko / marketplace</label><input type="text" id="pp_affStore" value="${posEsc(x.affStore)}" placeholder="mis. Shopee - Toko ABC"></div>
+        <div class="field"><label>Harga beli / modal (Rp)</label><input type="number" min="0" id="pp_affCost" value="${x.affCost||''}" placeholder="opsional"></div>
+        <div class="field"><label>Estimasi tiba <span class="muted">(tampil ke pembeli)</span></label><input type="text" id="pp_eta" value="${posEsc(x.eta)}" placeholder="mis. 3-7 hari kerja"></div>
+        <div class="field"><label>Catatan checkout <span class="muted">(hanya admin)</span></label><input type="text" id="pp_affNote" value="${posEsc(x.affNote)}" placeholder="mis. pilih warna hitam"></div>
+        <div class="ex-sub">Harga jual diatur di Variasi di bawah. Link, nama toko, modal dan catatan hanya terlihat di backend dan tidak masuk ke katalog toko.</div></div></div>
       <div class="field full"><label>Variasi, harga &amp; stok <span class="muted">— satu baris per variasi: <code>Nama = harga | stok</code> (stok boleh dikosongkan = tidak dibatasi)</span></label>
         <textarea id="pp_var" rows="4" placeholder="Depan = 450000&#10;500 g = 35000 | 20&#10;1 kg = 65000 | 10">${posEsc((x.variants||[]).map(v=>`${v.name} = ${v.price}${v.stock!=null?` | ${v.stock}`:''}`).join('\n'))}</textarea></div>
       <div class="field full"><label>Deskripsi</label><textarea id="pp_desc" rows="3">${posEsc(x.desc)}</textarea></div>
@@ -7533,6 +7587,10 @@ function posProductForm(id, catId){
   const isFz = ()=>((p.categories.find(c=>c.id===document.getElementById('pp_cat').value)||{}).segment)==='frozen';
   const syncSeg = ()=>{ document.getElementById('pp_fzBox').style.display = isFz() ? '' : 'none'; document.getElementById('pp_carBox').style.display = isFz() ? 'none' : ''; };
   document.getElementById('pp_cat').onchange = syncSeg; syncSeg();
+  document.querySelectorAll('#pp_srcMode input').forEach(r=>r.onchange = ()=>{
+    document.querySelectorAll('#pp_srcMode .radio-opt').forEach(o=>o.classList.toggle('checked', o.querySelector('input').checked));
+    document.getElementById('pp_affBox').style.display = document.querySelector('input[name="pp_src"]:checked').value==='affiliate' ? '' : 'none';
+  });
   document.querySelectorAll('#pp_carsMode input').forEach(r=>r.onchange = ()=>{
     document.querySelectorAll('#pp_carsMode .radio-opt').forEach(o=>o.classList.toggle('checked', o.querySelector('input').checked));
     document.getElementById('pp_carList').style.display = r.value==='some' && r.checked ? '' : 'none';
@@ -7552,8 +7610,12 @@ function posProductForm(id, catId){
     const mode = document.querySelector('input[name="pp_cars"]:checked').value;
     const carsSel = (fz || mode==='all') ? 'all' : [...document.querySelectorAll('#pp_carList input:checked')].map(i=>i.value);
     if(!fz && mode==='some' && !carsSel.length){ toast('Pilih minimal satu tipe mobil','err'); return; }
+    const aff = document.querySelector('input[name="pp_src"]:checked').value==='affiliate';
+    const affUrl = aff ? posSafeUrl(document.getElementById('pp_affUrl').value) : '';
+    if(aff && !affUrl){ toast('Isi link produk di toko asal (diawali https://)','err'); return; }
+    const costN = Number(document.getElementById('pp_affCost').value);
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
-    const data = { categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
+    const data = { source:(aff?'affiliate':'own'), affUrl, affStore:(aff?document.getElementById('pp_affStore').value.trim():''), affCost:(aff && costN>0 ? Math.round(costN) : null), affNote:(aff?document.getElementById('pp_affNote').value.trim():''), eta:(aff?document.getElementById('pp_eta').value.trim():''), categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
     if(id) Object.assign(x, data); else p.products.push(Object.assign({ id:'pr_'+uid(), active:true }, data));
     closeModal(); await posSaveAndPublish('Produk disimpan'); posRenderProducts(); posRenderStatus(); if(posActiveTab()==='frozen') posRenderFrozen();
   };
@@ -7986,20 +8048,21 @@ function posRenderOrders(){
   const sel = document.getElementById('posOrderStatus');
   if(sel.options.length<=1) sel.innerHTML += POS_STATUS.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   const q = (document.getElementById('posOrderSearch').value||'').toLowerCase().trim(); const st = sel.value;
-  const sg = (document.getElementById('posOrderSeg')||{}).value||'';
-  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!sg || (o.segment||'otomotif')===sg) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa,(o.customer||{}).username].join(' ').toLowerCase().includes(q)))
+  const sg = (document.getElementById('posOrderSeg')||{}).value||''; const af = (document.getElementById('posOrderAff')||{}).value||'';
+  const rows = Object.entries(posOrders).filter(([k,o])=>o && (!st || o.status===st) && (!sg || (o.segment||'otomotif')===sg) && (!af || posAffPending(o).length>0) && (!q || [o.orderNo,(o.customer||{}).nama,(o.customer||{}).wa,(o.customer||{}).username].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   el.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Pesanan</th><th>Pembeli</th><th>Item</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
-    ${rows.map(([k,o])=>`<tr><td><strong>${posEsc(o.orderNo)}</strong>${o.segment==='frozen'?' <span class="pill lead">Frozen</span>':''}<div class="ex-sub">${new Date(o.createdAt).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></td>
+    ${rows.map(([k,o])=>`<tr><td><strong>${posEsc(o.orderNo)}</strong>${o.segment==='frozen'?' <span class="pill lead">Frozen</span>':''}${posAffItems(o).length?' <span class="pill lead">Affiliate</span>':''}<div class="ex-sub">${new Date(o.createdAt).toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></td>
       <td>${posEsc((o.customer||{}).nama)}<div class="ex-sub">${posEsc((o.customer||{}).wa)}</div></td>
       <td>${(o.items||[]).map(i=>posEsc(i.title)).join('<br>')}</td>
-      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}${o.promo?` · 🏷️ ${posEsc(o.promo.code)}`:''}${(o.shipping&&o.shipping.pending)?' · <span class="st-warn">ongkir belum dihitung</span>':''}</div></td>
-      <td>${posStatusPill(o.status, o)}</td><td style="white-space:nowrap"><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button> <button class="btn ghost sm" title="Cetak / unduh invoice" onclick="posInvoice('${k}','print')">Invoice</button></td></tr>`).join('')}</tbody></table></div>`
+      <td><strong>${exRp(o.grandTotal)}</strong><div class="ex-sub">${posEsc((o.payment||{}).label)}${o.proof?' · <span class="st-ok">bukti masuk</span>':''}${o.promo?` · 🏷️ ${posEsc(o.promo.code)}`:''}${(o.shipping&&o.shipping.pending)?' · <span class="st-warn">ongkir belum dihitung</span>':''}${posAffPending(o).length?` · <span class="st-warn">affiliate belum di-checkout (${posAffPending(o).length})</span>`:(posAffItems(o).length&&o.status!=='batal'?' · <span class="st-ok">affiliate selesai</span>':'')}</div></td>
+      <td>${posStatusPill(o.status, o)}</td><td style="white-space:nowrap"><button class="btn ghost sm" onclick="posOrderDetail('${k}')">Detail</button> <button class="btn ghost sm" title="Cetak / unduh invoice" onclick="posInvoice('${k}','print')">Invoice</button>${posAffPending(o).filter(a=>a.prod && posSafeUrl(a.prod.affUrl)).slice(0,2).map(a=>`<div style="margin-top:6px"><a class="btn sm green" target="_blank" rel="noopener noreferrer" title="Checkout ${posEsc(a.item.title)} di toko asal" href="${posEsc(posSafeUrl(a.prod.affUrl))}">Checkout ${posEsc((a.prod.affStore||'toko asal').slice(0,22))} ↗</a></div>`).join('')}</td></tr>`).join('')}</tbody></table></div>`
     : `<div class="empty">${posOrdersError?'Pesanan belum bisa dibaca — cek Rules Firebase di tab Pengaturan.':'Belum ada pesanan.'}</div>`;
 }
 document.getElementById('posOrderSearch').addEventListener('input', posRenderOrders);
 document.getElementById('posOrderStatus').addEventListener('change', posRenderOrders);
 document.getElementById('posOrderSeg').addEventListener('change', posRenderOrders);
+document.getElementById('posOrderAff').addEventListener('change', posRenderOrders);
 function posOrderDetail(k){
   const o = posOrders[k]; if(!o) return; const c = o.customer||{};
   openModal(`<div class="modal-head"><h3>Pesanan ${posEsc(o.orderNo)}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
@@ -8021,6 +8084,7 @@ function posOrderDetail(k){
       <div style="display:flex;justify-content:space-between"><span>${o.segment==='frozen'?'Ongkir kurir instan':'Biaya pemasangan / kirim'}</span><span>${(o.shipping&&o.shipping.pending)?'<span class="st-warn">belum dihitung</span>':exRp((o.shipping||{}).fee)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px;border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><span>Total</span><span>${exRp(o.grandTotal)}</span></div>
     </div>
+    ${posAffSectionHtml(k, o)}
     <div class="section-title">Invoice</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="po_invPdf">Unduh PDF</button><button class="btn ghost sm" id="po_invPrint">Cetak invoice</button></div>
     ${o.segment==='frozen' ? `<div class="section-title">Ongkir kurir instan</div>
@@ -8047,6 +8111,7 @@ function posOrderDetail(k){
     }
     catch(e){ console.error(e); toast('Gagal menyimpan status','err'); }
   };
+  posAffBind(k, o);
   document.getElementById('po_invPdf').onclick = ()=>posInvoice(k, 'save');
   document.getElementById('po_invPrint').onclick = ()=>posInvoice(k, 'print');
   const fb = document.getElementById('po_feeSave');
