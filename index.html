@@ -293,6 +293,7 @@ tbody tr:hover{background:#FAFBFE;}
 .rep-days{display:grid;gap:8px}.rep-day{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;font-size:13px}.rep-day small{grid-column:2/4;color:var(--muted);margin-top:-6px;font-size:11.5px}
 .rep-bar{height:8px;background:#E8ECF4;border-radius:8px;overflow:hidden}.rep-bar i{display:block;height:100%;background:var(--blue);border-radius:8px}
 .rf-evid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rf-evid img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#EEF1F6}
+.rp-warn{background:#FFF8E8;border:1px solid #F5DDA6;color:#6B5310;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px;line-height:1.5}
 .pos-segchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .pos-segchip{all:unset;cursor:pointer;padding:7px 14px;border-radius:20px;background:#fff;border:1.5px solid var(--line);font-size:12.5px;font-weight:700}
 .pos-segchip.on{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -1460,7 +1461,7 @@ tbody tr:hover{background:#FAFBFE;}
               <select id="posRepSeg"><option value="">Semua segmen</option><option value="otomotif">Otomotif</option><option value="frozen">Frozen Food</option></select>
             </div>
             <div class="sch-actions" style="margin-top:8px"><button class="btn sm" onclick="posRepExport('xlsx')">Export Excel (.xlsx)</button><button class="btn ghost sm" onclick="posRepExport('csv')">Export CSV pesanan</button></div>
-            <div class="ex-sub" style="margin-top:6px">Excel berisi 4 lembar: Ringkasan, Pesanan, Item, dan Refund (termasuk data rekening refund, simpan dengan hati-hati).</div>
+            <div class="ex-sub" style="margin-top:6px">Excel berisi 6 lembar: Ringkasan (termasuk laba bersih), Pesanan, Item, Per Produk, Per Hari, dan Refund (termasuk data rekening refund, simpan dengan hati-hati).</div>
           </div>
           <div id="posReportBody"></div>
         </div>
@@ -1539,6 +1540,8 @@ tbody tr:hover{background:#FAFBFE;}
               <div class="field"><label>WhatsApp Admin</label><input type="text" id="pos_wa" placeholder="08xx"></div>
               <div class="field"><label>Area Layanan Pemasangan</label><input type="text" id="pos_area" placeholder="mis. Jabodetabek"></div>
               <div class="field full"><label>Link Toko (tempat file toko.html di-hosting)</label><input type="url" id="pos_url" placeholder="https://username.github.io/toko/"></div>
+              <div class="field"><label>Auto logout pembeli</label><select id="pos_sess"><option value="0">Nonaktif</option><option value="15">15 menit tidak aktif</option><option value="30">30 menit tidak aktif</option><option value="60">1 jam tidak aktif</option><option value="120">2 jam tidak aktif</option><option value="240">4 jam tidak aktif</option></select>
+                <div class="ex-sub">Pembeli otomatis keluar kalau tidak ada aktivitas, dengan peringatan 1 menit sebelumnya.</div></div>
               <div class="field full"><label>Webhook email reset password (n8n) <span class="muted">— opsional</span></label><input type="url" id="pos_resethook" placeholder="https://nama-n8n-kamu/webhook/toko-reset-password">
                 <div class="ex-sub">Kosong = toko memakai email reset bawaan Firebase. Diisi = email reset dikirim lewat n8n (tombol, dari email kamu). Kalau n8n tidak bisa dihubungi, toko otomatis memakai email bawaan.</div></div>
             </div>
@@ -7314,7 +7317,7 @@ function posBuildCatalog(){
     carpets: catOn('cat_karpet') ? p.carpets.filter(c=>c.active!==false && Object.keys(c.prices||{}).length)
       .map(c=>({ id:c.id, name:c.name, desc:c.desc||'', images:c.images||[], packages:c.packages||[], colors:c.colors||[], prices:c.prices||{}, deal:dealOut(c.deal) })) : [],
     products: p.products.filter(x=>x.active!==false && catOn(x.categoryId) && (x.variants||[]).some(v=>Number(v.price)>0))
-      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:x.variants, cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', source:(x.source==='affiliate'?'affiliate':'own'), eta:(x.source==='affiliate' && x.affMode!=='redirect'?(x.eta||''):''), buyUrl:(x.source==='affiliate' && x.affMode==='redirect' ? posSafeUrl(x.affUrl) : ''), platform:(x.source==='affiliate' && x.affMode==='redirect' ? (x.affPlatform||'') : ''), deal:dealOut(x.deal) })),
+      .map(x=>({ id:x.id, categoryId:x.categoryId, name:x.name, brand:x.brand||'', desc:x.desc||'', images:x.images||[], variants:(x.variants||[]).map(v=>{ const o = { name:v.name, price:v.price }; if(v.stock!=null) o.stock = v.stock; return o; }), cars:x.cars||'all', shelfLife:x.shelfLife||'', howTo:x.howTo||'', storage:x.storage||'', source:(x.source==='affiliate'?'affiliate':'own'), eta:(x.source==='affiliate' && x.affMode!=='redirect'?(x.eta||''):''), buyUrl:(x.source==='affiliate' && x.affMode==='redirect' ? posSafeUrl(x.affUrl) : ''), platform:(x.source==='affiliate' && x.affMode==='redirect' ? (x.affPlatform||'') : ''), deal:dealOut(x.deal) })),
     promos: p.promos.filter(x=>x.active!==false && (!x.until || x.until>=todayISO()))
       .map(x=>({ id:x.id, hash:x.hash, code: x.public ? x.code : '', type:x.type, value:Number(x.value)||0, scope:x.scope||'all', minSpend:Number(x.minSpend)||0, until:x.until||'', desc:x.desc||'', public:!!x.public })),
     banners: p.banners.filter(b=>b.active!==false && b.img),
@@ -7571,9 +7574,55 @@ function posRepRange(){
   else if(posRep.period==='custom'){ if(posRep.from) from = new Date(posRep.from + 'T00:00:00'); if(posRep.to) to = new Date(posRep.to + 'T23:59:59.999'); }
   return [from, to];
 }
+/* ---- modal (harga pokok) untuk laporan laba: hanya ada di backend, tidak masuk katalog toko ---- */
+let posCostDirty = false;
+function posCostNum(v){ if(v===null || v===undefined || v==='') return null; const n = Number(v); return (isFinite(n) && n>=0) ? n : null; }
+function posReadPct(id){ const v = document.getElementById(id).value.trim().replace(',', '.'); if(v==='') return null; const n = Number(v); return (isFinite(n) && n>=0 && n<=100) ? n : NaN; }
+function posCostText(x){
+  const vs = x.variants || []; if(vs.some(v=>posCostNum(v.cost)!=null)) return vs.filter(v=>posCostNum(v.cost)!=null).map(v=>`${v.name} = ${v.cost}`).join('\n');
+  return posCostNum(x.cost)!=null ? String(x.cost) : '';
+}
+function posCostHint(kind, x){
+  if(kind==='generic'){ const has = (x.variants||[]).some(v=>posCostNum(v.cost)!=null) || posCostNum(x.cost)!=null || (posCostNum(x.affCost)||0)>0; return has ? '' : ' · <span class="st-warn">modal belum diisi</span>'; }
+  return posCostNum(x.costPct)!=null ? ` · modal ${String(x.costPct).replace('.', ',')}%` : ' · <span class="st-warn">modal belum diisi</span>';
+}
+function posUnitCost(it){
+  const p = posCfg(); const kind = it.kind;
+  if(kind==='film' || kind==='karpet'){
+    const b = kind==='film' ? p.filmBrands.find(x=>x.id===it.pid) : p.carpets.find(x=>x.id===it.pid);
+    const pct = b ? posCostNum(b.costPct) : null;
+    return pct==null ? null : Math.round((Number(it.normalPrice) || Number(it.price) || 0) * pct / 100);
+  }
+  const x = it.pid ? p.products.find(y=>y.id===it.pid) : null; if(!x) return null;
+  const v = (x.variants||[]).find(y=>y.name===it.variant); const c = v ? posCostNum(v.cost) : null; if(c!=null) return c;
+  const d = posCostNum(x.cost); if(d!=null) return d;
+  const a = posCostNum(x.affCost); return (a!=null && a>0) ? a : null;
+}
+/* modal tiap pesanan dibekukan (snapshot) supaya laporan lama tidak berubah saat harga modal diubah. Disimpan privat di backend. */
+function posCostSnap(k, o, refill){
+  const p = posCfg(); p.costSnap = p.costSnap || {}; let snap = p.costSnap[k]; let dirty = false;
+  if(!Array.isArray(snap)){ snap = []; dirty = true; }
+  (o.items||[]).forEach((it, i)=>{ if(snap[i]===undefined || (refill && snap[i]===null)){ const c = posUnitCost(it); if(snap[i]!==c){ snap[i] = c; dirty = true; } } });
+  if(dirty){ p.costSnap[k] = snap; posCostDirty = true; }
+  return snap;
+}
+function posCostFlush(){ if(posCostDirty){ posCostDirty = false; saveSettings(); } }
+function posOrderMoney(k, o, refill){
+  const sg = o.segment || 'otomotif', sh = o.shipping || {}; const total = Number(o.grandTotal) || 0;
+  const passthru = (sg==='frozen' || sh.install===false) ? (Number(sh.fee) || 0) : 0;   /* ongkir kurir diteruskan, bukan penjualan */
+  const snap = posCostSnap(k, o, refill); let cost = 0, missing = 0;
+  (o.items||[]).forEach((it, i)=>{ const q = Number(it.qty) || 0, u = snap[i]; if(u==null) missing += q; else cost += u * q; });
+  return { total, passthru, sales: total - passthru, cost, missing, profit: total - passthru - cost, snap };
+}
+function posRepRefillCost(){
+  const R = posRepCompute(); let n = 0;
+  R.orders.forEach(({ k, o })=>{ if(o.status==='baru' || o.status==='batal') return; const nulls = a=>(a||[]).filter(v=>v===null).length; const before = nulls((posCfg().costSnap||{})[k]); posCostSnap(k, o, true); n += before - nulls((posCfg().costSnap||{})[k]); });
+  posCostFlush(); posRenderReports();
+  toast(n>0 ? `${n} item diperbarui dengan modal terbaru` : 'Belum ada modal baru yang bisa dipakai. Isi modal produk dulu di Produk & Kategori.', n>0 ? undefined : 'err');
+}
 function posRepCompute(){
   const [from, to] = posRepRange();
-  const R = { from, to, orders:[], gross:0, paidN:0, cancelN:0, newN:0, refundDefect:0, refundDefectN:0, cancelRefund:0, cancelRefundN:0, refundOpen:0, bySeg:{}, byPay:{}, byStatus:{}, byDay:{}, prod:{}, aff:{ items:0, revenue:0, margin:0, noCost:0 } };
+  const R = { from, to, orders:[], gross:0, paidN:0, cancelN:0, newN:0, refundDefect:0, refundDefectN:0, cancelRefund:0, cancelRefundN:0, refundOpen:0, bySeg:{}, byPay:{}, byStatus:{}, byDay:{}, prod:{}, sales:0, passthru:0, cost:0, noCost:0, aff:{ items:0, revenue:0, margin:0, noCost:0 } };
   const p = posCfg();
   Object.entries(posOrders).forEach(([k, o])=>{
     if(!o) return; const d = new Date(o.createdAt); if(isNaN(d) || d < from || d > to) return;
@@ -7584,31 +7633,42 @@ function posRepCompute(){
     const doneAmt = (rq && rq.bank && dc && dc.status==='selesai') ? (Number(dc.amount) || 0) : 0;
     if(st==='batal'){ R.cancelN++; if(doneAmt){ R.cancelRefund += doneAmt; R.cancelRefundN++; } return; }
     if(st==='baru'){ R.newN++; return; }
-    const total = Number(o.grandTotal) || 0; R.paidN++; R.gross += total;
+    const total = Number(o.grandTotal) || 0; R.paidN++; R.gross += total; const M = posOrderMoney(k, o); R.passthru += M.passthru; R.cost += M.cost; R.noCost += M.missing;
     const sgn = posSegName(sg); const a = R.bySeg[sgn] = R.bySeg[sgn] || { n:0, v:0 }; a.n++; a.v += total;
     const pl = (o.payment && o.payment.label) || '-'; const b = R.byPay[pl] = R.byPay[pl] || { n:0, v:0 }; b.n++; b.v += total;
-    const day = d.toLocalISODate(); const c = R.byDay[day] = R.byDay[day] || { n:0, v:0 }; c.n++; c.v += total;
-    (o.items || []).forEach(i=>{
-      const q = Number(i.qty) || 0, amt = (Number(i.price) || 0) * q; const e = R.prod[i.title] = R.prod[i.title] || { qty:0, v:0 }; e.qty += q; e.v += amt;
+    const day = d.toLocalISODate(); const c = R.byDay[day] = R.byDay[day] || { n:0, v:0, p:0 }; c.n++; c.v += total; c.p += M.profit;
+    (o.items || []).forEach((i, ix)=>{
+      const q = Number(i.qty) || 0, amt = (Number(i.price) || 0) * q; const e = R.prod[i.title] = R.prod[i.title] || { qty:0, v:0, cost:0, noCost:0 }; e.qty += q; e.v += amt;
+      const uc = M.snap[ix]; if(uc==null) e.noCost += q; else e.cost += uc * q;
       const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null;
       if(i.src==='affiliate' || (prod && prod.source==='affiliate')){ R.aff.items += q; R.aff.revenue += amt; const cost = prod ? Number(prod.affCost) || 0 : 0; if(cost) R.aff.margin += (Number(i.price) - cost) * q; else R.aff.noCost += q; }
     });
     if(doneAmt && rq.type==='defect'){ R.refundDefect += doneAmt; R.refundDefectN++; }
   });
   R.net = R.gross - R.refundDefect; R.aov = R.paidN ? R.gross / R.paidN : 0;
+  R.sales = R.gross - R.passthru; R.salesNet = R.sales - R.refundDefect; R.profit = R.salesNet - R.cost; R.margin = R.salesNet > 0 ? R.profit / R.salesNet : 0;
   return R;
 }
 function posRenderReports(){
   const el = document.getElementById('posReportBody'); if(!el) return;
   if(!posIsAdmin){ el.innerHTML = '<div class="card">' + posNeedAdminHtml() + '</div>'; return; }
-  const R = posRepCompute();
+  const R = posRepCompute(); posCostFlush();
   const fmt = d=>d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
   const card = (l, v, sub, cls)=>`<div class="rep-card ${cls||''}"><span>${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;
   const tbl = (head, rows)=>rows.length ? `<div class="table-wrap"><table><thead><tr>${head.map((h,i)=>`<th${i?' style="text-align:right"':''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : '<div class="empty" style="padding:10px 0">Belum ada data di periode ini.</div>';
   const days = Object.keys(R.byDay).sort().reverse(); const maxDay = Math.max(1, ...Object.values(R.byDay).map(x=>x.v));
-  const prods = Object.entries(R.prod).sort((a,b)=>b[1].v - a[1].v).slice(0, 10);
+  const prods = Object.entries(R.prod).sort((a,b)=>b[1].v - a[1].v).slice(0, 20);
   const stRows = Object.entries(R.byStatus).map(([k,n])=>`<tr><td>${posEsc(posStatusLabelFor({}, k))}</td><td style="text-align:right">${n}</td></tr>`);
   el.innerHTML = `<div class="ex-sub" style="margin:0 2px 10px">Periode ${fmt(R.from)} – ${fmt(R.to)}${posRep.seg ? ' · ' + posEsc(posSegName(posRep.seg)) : ' · semua segmen'}. Omzet dihitung dari pesanan berstatus dibayar atau lebih.</div>
+    <div class="card rp-profit"><h2 style="margin:0">Laba bersih</h2>
+      <div class="ex-sub" style="margin:2px 0 10px">Laba bersih = Penjualan − Modal. Penjualan tidak termasuk ongkir kurir yang diteruskan ke kurir${R.passthru ? ' (' + exRp(R.passthru) + ' di periode ini)' : ''}. Refund barang cacat dikurangkan dari penjualan.</div>
+      <div class="rep-cards" style="margin-bottom:0">
+        ${card('Penjualan', exRp(R.salesNet), R.refundDefect ? 'setelah refund ' + exRp(R.refundDefect) : 'pesanan dibayar atau lebih')}
+        ${card('Modal', exRp(R.cost), R.noCost ? '<em style="font-style:normal;color:#B45309">' + R.noCost + ' barang belum ada modal</em>' : 'dari harga modal produk')}
+        ${card('Laba bersih', exRp(R.profit), 'margin ' + (R.margin * 100).toFixed(1).replace('.', ',') + '%', R.profit < 0 ? 'rep-warn' : 'rep-main')}
+      </div>
+      ${R.noCost ? `<div class="rp-warn">${R.noCost} barang belum punya harga modal dan dihitung Rp0, jadi laba bisa terlalu tinggi. Isi modalnya di Produk &amp; Kategori, lalu <button type="button" class="link-btn" onclick="posRepRefillCost()">hitung ulang modal</button>.</div>` : ''}
+    </div>
     <div class="rep-cards">
       ${card('Omzet bersih', exRp(R.net), 'kotor ' + exRp(R.gross) + (R.refundDefect ? ' − refund ' + exRp(R.refundDefect) : ''), 'rep-main')}
       ${card('Pesanan dibayar', R.paidN, 'rata-rata ' + exRp(R.aov))}
@@ -7617,8 +7677,9 @@ function posRenderReports(){
       ${card('Refund barang cacat', R.refundDefectN, exRp(R.refundDefect))}
       ${card('Refund perlu diproses', R.refundOpen, R.refundOpen ? 'cek menu Pesanan' : 'tidak ada', R.refundOpen ? 'rep-warn' : '')}
     </div>
-    <div class="card"><h2>Per hari</h2>${days.length ? `<div class="rep-days">${days.map(d=>`<div class="rep-day"><span>${new Date(d+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span><div class="rep-bar"><i style="width:${Math.max(2, R.byDay[d].v/maxDay*100)}%"></i></div><b>${exRp(R.byDay[d].v)}</b><small>${R.byDay[d].n} pesanan</small></div>`).join('')}</div>` : '<div class="empty" style="padding:10px 0">Belum ada pesanan dibayar di periode ini.</div>'}</div>
-    <div class="card"><h2>Produk terlaris</h2>${tbl(['Produk','Terjual','Omzet'], prods.map(([t,e])=>`<tr><td>${posEsc(t)}</td><td style="text-align:right">${e.qty}</td><td style="text-align:right">${exRp(e.v)}</td></tr>`))}</div>
+    <div class="card"><h2>Per hari</h2>${days.length ? `<div class="rep-days">${days.map(d=>`<div class="rep-day"><span>${new Date(d+'T00:00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span><div class="rep-bar"><i style="width:${Math.max(2, R.byDay[d].v/maxDay*100)}%"></i></div><b>${exRp(R.byDay[d].v)}</b><small>${R.byDay[d].n} pesanan · laba ${exRp(R.byDay[d].p)}</small></div>`).join('')}</div>` : '<div class="empty" style="padding:10px 0">Belum ada pesanan dibayar di periode ini.</div>'}</div>
+    <div class="card"><h2>Laba per produk</h2>${tbl(['Produk','Terjual','Penjualan','Modal','Laba'], prods.map(([t,e])=>`<tr><td>${posEsc(t)}${e.noCost ? ' <span class="st-warn" title="Ada barang tanpa modal">!</span>' : ''}</td><td style="text-align:right">${e.qty}</td><td style="text-align:right">${exRp(e.v)}</td><td style="text-align:right">${exRp(e.cost)}</td><td style="text-align:right"><b>${exRp(e.v - e.cost)}</b></td></tr>`))}
+      <div class="ex-sub" style="margin-top:8px">20 produk teratas menurut penjualan. Angka per produk memakai harga item sebelum kode promo, jadi totalnya bisa sedikit berbeda dari laba bersih di atas. Tanda ! berarti ada barang yang belum punya modal.</div></div>
     <div class="card"><h2>Per segmen &amp; metode bayar</h2>${tbl(['Segmen','Pesanan','Omzet'], Object.entries(R.bySeg).map(([t,e])=>`<tr><td>${posEsc(t)}</td><td style="text-align:right">${e.n}</td><td style="text-align:right">${exRp(e.v)}</td></tr>`))}
       <div style="height:10px"></div>${tbl(['Metode bayar','Pesanan','Omzet'], Object.entries(R.byPay).map(([t,e])=>`<tr><td>${posEsc(t)}</td><td style="text-align:right">${e.n}</td><td style="text-align:right">${exRp(e.v)}</td></tr>`))}</div>
     <div class="card"><h2>Produk affiliate</h2>${R.aff.items ? `<div class="ex-calc"><div style="display:flex;justify-content:space-between"><span>Barang affiliate terjual</span><b>${R.aff.items}</b></div><div style="display:flex;justify-content:space-between"><span>Omzet affiliate</span><b>${exRp(R.aff.revenue)}</b></div><div style="display:flex;justify-content:space-between"><span>Estimasi margin</span><b>${exRp(R.aff.margin)}</b></div></div>${R.aff.noCost ? `<div class="ex-sub">${R.aff.noCost} barang belum punya harga modal, jadi belum masuk hitungan margin.</div>` : ''}` : '<div class="empty" style="padding:10px 0">Belum ada penjualan produk affiliate di periode ini.</div>'}</div>
@@ -7630,25 +7691,29 @@ function posRepSheets(R){
   const p = posCfg(); const sorted = R.orders.slice().sort((a,b)=>a.d - b.d);
   const rfLabel = o=>{ const s = posRefundState(o); return s ? s.label : ''; };
   const clean = rows=>rows.map(r=>{ const x = {}; Object.keys(r).forEach(k=>{ x[k] = safe(r[k]); }); return x; });
-  const orders = clean(sorted.map(({ o, d })=>{ const c = o.customer || {}, sh = o.shipping || {}, rq = o.refund && o.refund.request, dc = o.refund && o.refund.decision;
+  const orders = clean(sorted.map(({ k, o, d })=>{ const M = (o.status==='baru' || o.status==='batal') ? null : posOrderMoney(k, o); const c = o.customer || {}, sh = o.shipping || {}, rq = o.refund && o.refund.request, dc = o.refund && o.refund.decision;
     return { 'No. Pesanan':o.orderNo, 'Tanggal':fmtD(d), 'Segmen':posSegName(o.segment || 'otomotif'), 'Status':posStatusLabelFor(o, o.status), 'Pembeli':c.nama || '', 'WhatsApp':c.wa || '', 'Alamat':c.alamat || '',
       'Item':(o.items || []).map(i=>i.title + ' x' + i.qty).join('; '), 'Subtotal':Number(o.subtotal) || 0, 'Kode promo':o.promo ? o.promo.code : '', 'Potongan promo':o.promo ? Number(o.promo.discount) || 0 : 0,
-      'Kemasan':Number(o.packFee) || 0, 'Pemasangan / ongkir':Number(sh.fee) || 0, 'Total':Number(o.grandTotal) || 0, 'Metode bayar':(o.payment && o.payment.label) || '', 'Bukti bayar':o.proof ? 'Ya' : 'Tidak',
+      'Kemasan':Number(o.packFee) || 0, 'Pemasangan / ongkir':Number(sh.fee) || 0, 'Total':Number(o.grandTotal) || 0, 'Penjualan (tanpa ongkir kurir)':M ? M.sales : '', 'Modal':M ? M.cost : '', 'Laba':M ? M.profit : '', 'Metode bayar':(o.payment && o.payment.label) || '', 'Bukti bayar':o.proof ? 'Ya' : 'Tidak',
       'Refund':rfLabel(o), 'Nominal refund':(rq && dc && dc.status==='selesai') ? Number(dc.amount) || 0 : 0, 'Catatan pembeli':o.note || '' }; }));
-  const items = clean(sorted.flatMap(({ o, d })=>(o.items || []).map(i=>{ const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null; const aff = i.src==='affiliate' || (prod && prod.source==='affiliate'); const cost = aff && prod ? Number(prod.affCost) || 0 : 0; const q = Number(i.qty) || 0;
-    return { 'No. Pesanan':o.orderNo, 'Tanggal':fmtD(d), 'Status':posStatusLabelFor(o, o.status), 'Produk':i.title, 'Pilihan':(i.options || []).join(' / '), 'Qty':q, 'Harga satuan':Number(i.price) || 0, 'Jumlah':(Number(i.price) || 0) * q, 'Sumber':aff ? 'Affiliate' : 'Sendiri', 'Modal':cost ? cost * q : '', 'Estimasi margin':cost ? ((Number(i.price) || 0) - cost) * q : '' }; })));
+  const items = clean(sorted.flatMap(({ k, o, d })=>{ const snap = (o.status==='baru' || o.status==='batal') ? [] : posCostSnap(k, o);
+    return (o.items || []).map((i, ix)=>{ const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null; const aff = i.src==='affiliate' || (prod && prod.source==='affiliate'); const q = Number(i.qty) || 0, pr = Number(i.price) || 0; const u = snap[ix];
+      return { 'No. Pesanan':o.orderNo, 'Tanggal':fmtD(d), 'Status':posStatusLabelFor(o, o.status), 'Produk':i.title, 'Pilihan':(i.options || []).join(' / '), 'Qty':q, 'Harga satuan':pr, 'Jumlah':pr * q, 'Sumber':aff ? 'Affiliate' : 'Sendiri', 'Modal satuan':u==null ? '' : u, 'Modal':u==null ? '' : u * q, 'Laba':u==null ? '' : (pr - u) * q }; }); }));
   const refunds = clean(sorted.filter(({ o })=>o.refund && o.refund.request).map(({ o, d })=>{ const rq = o.refund.request, dc = o.refund.decision || {};
     return { 'No. Pesanan':o.orderNo, 'Tanggal pesanan':fmtD(d), 'Jenis':rq.type==='defect' ? 'Barang cacat' : 'Pembatalan', 'Alasan':rq.reason + (rq.detail ? ' - ' + rq.detail : ''), 'Diajukan':fmtD(new Date(rq.at)), 'Nominal diajukan':Number(rq.amount) || 0, 'Status':posRefundState(o).label,
       'Nominal disetujui':dc.amount != null ? Number(dc.amount) : '', 'Bank':rq.bank ? rq.bank.name : '', 'No. rekening':rq.bank ? rq.bank.no : '', 'Atas nama':rq.bank ? rq.bank.holder : '', 'Dana dikembalikan':dc.refundedAt ? fmtD(new Date(dc.refundedAt)) : '', 'Referensi transfer':dc.ref || '', 'Catatan admin':dc.note || '' }; }));
+  const prodRows = clean(Object.entries(R.prod).sort((a,b)=>b[1].v - a[1].v).map(([t, e])=>({ 'Produk':t, 'Terjual':e.qty, 'Penjualan':e.v, 'Modal':e.cost, 'Laba':e.v - e.cost, 'Margin (%)':e.v ? Math.round((e.v - e.cost) / e.v * 1000) / 10 : '', 'Barang tanpa modal':e.noCost || '' })));
+  const dayRows = clean(Object.keys(R.byDay).sort().map(dk=>({ 'Tanggal':dk, 'Pesanan':R.byDay[dk].n, 'Omzet (total bayar)':R.byDay[dk].v, 'Laba':R.byDay[dk].p })));
   const sum = [['Laporan Toko Online'], ['Periode', R.from.toLocalISODate() + ' s/d ' + R.to.toLocalISODate()], ['Segmen', posRep.seg ? posSegName(posRep.seg) : 'Semua'], [],
     ['Omzet kotor (pesanan dibayar)', R.gross], ['Refund barang cacat', R.refundDefect], ['Omzet bersih', R.net], ['Pesanan dibayar', R.paidN], ['Rata-rata per pesanan', Math.round(R.aov)], ['Pesanan masuk', R.orders.length], ['Belum dibayar', R.newN], ['Dibatalkan', R.cancelN], ['Refund pembatalan (dana kembali)', R.cancelRefund], ['Refund perlu diproses', R.refundOpen],
+    [], ['LABA BERSIH (Penjualan - Modal)', ''], ['Penjualan (tanpa ongkir kurir)', R.sales], ['Ongkir kurir diteruskan (tidak dihitung)', R.passthru], ['Refund barang cacat (dikurangkan)', R.refundDefect], ['Penjualan bersih', R.salesNet], ['Modal', R.cost], ['Laba bersih', R.profit], ['Margin laba (%)', Math.round(R.margin * 1000) / 10], ['Barang belum ada modal', R.noCost],
     [], ['Estimasi margin affiliate', R.aff.margin]];
-  return { sum, orders, items, refunds };
+  return { sum, orders, items, prodRows, dayRows, refunds };
 }
 function posRepExport(kind){
   if(typeof XLSX === 'undefined'){ toast('Pustaka Excel belum termuat. Muat ulang halaman lalu coba lagi.', 'err'); return; }
   if(!posIsAdmin){ toast('Login admin toko dulu', 'err'); return; }
-  const R = posRepCompute(); const S = posRepSheets(R); const base = 'laporan-toko-' + R.from.toLocalISODate() + '_sd_' + R.to.toLocalISODate();
+  const R = posRepCompute(); const S = posRepSheets(R); posCostFlush(); const base = 'laporan-toko-' + R.from.toLocalISODate() + '_sd_' + R.to.toLocalISODate();
   const sheet = rows=>{ const ws = rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['Tidak ada data']]); if(rows.length){ const keys = Object.keys(rows[0]); ws['!cols'] = keys.map(k=>({ wch:Math.min(46, Math.max(k.length + 2, ...rows.slice(0, 80).map(r=>String(r[k] == null ? '' : r[k]).length + 2))) })); } return ws; };
   if(kind==='csv'){
     const csv = '\ufeff' + XLSX.utils.sheet_to_csv(sheet(S.orders)); const a = document.createElement('a');
@@ -7656,7 +7721,7 @@ function posRepExport(kind){
     toast(S.orders.length + ' pesanan diekspor (CSV)'); return;
   }
   const wb = XLSX.utils.book_new(); const ws0 = XLSX.utils.aoa_to_sheet(S.sum); ws0['!cols'] = [{ wch:36 }, { wch:26 }];
-  XLSX.utils.book_append_sheet(wb, ws0, 'Ringkasan'); XLSX.utils.book_append_sheet(wb, sheet(S.orders), 'Pesanan'); XLSX.utils.book_append_sheet(wb, sheet(S.items), 'Item'); XLSX.utils.book_append_sheet(wb, sheet(S.refunds), 'Refund');
+  XLSX.utils.book_append_sheet(wb, ws0, 'Ringkasan'); XLSX.utils.book_append_sheet(wb, sheet(S.orders), 'Pesanan'); XLSX.utils.book_append_sheet(wb, sheet(S.items), 'Item'); XLSX.utils.book_append_sheet(wb, sheet(S.prodRows), 'Per Produk'); XLSX.utils.book_append_sheet(wb, sheet(S.dayRows), 'Per Hari'); XLSX.utils.book_append_sheet(wb, sheet(S.refunds), 'Refund');
   XLSX.writeFile(wb, base + '.xlsx'); toast('Laporan Excel diunduh (' + S.orders.length + ' pesanan)');
 }
 
@@ -7686,17 +7751,17 @@ function posRenderProducts(){
     if(c.type==='film'){
       addBtn = `<button class="btn sm" onclick="posFilmForm()">+ Brand Kaca Film</button>`;
       body = p.filmBrands.map(b=>{ const pr = posFilmPriceVals(b); const nSz = POS_SIZES.filter(sz=>Object.values((b.prices||{})[sz]||{}).some(v=>Number(v)>0)).length;
-        return row((b.images||[])[0], posCatIcon(c), b.name, priceInfo(pr.length?Math.min(...pr):0, `${nSz}/${POS_SIZES.length} ukuran terisi`, b.deal), b.active!==false,
+        return row((b.images||[])[0], posCatIcon(c), b.name, priceInfo(pr.length?Math.min(...pr):0, `${nSz}/${POS_SIZES.length} ukuran terisi`, b.deal)+posCostHint('film', b), b.active!==false,
           `<button class="btn ghost sm" onclick="posFilmForm('${b.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('filmBrands','${b.id}')">${b.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('filmBrands','${b.id}')">🗑</button>`); }).join('');
     } else if(c.type==='karpet'){
       addBtn = `<button class="btn sm" onclick="posCarpetForm()">+ Brand Karpet</button>`;
       body = p.carpets.map(x=>{ const pr = Object.values(x.prices||{}).flatMap(m=>Object.values(m||{})).filter(v=>v>0);
-        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${Object.keys(x.prices||{}).length} tipe mobil`, x.deal), x.active!==false,
+        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${Object.keys(x.prices||{}).length} tipe mobil`, x.deal)+posCostHint('karpet', x), x.active!==false,
           `<button class="btn sm green" onclick="posCarpetPrice('${x.id}')">Harga</button><button class="btn ghost sm" onclick="posCarpetForm('${x.id}')">✏️</button><button class="btn ghost sm" onclick="posToggle('carpets','${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('carpets','${x.id}')">🗑</button>`); }).join('');
     } else {
       addBtn = `<button class="btn sm" onclick="posProductForm(null,'${c.id}')">+ Produk</button>`;
       body = p.products.filter(x=>x.categoryId===c.id).map(x=>{ const pr = (x.variants||[]).map(v=>Number(v.price)).filter(v=>v>0);
-        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}${x.source==='affiliate' ? ' · <span class="pill lead">Affiliate</span> '+(x.affMode==='redirect' ? 'ke '+posEsc(x.affPlatform||'toko asal') : (x.affStore?posEsc(x.affStore):'')) : ''}`, x.deal), x.active!==false,
+        return row((x.images||[])[0], posCatIcon(c), x.name, priceInfo(pr.length?Math.min(...pr):0, `${(x.variants||[]).length} variasi · ${(c.segment||'otomotif')==='frozen' ? posStockSummary(x) : (x.cars==='all'||!x.cars?'semua mobil':x.cars.length+' tipe mobil')}${x.source==='affiliate' ? ' · <span class="pill lead">Affiliate</span> '+(x.affMode==='redirect' ? 'ke '+posEsc(x.affPlatform||'toko asal') : (x.affStore?posEsc(x.affStore):'')) : ''}`, x.deal)+posCostHint('generic', x), x.active!==false,
           `${x.source==='affiliate' && posSafeUrl(x.affUrl) ? `<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${posEsc(posSafeUrl(x.affUrl))}">↗ Toko asal</a>` : ''}<button class="btn ghost sm" onclick="posProductForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posToggle('products','${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posDeleteItem('products','${x.id}')">🗑</button>`); }).join('');
     }
     return `<div class="card"><div class="vd-head"><h2 style="margin:0">${posCatIcon(c)}${posEsc(c.name)}</h2>${addBtn}</div>${body||'<div class="empty">Belum ada produk.</div>'}</div>`;
@@ -7754,6 +7819,8 @@ function posFilmForm(id){
       <div class="field"><label>Nama Brand</label><input type="text" id="pf_name" value="${posEsc(b.name)}" placeholder="mis. Solar Gard Black Phantom"></div>
       <div class="field"><label>Label (opsional)</label><input type="text" id="pf_badge" value="${posEsc(b.badge)}" placeholder="mis. Premium, Terlaris"></div>
       <div class="field full"><label>Deskripsi</label><textarea id="pf_desc" rows="3">${posEsc(b.desc)}</textarea></div>
+      <div class="field full"><label>Modal <span class="muted">— % dari harga jual, opsional</span></label><input type="number" min="0" max="100" step="0.1" id="pf_costpct" value="${b.costPct!=null?b.costPct:''}" placeholder="mis. 55">
+        <div class="ex-sub">Untuk laporan laba, tidak tampil di toko. Contoh: 55 berarti modal 55% dari harga jual sebelum diskon.</div></div>
       <div class="field full"><label>Foto (maks. 4)</label><div id="posImgsWrap"></div></div>
     </div>
     <div class="section-title">Harga per paket &amp; ukuran mobil (Rp)</div>
@@ -7779,7 +7846,8 @@ function posFilmForm(id){
     const sh = {}; let empty = null; document.querySelectorAll('#modalBox input[data-side]').forEach(i=>{ sh[i.dataset.side] = exParseShades(i.value); if(!sh[i.dataset.side].length && !empty) empty = exSideLabel(i.dataset.side); });
     if(empty){ toast(`Isi minimal satu kegelapan untuk ${empty}`,'err'); return; }
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
-    const data = { name, badge:document.getElementById('pf_badge').value.trim(), desc:document.getElementById('pf_desc').value.trim(), images:posCommitImages(b.images), prices, shades:sh, deal:dl.deal };
+    const cp = posReadPct('pf_costpct'); if(Number.isNaN(cp)){ toast('Modal harus berupa angka 0 sampai 100','err'); return; }
+    const data = { costPct:cp, name, badge:document.getElementById('pf_badge').value.trim(), desc:document.getElementById('pf_desc').value.trim(), images:posCommitImages(b.images), prices, shades:sh, deal:dl.deal };
     if(id) Object.assign(b, data); else p.filmBrands.push(Object.assign({ id:'fb_'+uid(), active:true }, data));
     closeModal(); await posSaveAndPublish('Kaca film disimpan'); posRenderProducts(); posRenderStatus();
   };
@@ -7792,6 +7860,8 @@ function posCarpetForm(id){
       <div class="field"><label>Paket (pisahkan koma)</label><input type="text" id="pc_pk" value="${posEsc((c.packages||[]).join(', '))}"></div>
       <div class="field full"><label>Pilihan Warna (pisahkan koma)</label><input type="text" id="pc_col" value="${posEsc((c.colors||[]).join(', '))}"></div>
       <div class="field full"><label>Deskripsi</label><textarea id="pc_desc" rows="3">${posEsc(c.desc)}</textarea></div>
+      <div class="field full"><label>Modal <span class="muted">— % dari harga jual, opsional</span></label><input type="number" min="0" max="100" step="0.1" id="pc_costpct" value="${c.costPct!=null?c.costPct:''}" placeholder="mis. 60">
+        <div class="ex-sub">Untuk laporan laba, tidak tampil di toko. Contoh: 60 berarti modal 60% dari harga jual sebelum diskon.</div></div>
       <div class="field full"><label>Foto (maks. 4)</label><div id="posImgsWrap"></div></div>
     </div>${posDealFields(c.deal)}
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pc_save">Simpan</button></div>`, true);
@@ -7805,7 +7875,8 @@ function posCarpetForm(id){
     if(p.carpets.some(x=>x.name.toLowerCase()===name.toLowerCase() && x.id!==id)){ toast('Brand ini sudah ada','err'); return; }
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
     Object.keys(c.prices||{}).forEach(m=>{ Object.keys(c.prices[m]).forEach(k=>{ if(!packages.includes(k)) delete c.prices[m][k]; }); });
-    const data = { name, packages, colors, desc:document.getElementById('pc_desc').value.trim(), images:posCommitImages(c.images), deal:dl.deal };
+    const cp = posReadPct('pc_costpct'); if(Number.isNaN(cp)){ toast('Modal harus berupa angka 0 sampai 100','err'); return; }
+    const data = { costPct:cp, name, packages, colors, desc:document.getElementById('pc_desc').value.trim(), images:posCommitImages(c.images), deal:dl.deal };
     if(id) Object.assign(c, data); else p.carpets.push(Object.assign({ id:'cp_'+uid(), active:true, prices:{} }, data));
     await posSave(); closeModal(); toast('Karpet disimpan'); posRenderProducts(); posRenderStatus();
   };
@@ -7852,6 +7923,9 @@ function posProductForm(id, catId){
         <div class="ex-sub">Harga di Variasi di bawah adalah harga jual. Untuk mode arahkan ke toko asal, harga itu hanya harga acuan.</div></div></div>
       <div class="field full"><label>Variasi, harga &amp; stok <span class="muted">— satu baris per variasi: <code>Nama = harga | stok</code> (stok boleh dikosongkan = tidak dibatasi)</span></label>
         <textarea id="pp_var" rows="4" placeholder="Depan = 450000&#10;500 g = 35000 | 20&#10;1 kg = 65000 | 10">${posEsc((x.variants||[]).map(v=>`${v.name} = ${v.price}${v.stock!=null?` | ${v.stock}`:''}`).join('\n'))}</textarea></div>
+      <div class="field full"><label>Harga modal <span class="muted">— opsional, untuk laporan laba (tidak tampil di toko)</span></label>
+        <textarea id="pp_cost" rows="2" placeholder="Satu angka untuk semua variasi, mis. 22000&#10;atau per variasi: 500 g = 22000">${posEsc(posCostText(x))}</textarea>
+        <div class="ex-sub">Kalau kosong untuk produk affiliate, dipakai Harga beli di kotak affiliate.</div></div>
       <div class="field full"><label>Deskripsi</label><textarea id="pp_desc" rows="3">${posEsc(x.desc)}</textarea></div>
       <div class="field full" id="pp_carBox"><label>Cocok untuk</label>
         <div class="radio-row" id="pp_carsMode"><label class="radio-opt ${x.cars==='all'||!x.cars?'checked':''}"><input type="radio" name="pp_cars" value="all" ${x.cars==='all'||!x.cars?'checked':''}> Semua mobil</label>
@@ -7909,7 +7983,16 @@ function posProductForm(id, catId){
     if(red && !platform){ toast('Isi nama marketplace untuk tombol pembeli (mis. Shopee)','err'); return; }
     const costN = Number(document.getElementById('pp_affCost').value);
     const dl = posReadDeal(); if(!dl.ok){ toast(dl.msg,'err'); return; }
-    const data = { source:(aff?'affiliate':'own'), affMode:(aff?(red?'redirect':'dropship'):''), affPlatform:platform, affUrl, affStore:(aff&&!red?document.getElementById('pp_affStore').value.trim():''), affCost:(aff&&!red&&costN>0 ? Math.round(costN) : null), affNote:(aff&&!red?document.getElementById('pp_affNote').value.trim():''), eta:(aff&&!red?document.getElementById('pp_eta').value.trim():''), categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
+    let costDefault = null, badCost = null; const costMap = {};
+    document.getElementById('pp_cost').value.split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{
+      const m = l.split('='); const digits = t=>t.replace(/[^\d]/g, '');
+      if(m.length===1){ if(!digits(l)) badCost = badCost || l; else costDefault = Number(digits(l)); }
+      else { if(!digits(m[1])) badCost = badCost || l; else costMap[m[0].trim().toLowerCase()] = Number(digits(m[1])); }
+    });
+    if(badCost){ toast(`Baris modal "${badCost}" belum benar. Contoh: 22000 atau 500 g = 22000`,'err'); return; }
+    const unkCost = Object.keys(costMap).find(n=>!variants.some(v=>v.name.toLowerCase()===n)); if(unkCost){ toast(`Variasi "${unkCost}" di kolom modal tidak ada di daftar variasi`,'err'); return; }
+    variants.forEach(v=>{ const c = costMap[v.name.toLowerCase()]; if(c!=null) v.cost = c; });
+    const data = { cost:costDefault, source:(aff?'affiliate':'own'), affMode:(aff?(red?'redirect':'dropship'):''), affPlatform:platform, affUrl, affStore:(aff&&!red?document.getElementById('pp_affStore').value.trim():''), affCost:(aff&&!red&&costN>0 ? Math.round(costN) : null), affNote:(aff&&!red?document.getElementById('pp_affNote').value.trim():''), eta:(aff&&!red?document.getElementById('pp_eta').value.trim():''), categoryId:document.getElementById('pp_cat').value, brand:document.getElementById('pp_brand').value.trim(), name, variants, desc:document.getElementById('pp_desc').value.trim(), cars:carsSel, images:posCommitImages(x.images), deal:dl.deal, shelfLife:(fz?document.getElementById('pp_shelf').value.trim():''), storage:(fz?document.getElementById('pp_storage').value.trim():''), howTo:(fz?document.getElementById('pp_how').value.trim():'') };
     if(id) Object.assign(x, data); else p.products.push(Object.assign({ id:'pr_'+uid(), active:true }, data));
     closeModal(); await posSaveAndPublish('Produk disimpan'); posRenderProducts(); posRenderStatus(); if(posActiveTab()==='frozen') posRenderFrozen();
   };
@@ -8149,7 +8232,7 @@ function posRenderStore(){
   const s = posCfg().store;
   document.getElementById('posAdminBox').innerHTML = posAdminBoxHtml();
   document.getElementById('pos_name').value = s.name||''; document.getElementById('pos_tagline').value = s.tagline||'';
-  document.getElementById('pos_wa').value = s.wa||''; document.getElementById('pos_area').value = s.area||''; document.getElementById('pos_url').value = s.url||''; document.getElementById('pos_resethook').value = s.resetHook||'';
+  document.getElementById('pos_wa').value = s.wa||''; document.getElementById('pos_area').value = s.area||''; document.getElementById('pos_url').value = s.url||''; document.getElementById('pos_resethook').value = s.resetHook||''; document.getElementById('pos_sess').value = String(s.sessionMin===undefined ? 30 : s.sessionMin);
   document.getElementById('posLogo').innerHTML = `<div style="display:flex;gap:12px;align-items:center">${s.logo?posThumb(s.logo):'<div class="pos-thumb pos-thumb-empty">Logo</div>'}<button class="btn ghost sm" onclick="posLogoUpload()">${s.logo?'Ganti logo':'Upload logo'}</button></div>`;
   posHydrateImages(document.getElementById('posLogo'));
   document.getElementById('posDbUrl').textContent = (state.settings.aiFollowUpFirebase||{}).databaseURL || '(isi Database URL di Settings)';
@@ -8164,7 +8247,7 @@ document.getElementById('posStoreSave').addEventListener('click', async ()=>{
   s.area = document.getElementById('pos_area').value.trim(); s.url = document.getElementById('pos_url').value.trim();
   const hook = document.getElementById('pos_resethook').value.trim();
   if(hook && !/^https:\/\/\S+$/.test(hook)){ toast('Alamat webhook harus diawali https://','err'); return; }
-  s.resetHook = hook;
+  s.resetHook = hook; s.sessionMin = Number(document.getElementById('pos_sess').value) || 0;
   await posSave(); toast('Pengaturan toko disimpan'); posRenderStore(); posRenderStatus();
 });
 function posCopy(elId){ const t = document.getElementById(elId).textContent; navigator.clipboard.writeText(t).then(()=>toast('Disalin')).catch(()=>toast('Tidak bisa menyalin — salin manual','err')); }
@@ -8420,6 +8503,7 @@ function posOrderDetail(k){
       const upd = { status, adminNote:document.getElementById('po_note').value.trim(), updatedAt:at, ['history/'+Date.now()]:{ status, at } };
       if(stk) upd.stockApplied = stk.apply;
       await posDb.ref('pos/orders/'+k).update(upd);
+      if(['dibayar','diproses','dikirim','selesai'].includes(status)){ posCostSnap(k, o); posCostFlush(); }
       if(stk){ stk.run(); o.stockApplied = stk.apply; closeModal(); await posSaveAndPublish(stk.apply ? 'Stok dikurangi' : 'Stok dikembalikan'); }
       else { closeModal(); toast('Status pesanan diperbarui'); }
     }
