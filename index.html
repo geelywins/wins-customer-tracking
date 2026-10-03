@@ -293,6 +293,7 @@ tbody tr:hover{background:#FAFBFE;}
 .rep-days{display:grid;gap:8px}.rep-day{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;font-size:13px}.rep-day small{grid-column:2/4;color:var(--muted);margin-top:-6px;font-size:11.5px}
 .rep-bar{height:8px;background:#E8ECF4;border-radius:8px;overflow:hidden}.rep-bar i{display:block;height:100%;background:var(--blue);border-radius:8px}
 .rf-evid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rf-evid img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#EEF1F6}
+.rp-mode{display:flex;flex-direction:column;gap:4px;margin-top:10px}.rp-mode label{font-size:12px;font-weight:700;color:var(--muted)}.rp-mode select{max-width:100%}
 .rp-warn{background:#FFF8E8;border:1px solid #F5DDA6;color:#6B5310;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px;line-height:1.5}
 .pos-segchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .pos-segchip{all:unset;cursor:pointer;padding:7px 14px;border-radius:20px;background:#fff;border:1.5px solid var(--line);font-size:12.5px;font-weight:700}
@@ -7607,10 +7608,13 @@ function posCostSnap(k, o, refill){
   return snap;
 }
 function posCostFlush(){ if(posCostDirty){ posCostDirty = false; saveSettings(); } }
+/* modal yang dipakai laporan: "live" = harga modal produk saat ini (otomatis update), "locked" = modal yang dibekukan saat pesanan dibayar */
+function posRepCostMode(){ return posCfg().repCostMode === 'locked' ? 'locked' : 'live'; }
+function posCostsFor(k, o, refill){ return (posRepCostMode()==='live' && !refill) ? (o.items||[]).map(it=>posUnitCost(it)) : posCostSnap(k, o, refill); }
 function posOrderMoney(k, o, refill){
   const sg = o.segment || 'otomotif', sh = o.shipping || {}; const total = Number(o.grandTotal) || 0;
   const passthru = (sg==='frozen' || sh.install===false) ? (Number(sh.fee) || 0) : 0;   /* ongkir kurir diteruskan, bukan penjualan */
-  const snap = posCostSnap(k, o, refill); let cost = 0, missing = 0;
+  const snap = posCostsFor(k, o, refill); let cost = 0, missing = 0;
   (o.items||[]).forEach((it, i)=>{ const q = Number(it.qty) || 0, u = snap[i]; if(u==null) missing += q; else cost += u * q; });
   return { total, passthru, sales: total - passthru, cost, missing, profit: total - passthru - cost, snap };
 }
@@ -7619,6 +7623,16 @@ function posRepRefillCost(){
   R.orders.forEach(({ k, o })=>{ if(o.status==='baru' || o.status==='batal') return; const nulls = a=>(a||[]).filter(v=>v===null).length; const before = nulls((posCfg().costSnap||{})[k]); posCostSnap(k, o, true); n += before - nulls((posCfg().costSnap||{})[k]); });
   posCostFlush(); posRenderReports();
   toast(n>0 ? `${n} item diperbarui dengan modal terbaru` : 'Belum ada modal baru yang bisa dipakai. Isi modal produk dulu di Produk & Kategori.', n>0 ? undefined : 'err');
+}
+function posRepSetCostMode(v){ posCfg().repCostMode = (v==='locked' ? 'locked' : 'live'); saveSettings(); posRenderReports(); toast(v==='locked' ? 'Laporan memakai modal saat pesanan dibayar' : 'Laporan memakai modal produk terbaru'); }
+/* tombol "Hitung ulang laba": selalu tersedia. Mode terbaru = muat ulang; mode terkunci = ganti modal pesanan di periode ini dengan modal produk terbaru */
+function posRepRecalc(){
+  if(posRepCostMode()==='live'){ posRenderReports(); toast('Laba dihitung ulang dengan modal produk terbaru'); return; }
+  confirmModal('Hitung ulang laba', 'Modal pesanan di periode ini akan diganti dengan harga modal produk yang terbaru. Lanjutkan?', ()=>{
+    const R = posRepCompute(); const p = posCfg(); let n = 0;
+    R.orders.forEach(({ k, o })=>{ if(o.status==='baru' || o.status==='batal') return; if(p.costSnap && p.costSnap[k]){ delete p.costSnap[k]; n++; } });
+    posCostDirty = true; posRenderReports(); posCostFlush(); toast(`Laba dihitung ulang untuk ${n} pesanan`);
+  });
 }
 function posRepCompute(){
   const [from, to] = posRepRange();
@@ -7652,7 +7666,7 @@ function posRepCompute(){
 function posRenderReports(){
   const el = document.getElementById('posReportBody'); if(!el) return;
   if(!posIsAdmin){ el.innerHTML = '<div class="card">' + posNeedAdminHtml() + '</div>'; return; }
-  const R = posRepCompute(); posCostFlush();
+  const R = posRepCompute(); posCostFlush(); const live = posRepCostMode()==='live'; const stamp = new Date().toLocaleTimeString('id-ID');
   const fmt = d=>d.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
   const card = (l, v, sub, cls)=>`<div class="rep-card ${cls||''}"><span>${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;
   const tbl = (head, rows)=>rows.length ? `<div class="table-wrap"><table><thead><tr>${head.map((h,i)=>`<th${i?' style="text-align:right"':''}>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` : '<div class="empty" style="padding:10px 0">Belum ada data di periode ini.</div>';
@@ -7660,14 +7674,16 @@ function posRenderReports(){
   const prods = Object.entries(R.prod).sort((a,b)=>b[1].v - a[1].v).slice(0, 20);
   const stRows = Object.entries(R.byStatus).map(([k,n])=>`<tr><td>${posEsc(posStatusLabelFor({}, k))}</td><td style="text-align:right">${n}</td></tr>`);
   el.innerHTML = `<div class="ex-sub" style="margin:0 2px 10px">Periode ${fmt(R.from)} – ${fmt(R.to)}${posRep.seg ? ' · ' + posEsc(posSegName(posRep.seg)) : ' · semua segmen'}. Omzet dihitung dari pesanan berstatus dibayar atau lebih.</div>
-    <div class="card rp-profit"><h2 style="margin:0">Laba bersih</h2>
+    <div class="card rp-profit"><div class="vd-head"><h2 style="margin:0">Laba bersih</h2><button type="button" class="btn sm" onclick="posRepRecalc()">🔄 Hitung ulang laba</button></div>
+      <div class="rp-mode"><label for="posRepCostMode">Modal yang dipakai</label><select id="posRepCostMode" onchange="posRepSetCostMode(this.value)"><option value="live" ${live?'selected':''}>Modal produk terbaru (otomatis update)</option><option value="locked" ${live?'':'selected'}>Modal saat pesanan dibayar (terkunci)</option></select></div>
+      <div class="ex-sub" style="margin:4px 0 0">${live ? 'Laba selalu mengikuti harga modal produk saat ini. Kalau modal diubah, laba (termasuk periode lama) ikut berubah.' : 'Modal tiap pesanan dibekukan saat dibayar, jadi mengubah modal tidak mengubah pesanan lama. Tekan Hitung ulang laba untuk memperbarui pesanan di periode ini.'} Dihitung pukul ${stamp}.</div>
       <div class="ex-sub" style="margin:2px 0 10px">Laba bersih = Penjualan − Modal. Penjualan tidak termasuk ongkir kurir yang diteruskan ke kurir${R.passthru ? ' (' + exRp(R.passthru) + ' di periode ini)' : ''}. Refund barang cacat dikurangkan dari penjualan.</div>
       <div class="rep-cards" style="margin-bottom:0">
         ${card('Penjualan', exRp(R.salesNet), R.refundDefect ? 'setelah refund ' + exRp(R.refundDefect) : 'pesanan dibayar atau lebih')}
         ${card('Modal', exRp(R.cost), R.noCost ? '<em style="font-style:normal;color:#B45309">' + R.noCost + ' barang belum ada modal</em>' : 'dari harga modal produk')}
         ${card('Laba bersih', exRp(R.profit), 'margin ' + (R.margin * 100).toFixed(1).replace('.', ',') + '%', R.profit < 0 ? 'rep-warn' : 'rep-main')}
       </div>
-      ${R.noCost ? `<div class="rp-warn">${R.noCost} barang belum punya harga modal dan dihitung Rp0, jadi laba bisa terlalu tinggi. Isi modalnya di Produk &amp; Kategori, lalu <button type="button" class="link-btn" onclick="posRepRefillCost()">hitung ulang modal</button>.</div>` : ''}
+      ${R.noCost ? `<div class="rp-warn">${R.noCost} barang belum punya harga modal dan dihitung Rp0, jadi laba bisa terlalu tinggi. Isi modalnya di Produk &amp; Kategori, lalu ${live ? 'tekan <b>Hitung ulang laba</b>.' : 'tekan tombol di bawah.'}${live ? '' : '<div style="margin-top:8px"><button type="button" class="btn sm" onclick="posRepRefillCost()">Isi modal yang kosong</button></div>'}</div>` : ''}
     </div>
     <div class="rep-cards">
       ${card('Omzet bersih', exRp(R.net), 'kotor ' + exRp(R.gross) + (R.refundDefect ? ' − refund ' + exRp(R.refundDefect) : ''), 'rep-main')}
@@ -7696,7 +7712,7 @@ function posRepSheets(R){
       'Item':(o.items || []).map(i=>i.title + ' x' + i.qty).join('; '), 'Subtotal':Number(o.subtotal) || 0, 'Kode promo':o.promo ? o.promo.code : '', 'Potongan promo':o.promo ? Number(o.promo.discount) || 0 : 0,
       'Kemasan':Number(o.packFee) || 0, 'Pemasangan / ongkir':Number(sh.fee) || 0, 'Total':Number(o.grandTotal) || 0, 'Penjualan (tanpa ongkir kurir)':M ? M.sales : '', 'Modal':M ? M.cost : '', 'Laba':M ? M.profit : '', 'Metode bayar':(o.payment && o.payment.label) || '', 'Bukti bayar':o.proof ? 'Ya' : 'Tidak',
       'Refund':rfLabel(o), 'Nominal refund':(rq && dc && dc.status==='selesai') ? Number(dc.amount) || 0 : 0, 'Catatan pembeli':o.note || '' }; }));
-  const items = clean(sorted.flatMap(({ k, o, d })=>{ const snap = (o.status==='baru' || o.status==='batal') ? [] : posCostSnap(k, o);
+  const items = clean(sorted.flatMap(({ k, o, d })=>{ const snap = (o.status==='baru' || o.status==='batal') ? [] : posCostsFor(k, o);
     return (o.items || []).map((i, ix)=>{ const prod = i.pid ? p.products.find(x=>x.id===i.pid) : null; const aff = i.src==='affiliate' || (prod && prod.source==='affiliate'); const q = Number(i.qty) || 0, pr = Number(i.price) || 0; const u = snap[ix];
       return { 'No. Pesanan':o.orderNo, 'Tanggal':fmtD(d), 'Status':posStatusLabelFor(o, o.status), 'Produk':i.title, 'Pilihan':(i.options || []).join(' / '), 'Qty':q, 'Harga satuan':pr, 'Jumlah':pr * q, 'Sumber':aff ? 'Affiliate' : 'Sendiri', 'Modal satuan':u==null ? '' : u, 'Modal':u==null ? '' : u * q, 'Laba':u==null ? '' : (pr - u) * q }; }); }));
   const refunds = clean(sorted.filter(({ o })=>o.refund && o.refund.request).map(({ o, d })=>{ const rq = o.refund.request, dc = o.refund.decision || {};
@@ -7706,7 +7722,7 @@ function posRepSheets(R){
   const dayRows = clean(Object.keys(R.byDay).sort().map(dk=>({ 'Tanggal':dk, 'Pesanan':R.byDay[dk].n, 'Omzet (total bayar)':R.byDay[dk].v, 'Laba':R.byDay[dk].p })));
   const sum = [['Laporan Toko Online'], ['Periode', R.from.toLocalISODate() + ' s/d ' + R.to.toLocalISODate()], ['Segmen', posRep.seg ? posSegName(posRep.seg) : 'Semua'], [],
     ['Omzet kotor (pesanan dibayar)', R.gross], ['Refund barang cacat', R.refundDefect], ['Omzet bersih', R.net], ['Pesanan dibayar', R.paidN], ['Rata-rata per pesanan', Math.round(R.aov)], ['Pesanan masuk', R.orders.length], ['Belum dibayar', R.newN], ['Dibatalkan', R.cancelN], ['Refund pembatalan (dana kembali)', R.cancelRefund], ['Refund perlu diproses', R.refundOpen],
-    [], ['LABA BERSIH (Penjualan - Modal)', ''], ['Penjualan (tanpa ongkir kurir)', R.sales], ['Ongkir kurir diteruskan (tidak dihitung)', R.passthru], ['Refund barang cacat (dikurangkan)', R.refundDefect], ['Penjualan bersih', R.salesNet], ['Modal', R.cost], ['Laba bersih', R.profit], ['Margin laba (%)', Math.round(R.margin * 1000) / 10], ['Barang belum ada modal', R.noCost],
+    [], ['LABA BERSIH (Penjualan - Modal)', ''], ['Penjualan (tanpa ongkir kurir)', R.sales], ['Ongkir kurir diteruskan (tidak dihitung)', R.passthru], ['Refund barang cacat (dikurangkan)', R.refundDefect], ['Penjualan bersih', R.salesNet], ['Modal yang dipakai', posRepCostMode()==='live' ? 'Modal produk terbaru' : 'Modal saat pesanan dibayar (terkunci)'], ['Modal', R.cost], ['Laba bersih', R.profit], ['Margin laba (%)', Math.round(R.margin * 1000) / 10], ['Barang belum ada modal', R.noCost],
     [], ['Estimasi margin affiliate', R.aff.margin]];
   return { sum, orders, items, prodRows, dayRows, refunds };
 }
