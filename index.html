@@ -294,6 +294,8 @@ tbody tr:hover{background:#FAFBFE;}
 .rep-bar{height:8px;background:#E8ECF4;border-radius:8px;overflow:hidden}.rep-bar i{display:block;height:100%;background:var(--blue);border-radius:8px}
 .rf-evid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rf-evid img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#EEF1F6}
 .rp-mode{display:flex;flex-direction:column;gap:4px;margin-top:10px}.rp-mode label{font-size:12px;font-weight:700;color:var(--muted)}.rp-mode select{max-width:100%}
+.pos-appt.is-today{border-left:4px solid var(--amber)}.pos-appt-when{font-size:13px;color:var(--muted);margin-bottom:2px}
+.pos-kv{display:grid;grid-template-columns:130px 1fr;gap:6px 12px;font-size:13.5px;margin-bottom:6px}.pos-kv .k{color:var(--muted)}.pos-kv .v{font-weight:600}
 .rp-warn{background:#FFF8E8;border:1px solid #F5DDA6;color:#6B5310;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px;line-height:1.5}
 .pos-segchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .pos-segchip{all:unset;cursor:pointer;padding:7px 14px;border-radius:20px;background:#fff;border:1.5px solid var(--line);font-size:12.5px;font-weight:700}
@@ -1427,6 +1429,8 @@ tbody tr:hover{background:#FAFBFE;}
           <button class="growth-tab" data-ptab="products">📦 Produk &amp; Kategori</button>
           <button class="growth-tab" data-ptab="reports">📊 Laporan</button>
           <button class="growth-tab" data-ptab="frozen">🧊 Frozen Food</button>
+          <button class="growth-tab" data-ptab="props">🏠 Properti</button>
+          <button class="growth-tab" data-ptab="appts">📅 Janji Temu <span id="posApptBadge"></span></button>
           <button class="growth-tab" data-ptab="promos">🏷️ Kode Promo &amp; Deal</button>
           <button class="growth-tab" data-ptab="banners">🖼️ Banner</button>
           <button class="growth-tab" data-ptab="cars">🚗 Merek Mobil</button>
@@ -1465,6 +1469,15 @@ tbody tr:hover{background:#FAFBFE;}
             <div class="ex-sub" style="margin-top:6px">Excel berisi 6 lembar: Ringkasan (termasuk laba bersih), Pesanan, Item, Per Produk, Per Hari, dan Refund (termasuk data rekening refund, simpan dengan hati-hati).</div>
           </div>
           <div id="posReportBody"></div>
+        </div>
+        <div class="pos-panel" id="ppanel-props" style="display:none">
+          <div class="card"><div id="posPropCfg"></div></div>
+          <div class="card"><div class="vd-head"><h2 style="margin:0">Katalog rumah</h2><button class="btn sm" onclick="posPropForm()">+ Tambah properti</button></div><div id="posPropList"></div></div>
+        </div>
+        <div class="pos-panel" id="ppanel-appts" style="display:none">
+          <div class="card"><div class="toolbar"><select id="posApptStatus"><option value="">Semua status</option><option value="baru">Menunggu konfirmasi</option><option value="dikonfirmasi">Dikonfirmasi</option><option value="selesai">Selesai</option><option value="batal">Dibatalkan</option></select>
+            <select id="posApptWhen"><option value="">Semua tanggal</option><option value="today">Hari ini</option><option value="upcoming">Mendatang</option><option value="past">Sudah lewat</option></select></div></div>
+          <div id="posApptList"></div>
         </div>
         <div class="pos-panel" id="ppanel-frozen" style="display:none">
           <div class="card"><div id="posFrozenCfg"></div></div>
@@ -6954,7 +6967,7 @@ function posDefaultFilmShades(name){
   return { depan: /\bLX\b/i.test(name) ? ['10%','20%','30%'] : ['30%','40%'], sampingDepan:['30%','40%','60%','80%'], sampingBelakang:['30%','40%','60%','80%'], belakang:['60%','80%'] };
 }
 const POS_SEGMENTS = [ { key:'otomotif', name:'Otomotif' }, { key:'frozen', name:'Frozen Food' } ];
-function posSegName(k){ return k==='frozen' ? (((state.settings.pos||{}).frozen||{}).name || 'Frozen Food') : 'Otomotif'; }
+function posSegName(k){ return k==='frozen' ? (((state.settings.pos||{}).frozen||{}).name || 'Frozen Food') : k==='properti' ? (((state.settings.pos||{}).property||{}).name || 'Properti') : 'Otomotif'; }
 const POS_WEEKDAYS = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const POS_FROZEN_CATS = [
   { id:'cat_fz_nugget', name:'Nugget & Sosis', icon:'🍗' },
@@ -6973,6 +6986,17 @@ function posFrozenOut(f){
   return { minOrder:Number(f.minOrder)||0, packFee:Number(f.packFee)||0, packFreeFrom:Number(f.packFreeFrom)||0, slots:(f.slots||[]).filter(Boolean), prepHours:Number(f.prepHours)||0,
     horizonDays:Math.max(1, Number(f.horizonDays)||7), closedWeekdays:f.closedWeekdays||[], closedDates:f.closedDates||[], areas:f.areas||[],
     courierName:f.courierName||'Kurir instan', courierNote:f.courierNote||'', pay:{ transfer:f.payTransfer!==false, qris:f.payQris!==false } };
+}
+/* ---- segmen Properti: katalog rumah + janji temu (tanpa pembayaran, kontak lewat WhatsApp) ---- */
+const POS_PROP_TYPES = ['Rumah','Cluster','Townhouse','Ruko','Tanah','Apartemen'];
+const POS_PROP_STATUS = [['tersedia','Tersedia'],['booking','Sedang booking'],['terjual','Terjual']];
+const POS_PROP_COND = ['Baru','Second','Indent (inden)'];
+const POS_PROP_CERT = ['SHM','HGB','Strata title','Lainnya'];
+const POS_PROP_PAY = ['Cash','KPR','Cash bertahap'];
+const POS_APPT_STATUS = [['baru','Menunggu konfirmasi','#D97706'],['dikonfirmasi','Dikonfirmasi','#2E6BE6'],['selesai','Selesai','#16A34A'],['batal','Dibatalkan','#8592A0']];
+function posPropDefault(){
+  return { enabled:false, name:'Properti', tagline:'Rumah pilihan: lihat katalog lalu buat janji survei', wa:'', slots:['09.00','10.30','13.00','15.00','16.30'], leadHours:3, horizonDays:14,
+    closedWeekdays:[], closedDates:[], meetNote:'Bertemu di lokasi rumah.', kprRate:8, disclaimer:'Harga dan ketersediaan dapat berubah sewaktu-waktu. Simulasi cicilan hanya perkiraan, bukan penawaran bank.' };
 }
 let posSegFilter = 'all';
 function posNewDefault(){
@@ -6995,6 +7019,7 @@ function posNewDefault(){
 }
 let posApp = null, posAuth = null, posDb = null, posUser = null, posIsAdmin = false, posAdminChecked = false;
 let posOrders = {}, posOrdersRef = null, posOrdersError = null;
+let posAppts = {}, posApptsRef = null, posApptsError = null;
 let posCustomers = {}, posCustRef = null;
 let posImgCache = {}, posPublishTimer = null, posLastPublish = null, posPublishError = null;
 
@@ -7039,6 +7064,7 @@ function posCfg(){
   // segmen toko: kategori lama = otomotif, Frozen Food ditambahkan sebagai segmen kedua
   p.categories.forEach(c=>{ if(!c.segment) c.segment = 'otomotif'; });
   const fzd = posFrozenDefault(); p.frozen = p.frozen || {}; Object.keys(fzd).forEach(k=>{ if(p.frozen[k]===undefined) p.frozen[k] = fzd[k]; });
+  const pdd = posPropDefault(); p.property = p.property || {}; Object.keys(pdd).forEach(k=>{ if(p.property[k]===undefined) p.property[k] = pdd[k]; }); p.properties = p.properties || [];
   if(!p.frozenSeeded){
     POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
     p.frozenSeeded = true;
@@ -7094,11 +7120,12 @@ function posInitApp(){
       posUser = u; posIsAdmin = false; posAdminChecked = false;
       if(posOrdersRef){ try{ posOrdersRef.off(); }catch(e){} posOrdersRef = null; }
       if(posCustRef){ try{ posCustRef.off(); }catch(e){} posCustRef = null; }
-      posOrders = {}; posCustomers = {};
+      if(posApptsRef){ try{ posApptsRef.off(); }catch(e){} posApptsRef = null; }
+      posOrders = {}; posCustomers = {}; posAppts = {};
       if(u){
         try{ const s = await posDb.ref('shop/admins/'+u.uid).once('value'); posIsAdmin = !!s.val(); }catch(e){ posIsAdmin = false; }
         posAdminChecked = true;
-        if(posIsAdmin){ posListenOrders(); posListenCustomers(); posSyncCatalogIfStale(); }
+        if(posIsAdmin){ posListenOrders(); posListenCustomers(); posListenAppts(); posSyncCatalogIfStale(); }
       } else posAdminChecked = true;
       posUpdateBadge();
       if(document.getElementById('view-toko').classList.contains('active')) renderToko();
@@ -7184,6 +7211,10 @@ function posRulesJson(){
                  "cancel": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid && !data.exists()" },
                  "refund": { "request": { ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid && !data.exists()" } } } },
       "proofs": { "$id": { ".read": A, ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid" } },
+      "appointments": { ".read": A, ".indexOn": ["uid"],
+        "$id": { ".read": A+" || (auth != null && data.child('uid').val() === auth.uid)",
+                 ".write": A+" || (auth != null && !data.exists() && newData.child('uid').val() === auth.uid)",
+                 "status": { ".write": "auth != null && data.parent().child('uid').val() === auth.uid && (data.val() === 'baru' || data.val() === 'dikonfirmasi') && newData.val() === 'batal'" } } },
       "evidence": { "$id": { ".read": A+" || (auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid)", ".write": A,
                      "$n": { ".write": "auth != null && root.child('pos/orders').child($id).child('uid').val() === auth.uid && !root.child('pos/orders').child($id).child('refund').child('request').exists()", ".validate": "$n.matches(/^[0-4]$/) && newData.isString() && newData.val().length < 450000" } } }
     },
@@ -7306,8 +7337,9 @@ function posBuildCatalog(){
   return {
     v:5, rev:Number(p.rev)||0, updatedAt:new Date().toISOString(),
     store: p.store,
-    segments: [{ key:'otomotif', name:'Otomotif', tagline:p.store.tagline||'' }].concat(p.frozen.enabled ? [{ key:'frozen', name:p.frozen.name||'Frozen Food', tagline:p.frozen.tagline||'' }] : []),
+    segments: [{ key:'otomotif', name:'Otomotif', tagline:p.store.tagline||'' }].concat(p.frozen.enabled ? [{ key:'frozen', name:p.frozen.name||'Frozen Food', tagline:p.frozen.tagline||'' }] : []).concat(p.property.enabled ? [{ key:'properti', name:p.property.name||'Properti', tagline:p.property.tagline||'' }] : []),
     frozen: p.frozen.enabled ? posFrozenOut(p.frozen) : null,
+    properties: p.property.enabled ? posPropertiesOut() : [], property: p.property.enabled ? posPropertyOut(p.property) : null,
     refundPolicy: { returnDays:Number((p.refundPolicy||{}).returnDays) || 7, note:(p.refundPolicy||{}).note || '' },
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
@@ -7345,7 +7377,7 @@ function posRenderStatus(){
   const state_ = !posUser ? ['🔒','Login admin toko diperlukan','Buka tab Pengaturan untuk login.'] :
     !posIsAdmin ? ['🟠','Akun belum terdaftar sebagai admin','Ikuti langkah di tab Pengaturan.'+(posUnpublished?' Perubahan terakhir belum tampil di toko.':'')] :
     (posPublishError || posOrdersError) ? ['🟠','Firebase menolak akses','Pastikan Rules sudah memakai versi di tab Pengaturan.'] :
-    ['🟢','Toko tersambung', `${nProd} produk tampil · ${cat.banners.length} banner · ${cat.promos.length} kode promo aktif${posLastPublish?` · update ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}`];
+    ['🟢','Toko tersambung', `${nProd} produk tampil${cat.properties && cat.properties.length ? ' · ' + cat.properties.length + ' properti' : ''} · ${cat.banners.length} banner · ${cat.promos.length} kode promo aktif${posLastPublish?` · update ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}`];
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div><strong>${state_[0]} ${state_[1]}</strong><div class="ex-sub">${state_[2]}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -7377,6 +7409,8 @@ function renderToko(){
   if(t==='customers') posRenderCustomers();
   if(t==='products') posRenderProducts();
   if(t==='frozen') posRenderFrozen();
+  if(t==='props') posRenderProps();
+  if(t==='appts') posRenderAppts();
   if(t==='reports') posRenderReports();
   if(t==='promos') posRenderPromos();
   if(t==='banners') posRenderBanners();
@@ -8140,7 +8174,7 @@ function posBannerForm(kind, id){
         <option value="page" ${b.link.type==='page'?'selected':''}>Buka halaman Promo / Deal</option>
         <option value="url" ${b.link.type==='url'?'selected':''}>Buka link luar</option></select></div>
       <div class="field" id="pb_lvwrap"></div>
-      <div class="field full"><label>Tampil di segmen</label><select id="pb_seg"><option value="all" ${(!b.segment||b.segment==='all')?'selected':''}>Semua segmen</option><option value="otomotif" ${b.segment==='otomotif'?'selected':''}>Otomotif saja</option><option value="frozen" ${b.segment==='frozen'?'selected':''}>${posEsc(posSegName('frozen'))} saja</option></select></div>
+      <div class="field full"><label>Tampil di segmen</label><select id="pb_seg"><option value="all" ${(!b.segment||b.segment==='all')?'selected':''}>Semua segmen</option><option value="otomotif" ${b.segment==='otomotif'?'selected':''}>Otomotif saja</option><option value="frozen" ${b.segment==='frozen'?'selected':''}>${posEsc(posSegName('frozen'))} saja</option><option value="properti" ${b.segment==='properti'?'selected':''}>${posEsc(posSegName('properti'))} saja</option></select></div>
       <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="pb_active" ${b.active!==false?'checked':''}> Tampilkan di toko</label></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pb_save">Simpan</button></div>`);
@@ -8285,8 +8319,10 @@ function posListenCustomers(){
 }
 function posUpdateBadge(){
   const n = Object.values(posOrders).filter(o=>o && o.status==='baru').length;
-  const nav = document.getElementById('navTokoBadge'); if(nav) nav.textContent = n ? n : '';
+  const na = Object.values(posAppts).filter(a=>a && a.status==='baru').length;
+  const nav = document.getElementById('navTokoBadge'); if(nav) nav.textContent = (n + na) ? (n + na) : '';
   const tb = document.getElementById('posNewBadge'); if(tb) tb.textContent = n ? `(${n})` : '';
+  const ab = document.getElementById('posApptBadge'); if(ab) ab.textContent = na ? `(${na})` : '';
 }
 function posStatusLabelFor(o, k){
   if(o && o.shipping && o.shipping.pending && k==='baru') return 'Menunggu ongkir';
@@ -8543,6 +8579,203 @@ function posOrderDetail(k){
     }catch(e){ console.error(e); toast('Gagal menyimpan ongkir','err'); }
   };
 }
+
+/* ===================== PROPERTI & JANJI TEMU ===================== */
+function posPropMoney(n){ n = Number(n) || 0; if(n >= 1e9) return 'Rp ' + (n/1e9).toFixed(n % 1e9 === 0 ? 0 : 2).replace('.', ',') + ' M'; if(n >= 1e6) return 'Rp ' + (n/1e6).toFixed(n % 1e6 === 0 ? 0 : 1).replace('.', ',') + ' jt'; return exRp(n); }
+function posSplitList(t, sep){ return String(t||'').split(sep || ',').map(x=>x.trim()).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i); }
+function posPropStatusLabel(k){ return (POS_PROP_STATUS.find(x=>x[0]===k) || [k, k])[1]; }
+function posPropertiesOut(){
+  const p = posCfg();
+  return p.properties.filter(x=>x.active!==false && x.title).map((x, i)=>({
+    id:x.id, title:x.title, type:x.type || 'Rumah', status:x.status || 'tersedia', badge:x.badge || '', price:Number(x.price) || 0, priceNote:x.priceNote || '',
+    city:x.city || '', area:x.area || '', address:x.address || '', mapUrl:posSafeUrl(x.mapUrl), lt:Number(x.lt) || 0, lb:Number(x.lb) || 0, kt:Number(x.kt) || 0, km:Number(x.km) || 0, carport:Number(x.carport) || 0, floors:Number(x.floors) || 0,
+    elec:Number(x.elec) || 0, water:x.water || '', cert:x.cert || '', facing:x.facing || '', yearBuilt:Number(x.yearBuilt) || 0, condition:x.condition || '', furnished:x.furnished || '', payment:x.payment || [], facilities:x.facilities || [], nearby:x.nearby || [],
+    desc:x.desc || '', images:x.images || [], videoUrl:posSafeUrl(x.videoUrl), agentName:x.agentName || '', agentWa:x.agentWa || '', createdAt:x.createdAt || '', order:i }));
+}
+function posPropertyOut(f){
+  return { name:f.name || 'Properti', tagline:f.tagline || '', wa:f.wa || '', slots:(f.slots || []).filter(Boolean), leadHours:Number(f.leadHours) || 0, horizonDays:Math.max(1, Number(f.horizonDays) || 14),
+    closedWeekdays:f.closedWeekdays || [], closedDates:f.closedDates || [], meetNote:f.meetNote || '', kprRate:Number(f.kprRate) || 0, disclaimer:f.disclaimer || '' };
+}
+function posRenderProps(){
+  const p = posCfg(); const f = p.property; const el = document.getElementById('posPropCfg'); if(!el) return;
+  el.innerHTML = `<h2 style="margin:0 0 6px">Segmen Properti</h2>
+    <p class="ex-sub" style="margin:0 0 12px">Katalog rumah dengan spesifikasi lengkap. Tidak ada pembayaran di toko: pembeli menekan <b>Hubungi WhatsApp</b> atau membuat <b>janji temu</b> untuk melihat rumah. Janji masuk ke tab <b>Janji Temu</b>.</p>
+    <label class="ex-check" style="width:max-content"><input type="checkbox" id="pp2_enabled" ${f.enabled?'checked':''}> Tampilkan segmen Properti di toko</label>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="field"><label>Nama segmen</label><input type="text" id="pp2_name" value="${posEsc(f.name)}"></div>
+      <div class="field"><label>Tagline</label><input type="text" id="pp2_tagline" value="${posEsc(f.tagline)}"></div>
+      <div class="field"><label>WhatsApp agen bawaan</label><input type="text" id="pp2_wa" value="${posEsc(f.wa)}" placeholder="kosong = WhatsApp admin toko"></div>
+      <div class="field"><label>Bunga simulasi cicilan (% per tahun)</label><input type="number" min="0" step="0.1" id="pp2_rate" value="${f.kprRate||''}"></div>
+    </div>
+    <div class="section-title">Janji temu</div>
+    <div class="form-grid">
+      <div class="field full"><label>Jam janji <span class="muted">— pisahkan koma</span></label><input type="text" id="pp2_slots" value="${posEsc((f.slots||[]).join(', '))}" placeholder="09.00, 10.30, 13.00, 15.00"></div>
+      <div class="field"><label>Minimal pesan sebelum (jam)</label><input type="number" min="0" id="pp2_lead" value="${f.leadHours??3}"></div>
+      <div class="field"><label>Jumlah hari pilihan tanggal</label><input type="number" min="1" max="60" id="pp2_days" value="${f.horizonDays||14}"></div>
+      <div class="field full"><label>Hari libur rutin</label><div class="ex-checks">${POS_WEEKDAYS.map((d,i)=>`<label class="ex-check"><input type="checkbox" class="pp2_wd" value="${i}" ${(f.closedWeekdays||[]).includes(i)?'checked':''}> ${d}</label>`).join('')}</div></div>
+      <div class="field full"><label>Tanggal libur khusus <span class="muted">— satu per baris, format 2026-10-17</span></label><textarea id="pp2_closed" rows="2">${posEsc((f.closedDates||[]).join('\n'))}</textarea></div>
+      <div class="field full"><label>Catatan pertemuan <span class="muted">(tampil ke pembeli)</span></label><textarea id="pp2_meet" rows="2">${posEsc(f.meetNote)}</textarea></div>
+      <div class="field full"><label>Catatan di halaman rumah <span class="muted">(disclaimer)</span></label><textarea id="pp2_disc" rows="2">${posEsc(f.disclaimer)}</textarea></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="pp2_save">Simpan pengaturan</button></div>`;
+  document.getElementById('pp2_save').onclick = async ()=>{
+    const slots = posSplitList(document.getElementById('pp2_slots').value);
+    if(!slots.length || slots.some(x=>!/^\d{1,2}[.:]\d{2}/.test(x))){ toast('Isi jam janji, contoh: 09.00, 10.30, 13.00','err'); return; }
+    const closed = document.getElementById('pp2_closed').value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(closed.some(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x))){ toast('Tanggal libur harus berformat 2026-10-17, satu per baris','err'); return; }
+    Object.assign(f, { enabled:document.getElementById('pp2_enabled').checked, name:document.getElementById('pp2_name').value.trim() || 'Properti', tagline:document.getElementById('pp2_tagline').value.trim(),
+      wa:document.getElementById('pp2_wa').value.trim(), kprRate:Math.max(0, Number(document.getElementById('pp2_rate').value) || 0), slots,
+      leadHours:Math.max(0, Number(document.getElementById('pp2_lead').value) || 0), horizonDays:Math.min(60, Math.max(1, Number(document.getElementById('pp2_days').value) || 14)),
+      closedWeekdays:[...document.querySelectorAll('.pp2_wd:checked')].map(i=>Number(i.value)), closedDates:closed,
+      meetNote:document.getElementById('pp2_meet').value.trim(), disclaimer:document.getElementById('pp2_disc').value.trim() });
+    await posSaveAndPublish('Pengaturan properti disimpan'); posRenderProps(); posRenderStatus();
+  };
+  const list = document.getElementById('posPropList'); const store = p.store || {};
+  list.innerHTML = p.properties.length ? p.properties.map(x=>{
+    const sp = []; if(x.kt) sp.push(x.kt + ' KT'); if(x.km) sp.push(x.km + ' KM'); if(x.lt) sp.push('LT ' + x.lt); if(x.lb) sp.push('LB ' + x.lb);
+    const link = store.url ? String(store.url).replace(/\/+$/,'') + '/#/rumah/' + x.id : '';
+    const n = Object.values(posAppts).filter(a=>a && a.property && a.property.id===x.id && a.status!=='batal').length;
+    return `<div class="vd-vendor"><div class="vd-head"><div style="display:flex;gap:10px;align-items:center">${(x.images||[])[0] ? posThumb(x.images[0]) : '<div class="pos-thumb pos-thumb-empty">🏠</div>'}
+      <div><strong>${posEsc(x.title)}</strong> <span class="pill ${x.status==='terjual'?'':'lead'}">${posEsc(posPropStatusLabel(x.status||'tersedia'))}</span>${x.active===false?' <span class="pill">disembunyikan</span>':''}
+        <div class="ex-sub">${posPropMoney(x.price)}${x.city?' · '+posEsc(x.city):''}${x.type?' · '+posEsc(x.type):''}</div><div class="ex-sub">${sp.join(' · ')}${n?` · <b>${n} janji</b>`:''}</div></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${link?`<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${posEsc(link)}">Lihat di toko ↗</a>`:''}<button class="btn ghost sm" onclick="posPropForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posPropToggle('${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posPropDelete('${x.id}')">🗑</button></div></div></div>`;
+  }).join('') : '<div class="empty">Belum ada properti. Tekan + Tambah properti.</div>';
+  posHydrateImages(list);
+}
+async function posPropToggle(id){ const x = posCfg().properties.find(y=>y.id===id); if(!x) return; x.active = x.active===false; await posSaveAndPublish(x.active ? 'Properti ditampilkan' : 'Properti disembunyikan'); posRenderProps(); posRenderStatus(); }
+function posPropDelete(id){
+  const x = posCfg().properties.find(y=>y.id===id); if(!x) return;
+  confirmModal('Hapus properti', `Hapus "${x.title}" dari katalog? Foto ikut dihapus. Janji temu yang sudah masuk tidak terhapus.`, async ()=>{ (x.images||[]).forEach(posDeleteImage); const p = posCfg(); p.properties = p.properties.filter(y=>y.id!==id); await posSaveAndPublish('Properti dihapus'); posRenderProps(); posRenderStatus(); });
+}
+function posPropForm(id){
+  const p = posCfg(); const x = p.properties.find(y=>y.id===id) || { type:'Rumah', status:'tersedia', payment:['Cash','KPR'], images:[], facilities:[], nearby:[], active:true };
+  const opt = (list, cur, blank)=>(blank?`<option value="">${blank}</option>`:'') + list.map(v=>`<option ${v===cur?'selected':''}>${posEsc(v)}</option>`).join('');
+  openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Properti</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Judul *</label><input type="text" id="pr_title" value="${posEsc(x.title)}" placeholder="mis. Rumah 2 Lantai Cluster Anggrek BSD"></div>
+      <div class="field"><label>Tipe</label><select id="pr_type">${opt(POS_PROP_TYPES, x.type)}</select></div>
+      <div class="field"><label>Status</label><select id="pr_status">${POS_PROP_STATUS.map(s=>`<option value="${s[0]}" ${s[0]===x.status?'selected':''}>${s[1]}</option>`).join('')}</select></div>
+      <div class="field"><label>Harga (Rp) *</label><input type="number" min="0" id="pr_price" value="${x.price||''}" placeholder="mis. 1250000000"></div>
+      <div class="field"><label>Keterangan harga</label><select id="pr_pnote">${opt(['Nego','Harga pas','Mulai dari'], x.priceNote, 'Tanpa keterangan')}</select></div>
+      <div class="field"><label>Label <span class="muted">(opsional)</span></label><input type="text" id="pr_badge" value="${posEsc(x.badge)}" placeholder="mis. Hot deal, Siap huni"></div>
+      <div class="field"><label>Kondisi</label><select id="pr_cond">${opt(POS_PROP_COND, x.condition, '-')}</select></div>
+    </div>
+    <div class="section-title">Lokasi</div>
+    <div class="form-grid">
+      <div class="field"><label>Kota / kabupaten *</label><input type="text" id="pr_city" value="${posEsc(x.city)}" placeholder="mis. Tangerang Selatan"></div>
+      <div class="field"><label>Kawasan / cluster</label><input type="text" id="pr_area" value="${posEsc(x.area)}" placeholder="mis. BSD City, Cluster Anggrek"></div>
+      <div class="field full"><label>Alamat singkat <span class="muted">(opsional)</span></label><input type="text" id="pr_addr" value="${posEsc(x.address)}"></div>
+      <div class="field full"><label>Link Google Maps <span class="muted">(opsional)</span></label><input type="url" id="pr_map" value="${posEsc(x.mapUrl)}" placeholder="https://maps.app.goo.gl/..."></div>
+    </div>
+    <div class="section-title">Spesifikasi</div>
+    <div class="form-grid">
+      <div class="field"><label>Luas tanah (m²)</label><input type="number" min="0" id="pr_lt" value="${x.lt||''}"></div>
+      <div class="field"><label>Luas bangunan (m²)</label><input type="number" min="0" id="pr_lb" value="${x.lb||''}"></div>
+      <div class="field"><label>Kamar tidur</label><input type="number" min="0" id="pr_kt" value="${x.kt||''}"></div>
+      <div class="field"><label>Kamar mandi</label><input type="number" min="0" id="pr_km" value="${x.km||''}"></div>
+      <div class="field"><label>Carport (mobil)</label><input type="number" min="0" id="pr_car" value="${x.carport||''}"></div>
+      <div class="field"><label>Jumlah lantai</label><input type="number" min="0" id="pr_floors" value="${x.floors||''}"></div>
+      <div class="field"><label>Listrik (watt)</label><input type="number" min="0" id="pr_elec" value="${x.elec||''}" placeholder="mis. 2200"></div>
+      <div class="field"><label>Sumber air</label><select id="pr_water">${opt(['PDAM','Sumur bor','PDAM + sumur bor'], x.water, '-')}</select></div>
+      <div class="field"><label>Sertifikat</label><select id="pr_cert">${opt(POS_PROP_CERT, x.cert, '-')}</select></div>
+      <div class="field"><label>Arah hadap</label><select id="pr_face">${opt(['Utara','Timur laut','Timur','Tenggara','Selatan','Barat daya','Barat','Barat laut'], x.facing, '-')}</select></div>
+      <div class="field"><label>Tahun dibangun</label><input type="number" min="1900" max="2100" id="pr_year" value="${x.yearBuilt||''}"></div>
+      <div class="field"><label>Furnished</label><select id="pr_furn">${opt(['Tidak','Semi','Full'], x.furnished, '-')}</select></div>
+      <div class="field full"><label>Cara pembelian</label><div class="ex-checks">${POS_PROP_PAY.map(v=>`<label class="ex-check"><input type="checkbox" class="pr_pay" value="${posEsc(v)}" ${(x.payment||[]).includes(v)?'checked':''}> ${posEsc(v)}</label>`).join('')}</div></div>
+      <div class="field full"><label>Fasilitas rumah <span class="muted">— pisahkan koma</span></label><textarea id="pr_fac" rows="2" placeholder="AC, Water heater, Taman, Kitchen set">${posEsc((x.facilities||[]).join(', '))}</textarea></div>
+      <div class="field full"><label>Fasilitas sekitar <span class="muted">— satu per baris</span></label><textarea id="pr_near" rows="3" placeholder="Tol BSD 5 menit&#10;AEON Mall 10 menit&#10;Sekolah dalam cluster">${posEsc((x.nearby||[]).join('\n'))}</textarea></div>
+      <div class="field full"><label>Deskripsi</label><textarea id="pr_desc" rows="4">${posEsc(x.desc)}</textarea></div>
+      <div class="field full"><label>Foto (maks. 10)</label><div id="posImgsWrap"></div></div>
+      <div class="field full"><label>Link video tur <span class="muted">(opsional, mis. YouTube)</span></label><input type="url" id="pr_video" value="${posEsc(x.videoUrl)}" placeholder="https://youtu.be/..."></div>
+      <div class="field"><label>Nama agen <span class="muted">(opsional)</span></label><input type="text" id="pr_agent" value="${posEsc(x.agentName)}"></div>
+      <div class="field"><label>WhatsApp agen <span class="muted">(kosong = bawaan)</span></label><input type="text" id="pr_agwa" value="${posEsc(x.agentWa)}" placeholder="08xx"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pr_save">Simpan</button></div>`, true);
+  posBindImages(x.images, 10);
+  document.getElementById('pr_save').onclick = async ()=>{
+    const v = n=>document.getElementById(n).value.trim(); const num = n=>{ const t = Number(v(n)); return t > 0 ? t : 0; };
+    const title = v('pr_title'); if(!title){ toast('Judul wajib diisi','err'); return; }
+    const price = num('pr_price'); if(!price){ toast('Isi harga properti','err'); return; }
+    if(!v('pr_city')){ toast('Isi kota atau kabupaten','err'); return; }
+    const map = v('pr_map'), video = v('pr_video');
+    if(map && !posSafeUrl(map)){ toast('Link Google Maps harus diawali https://','err'); return; }
+    if(video && !posSafeUrl(video)){ toast('Link video harus diawali https://','err'); return; }
+    const data = { title, type:v('pr_type'), status:v('pr_status'), price, priceNote:v('pr_pnote'), badge:v('pr_badge'), condition:v('pr_cond'),
+      city:v('pr_city'), area:v('pr_area'), address:v('pr_addr'), mapUrl:map, lt:num('pr_lt'), lb:num('pr_lb'), kt:num('pr_kt'), km:num('pr_km'), carport:num('pr_car'), floors:num('pr_floors'), elec:num('pr_elec'),
+      water:v('pr_water'), cert:v('pr_cert'), facing:v('pr_face'), yearBuilt:num('pr_year'), furnished:v('pr_furn'),
+      payment:[...document.querySelectorAll('.pr_pay:checked')].map(i=>i.value), facilities:posSplitList(v('pr_fac')), nearby:posSplitList(document.getElementById('pr_near').value, '\n'),
+      desc:v('pr_desc'), images:posCommitImages(x.images), videoUrl:video, agentName:v('pr_agent'), agentWa:v('pr_agwa') };
+    if(id) Object.assign(x, data); else p.properties.unshift(Object.assign({ id:'pr_'+uid(), active:true, createdAt:new Date().toISOString() }, data));
+    closeModal(); await posSaveAndPublish('Properti disimpan'); posRenderProps(); posRenderStatus();
+  };
+}
+
+/* ---- janji temu ---- */
+function posApptDateLabel(iso){ const d = new Date(String(iso) + 'T00:00:00'); return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); }
+function posApptPill(k){ const s = POS_APPT_STATUS.find(x=>x[0]===k) || POS_APPT_STATUS[0]; return `<span class="pos-pill" style="--c:${s[2]}">${posEsc(s[1])}</span>`; }
+function posApptWaMsg(a){
+  const P = posCfg(); const pr = a.property || {}; const when = `${posApptDateLabel(a.date)} pukul ${a.slot}`; const nm = (a.customer && a.customer.nama) || '';
+  const live = P.properties.find(x=>x.id===pr.id) || {}; const map = live.mapUrl ? ` Lokasi: ${live.mapUrl}` : '';
+  const m = {
+    baru: `Halo ${nm}, terima kasih sudah membuat janji melihat ${pr.title} pada ${when}. Kami sedang mengecek jadwal dan segera mengonfirmasi.`,
+    dikonfirmasi: `Halo ${nm}, janji melihat ${pr.title} pada ${when} sudah kami KONFIRMASI. ${P.property.meetNote || ''}${map}`,
+    selesai: `Halo ${nm}, terima kasih sudah survei ${pr.title}. Kalau ada pertanyaan atau ingin lanjut, kabari kami ya.`,
+    batal: `Halo ${nm}, janji melihat ${pr.title} pada ${when} dibatalkan. Kalau ingin jadwal baru, kabari kami ya.` };
+  return (m[a.status] || m.baru).trim();
+}
+function posRenderAppts(){
+  const el = document.getElementById('posApptList'); if(!el) return;
+  if(!posIsAdmin){ el.innerHTML = '<div class="card">' + posNeedAdminHtml() + '</div>'; return; }
+  if(posApptsError){ el.innerHTML = `<div class="card"><div class="empty">Janji temu belum bisa dibaca (${posEsc(posApptsError)}). Perbarui Rules Firebase dengan versi terbaru di tab Pengaturan lalu muat ulang halaman.</div></div>`; return; }
+  const st = document.getElementById('posApptStatus').value, when = document.getElementById('posApptWhen').value; const today = todayISO();
+  const rows = Object.entries(posAppts).filter(([k, a])=>a && (!st || a.status===st) && (!when || (when==='today' ? a.date===today : when==='upcoming' ? a.date>=today : a.date<today)));
+  const key = ([k, a])=>String(a.date) + ' ' + String(a.slot);
+  rows.sort((x, y)=>{ const ux = x[1].date >= today, uy = y[1].date >= today; if(ux !== uy) return ux ? -1 : 1; return ux ? key(x).localeCompare(key(y)) : key(y).localeCompare(key(x)); });
+  el.innerHTML = rows.length ? rows.map(([k, a])=>{
+    const c = a.customer || {}, pr = a.property || {}; const isToday = a.date === today;
+    return `<div class="card pos-appt${isToday?' is-today':''}"><div class="vd-head"><div><div class="pos-appt-when">${posEsc(posApptDateLabel(a.date))} · <b>${posEsc(a.slot)}</b>${isToday?' <span class="pill lead">Hari ini</span>':''}</div>
+      <strong>${posEsc(pr.title || '-')}</strong><div class="ex-sub">${posEsc(c.nama || '-')} · ${posEsc(c.wa || '-')}${a.people?` · ${a.people} orang`:''}${a.payPlan?` · ${posEsc(a.payPlan)}`:''}</div>${a.note?`<div class="ex-sub">Catatan: ${posEsc(a.note)}</div>`:''}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">${posApptPill(a.status)}<button class="btn sm" onclick="posApptDetail('${k}')">Detail</button></div></div></div>`;
+  }).join('') : '<div class="card"><div class="empty">Belum ada janji temu yang cocok dengan filter.</div></div>';
+}
+function posApptDetail(k){
+  const a = posAppts[k]; if(!a) return; const c = a.customer || {}, pr = a.property || {}; const P = posCfg(); const slots = (P.property.slots || []);
+  openModal(`<div class="modal-head"><h3>Janji temu</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="pos-kv"><div class="k">Properti</div><div class="v">${posEsc(pr.title || '-')}${pr.city?` · ${posEsc(pr.city)}`:''}</div>
+      <div class="k">Pembeli</div><div class="v">${posEsc(c.nama || '-')} · ${posEsc(c.wa || '-')}${c.email?` · ${posEsc(c.email)}`:''}</div>
+      <div class="k">Jumlah orang / rencana beli</div><div class="v">${a.people || '-'} orang${a.payPlan?` · ${posEsc(a.payPlan)}`:''}</div>
+      ${a.note?`<div class="k">Catatan pembeli</div><div class="v">${posEsc(a.note)}</div>`:''}
+      <div class="k">Dibuat</div><div class="v">${a.createdAt ? new Date(a.createdAt).toLocaleString('id-ID') : '-'}</div></div>
+    <div class="section-title">Jadwal & status</div>
+    <div class="form-grid">
+      <div class="field"><label>Tanggal</label><input type="date" id="pa_date" value="${posEsc(a.date)}"></div>
+      <div class="field"><label>Jam</label><input type="text" id="pa_slot" list="pa_slots" value="${posEsc(a.slot)}"><datalist id="pa_slots">${slots.map(s=>`<option value="${posEsc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label>Status</label><select id="pa_status">${POS_APPT_STATUS.map(s=>`<option value="${s[0]}" ${s[0]===a.status?'selected':''}>${s[1]}</option>`).join('')}</select></div>
+      <div class="field"><label>Pesan untuk pembeli <span class="muted">(opsional)</span></label><input type="text" id="pa_note" value="${posEsc(a.adminNote)}" placeholder="mis. Ketemu di pos satpam"></div>
+    </div>
+    <div class="modal-foot" style="justify-content:space-between;flex-wrap:wrap"><a class="btn ghost" id="pa_wa" target="_blank" rel="noopener noreferrer" href="${posEsc(waLink(c.wa, posApptWaMsg(a)))}">💬 WhatsApp pembeli</a>
+      <div style="display:flex;gap:8px"><button class="btn ghost" onclick="closeModal()">Tutup</button><button class="btn" id="pa_save">Simpan</button></div></div>`);
+  document.getElementById('pa_save').onclick = async ()=>{
+    const date = document.getElementById('pa_date').value, slot = document.getElementById('pa_slot').value.trim(); if(!date || !slot){ toast('Isi tanggal dan jam','err'); return; }
+    const patch = { date, slot, status:document.getElementById('pa_status').value, adminNote:document.getElementById('pa_note').value.trim() };
+    if(patch.status === a.status && (date !== a.date || slot !== a.slot) && a.status === 'baru') patch.status = 'dikonfirmasi';
+    try{ await posDb.ref('pos/appointments/' + k).update(Object.assign({ updatedAt:new Date().toISOString() }, patch)); Object.assign(a, patch); toast('Janji temu diperbarui'); closeModal(); posRenderAppts(); posUpdateBadge(); }
+    catch(e){ console.error(e); toast('Gagal menyimpan janji','err'); }
+  };
+  ['pa_status','pa_date','pa_slot'].forEach(id=>document.getElementById(id).addEventListener('change', ()=>{
+    const tmp = Object.assign({}, a, { status:document.getElementById('pa_status').value, date:document.getElementById('pa_date').value || a.date, slot:document.getElementById('pa_slot').value || a.slot });
+    document.getElementById('pa_wa').href = waLink(c.wa, posApptWaMsg(tmp)); }));
+}
+function posListenAppts(){
+  if(!posDb || !posIsAdmin || posApptsRef) return;
+  posApptsRef = posDb.ref('pos/appointments').limitToLast(500);
+  posApptsRef.on('value', snap=>{
+    posAppts = snap.val() || {}; posApptsError = null; posUpdateBadge();
+    if(document.getElementById('view-toko').classList.contains('active')){ const t = posActiveTab(); if(t==='appts') posRenderAppts(); if(t==='props') posRenderProps(); }
+  }, err=>{ console.error(err); posApptsError = err.code || 'error'; posApptsRef = null; if(document.getElementById('view-toko').classList.contains('active') && posActiveTab()==='appts') posRenderAppts(); });
+}
+document.getElementById('posApptStatus').addEventListener('change', posRenderAppts);
+document.getElementById('posApptWhen').addEventListener('change', posRenderAppts);
 
 /* ---- segmen Frozen Food ---- */
 function posFrozenProducts(){ return posCfg().products.filter(x=>((posCat(x.categoryId)||{}).segment)==='frozen'); }
