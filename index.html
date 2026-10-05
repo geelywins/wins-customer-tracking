@@ -8908,7 +8908,7 @@ function posUnitForm(id){
 
 /* ===================== SEO: halaman statis untuk Google & iklan ===================== */
 function posSeoDefault(){ return { siteUrl:'https://lapakmu.store', name:'LapakMu', gh:{ owner:'geelywins', repo:'tokoacc', branch:'main' }, slugs:{}, lastBuild:null, lastPublish:null }; }
-function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').filter((w, i, a)=>w !== a[i - 1]).join('-').replace(/^(.{1,60})(?:-.*)?$/, (m, g)=>m.length > 60 ? g : m).replace(/-+$/, ''); }
+function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').filter((w, i, a)=>w !== a[i - 1]).join('-').replace(/^(.{1,60})(?:-.*)?$/, (m, g)=>m.length > 60 ? g : m).replace(/-+$/, '').replace(/(?:-(?:dan|yang|untuk|dari|sampai|sebelum|agar|atau|di|ke|pada|dengan|vs|ini|itu))+$/, ''); }
 function seoSlug(prefix, id, title){
   const m = posCfg().seo.slugs; const key = prefix + ':' + id; if(m[key]) return m[key];
   const base = seoSlugify(title) || 'item'; const used = new Set(Object.entries(m).filter(([k])=>k.startsWith(prefix + ':')).map(e=>e[1])); let slug = base, n = 2;
@@ -9307,7 +9307,9 @@ function posRenderArticles(){
         <div class="ex-sub">${words} kata · ${artReadMins(words)} menit baca · diubah ${new Date(a.updatedAt || a.createdAt).toLocaleDateString('id-ID')}</div>
         <div class="ex-sub">${warn.length ? '⚠️ ' + warn.length + ' catatan: ' + posEsc(warn.slice(0, 3).map(c=>c[1]).join('; ')) + (warn.length > 3 ? '…' : '') : '✅ Siap diterbitkan'}</div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">${link ? `<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${link}">Lihat ↗</a>` : ''}<button class="btn ghost sm" onclick="posArticleForm('${a.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posArticleToggle('${a.id}')">${live ? 'Jadikan draf' : 'Terbitkan'}</button><button class="btn ghost sm" onclick="posArticleDelete('${a.id}')">🗑</button></div></div></div>`;
-  }).join('') : `<div class="empty">Belum ada artikel.<div style="margin-top:10px"><button class="btn" onclick="posArticleSeed()">Tambah 3 contoh artikel (draf)</button></div></div>`;
+  }).join('') : `<div class="empty">Belum ada artikel.<div style="margin-top:10px"><button class="btn" onclick="posArticleSeed()">Tambah ${ART_SEEDS.length} contoh artikel (draf)</button></div></div>`;
+  const missing = ART_SEEDS.filter(x=>!p.articles.some(a=>a.title === x.title)).length;
+  if(arts.length && missing) el.insertAdjacentHTML('beforeend', `<div style="margin-top:14px"><button class="btn ghost sm" onclick="posArticleSeed()">+ Tambah ${missing} contoh artikel lagi (draf)</button></div>`);
 }
 async function artCommit(){ await posSave(); if(posIsAdmin) await posPublish(false); }
 function posArticleToggle(id){
@@ -9580,7 +9582,687 @@ J: BPKB, STNK, dan bukti pajak yang masih berlaku. Pastikan juga nomor rangka da
 T: Perlukah inspeksi di bengkel sebelum membeli?
 J: Sangat disarankan. Pemeriksaan oleh mekanik bisa menemukan masalah yang tidak terlihat oleh mata awam.
 T: Bagaimana jika mobil pernah terkena banjir atau tabrakan?
-J: Tanyakan secara langsung dan periksa tanda-tandanya. Jika ragu, pilih unit lain atau minta inspeksi mendalam.` }
+J: Tanyakan secara langsung dan periksa tanda-tandanya. Jika ragu, pilih unit lain atau minta inspeksi mendalam.` },
+{ title:'Panduan Pemula Membeli Mobil Listrik: Yang Perlu Kamu Tahu', category:'Mobil baru',
+  desc:'Panduan pemula membeli mobil listrik: jenis baterai, jarak tempuh nyata, cara mengisi daya, biaya, dan hal yang perlu dicek sebelum membeli.',
+  body:`Mobil listrik makin banyak dipilih karena biaya energinya rendah dan berkendaranya halus. Tapi cara pakainya berbeda dari mobil bensin, jadi ada beberapa hal dasar yang sebaiknya kamu pahami sebelum membeli supaya tidak kaget setelah mobil sampai di rumah.
+
+## Kenali jenis mobil elektrifikasi
+- **BEV (mobil listrik murni):** hanya memakai baterai dan motor listrik, tanpa mesin bensin. Daya diisi dari listrik.
+- **Hybrid (HEV):** memadukan mesin bensin dan motor listrik. Baterainya terisi dari mesin dan pengereman, jadi tidak perlu dicolok.
+- **Plug-in hybrid (PHEV):** hybrid yang bisa dicolok untuk mengisi baterai dan bisa melaju dengan listrik pada jarak tertentu.
+
+Panduan ini membahas BEV, yaitu mobil listrik murni.
+
+## Pahami baterai dan jarak tempuh
+Dua jenis baterai yang umum adalah LFP (lithium iron phosphate), yang dikenal lebih tahan panas dan berumur panjang, serta NMC (nikel mangan kobalt), yang umumnya menyimpan energi lebih padat. Keduanya punya kelebihan masing-masing, jadi pilih berdasarkan data produk dan kebutuhanmu.
+
+Angka jarak tempuh di brosur diukur dengan standar uji tertentu, misalnya NEDC, CLTC, atau WLTP. Angka itu biasanya lebih optimistis daripada pemakaian nyata. Jarak yang kamu dapat sehari-hari dipengaruhi kecepatan, pemakaian AC, beban, kondisi jalan, dan gaya berkendara. Anggap jarak nyata lebih pendek dari angka brosur, lalu sesuaikan setelah kamu mencobanya sendiri.
+
+## Cara mengisi daya
+- **Pengisian AC (lambat)** di rumah atau kantor memakai wall charger. Biasanya butuh beberapa jam untuk mengisi penuh, jadi cocok dilakukan semalaman.
+- **Pengisian cepat DC** di stasiun pengisian umum (SPKLU) berguna untuk perjalanan jauh karena bisa mengisi sebagian besar baterai dalam waktu relatif singkat.
+
+Pastikan jenis konektor mobil cocok dengan charger yang akan kamu pakai, dan cek ketersediaan titik pengisian di rute yang sering kamu lalui.
+
+## Hitung biaya yang sebenarnya
+1. Harga beli, termasuk promo dan insentif yang berlaku.
+2. Biaya listrik per bulan sesuai pemakaian.
+3. Pemasangan wall charger dan penyesuaian instalasi listrik rumah.
+4. Perawatan berkala.
+5. Pajak kendaraan dan insentif, yang bisa berbeda per daerah dan bisa berubah.
+6. Asuransi.
+
+## Hal yang perlu dicek sebelum membeli
+- **Tempat mengisi daya:** apakah kamu punya tempat parkir tetap yang memungkinkan memasang charger?
+- **Kebutuhan jarak harian:** apakah jarak tempuh nyata cukup untuk pemakaianmu dengan sekali isi?
+- **Garansi baterai dan motor listrik:** berapa lama, dan apa saja yang ditanggung.
+- **Layanan purna jual:** lokasi bengkel resmi, ketersediaan suku cadang, dan layanan bantuan di jalan.
+- **Nilai jual kembali:** tanyakan kebijakan dan cakupan garansi jika mobil nanti dijual lagi.
+
+> Tips: lakukan test drive dan tanyakan hal-hal di atas langsung kepada tim penjualan. Jawaban tertulis lebih aman daripada janji lisan.
+
+## Tips pemakaian harian
+- Isi daya secara teratur, tidak perlu menunggu baterai hampir habis.
+- Ikuti anjuran pabrikan soal batas pengisian harian dan pemakaian pengisian cepat.
+- Rencanakan rute panjang dengan mengecek titik pengisian lebih dulu.
+- Berkendara halus membantu memaksimalkan jarak, termasuk memanfaatkan pengereman regeneratif.
+
+## Kesalahan yang sering dilakukan pembeli pertama
+- Hanya melihat angka jarak tempuh di brosur tanpa memperhitungkan pemakaian nyata.
+- Membeli sebelum memastikan tempat dan cara mengisi daya sehari-hari.
+- Mengabaikan layanan purna jual dan lokasi bengkel resmi.
+- Tidak mencoba mobil lebih dulu, sehingga baru tahu karakter berkendaranya setelah membeli.
+- Membandingkan harga tanpa menghitung biaya listrik, charger, dan perawatan.
+
+
+## Coba dulu sebelum memutuskan
+Cara terbaik memahami mobil listrik adalah mencobanya langsung. Hubungi kami lewat WhatsApp atau buat janji test drive di [katalog mobil](/mobil/) kami.`,
+  faq:`T: Berapa lama mengisi daya mobil listrik?
+J: Tergantung kapasitas baterai dan jenis pengisian. Pengisian AC di rumah biasanya butuh beberapa jam sampai semalaman, sedangkan pengisian cepat DC lebih singkat. Lihat data produk untuk angka tiap model.
+T: Apakah mobil listrik tetap perlu perawatan?
+J: Ya, tetapi komponennya berbeda. Tidak ada oli mesin dan busi, namun ban, rem, suspensi, filter kabin, cairan, serta sistem baterai dan kelistrikan tetap perlu diperiksa berkala.
+T: Apakah harus punya charger di rumah?
+J: Tidak wajib, tetapi sangat memudahkan. Tanpa charger rumah, kamu perlu merencanakan pengisian di tempat umum dan menyesuaikannya dengan rutinitasmu.` },
+{ title:'Cara Menghitung Kredit Mobil: DP, Tenor, dan Bunga Flat', category:'Panduan',
+  desc:'Cara menghitung cicilan kredit mobil dengan contoh nyata: DP, tenor, bunga flat dibanding efektif, serta biaya tambahan yang sering terlupa.',
+  body:`Cicilan yang tampak ringan belum tentu murah kalau dihitung sampai lunas. Dengan memahami cara kerjanya, kamu bisa membandingkan penawaran dengan tenang dan memilih yang paling sesuai dengan kemampuanmu.
+
+## Istilah dasar yang perlu kamu tahu
+- **Harga OTR (on the road):** harga mobil yang sudah termasuk biaya pengurusan awal.
+- **DP (uang muka):** bagian harga yang kamu bayar di awal.
+- **Pokok pinjaman:** harga mobil dikurangi DP, yaitu jumlah yang dibiayai.
+- **Tenor:** lama cicilan, dihitung dalam tahun atau bulan.
+- **Bunga flat:** bunga yang dihitung dari pokok pinjaman awal, selama seluruh tenor.
+- **Bunga efektif:** bunga yang dihitung dari sisa pokok yang belum dibayar.
+- **Angsuran:** jumlah yang dibayar tiap bulan.
+
+## Contoh perhitungan bunga flat
+Contoh ini hanya ilustrasi untuk memahami caranya, bukan penawaran pembiayaan.
+
+| Komponen | Nilai |
+|---|---|
+| Harga mobil | Rp300.000.000 |
+| DP 25% | Rp75.000.000 |
+| Pokok pinjaman | Rp225.000.000 |
+| Bunga flat | 6% per tahun |
+| Tenor | 4 tahun (48 bulan) |
+| Total bunga (225 juta x 6% x 4 tahun) | Rp54.000.000 |
+| Total yang dibayar (pokok + bunga) | Rp279.000.000 |
+| Angsuran per bulan (279 juta : 48) | Rp5.812.500 |
+
+## Pengaruh tenor terhadap total biaya
+Dengan pokok dan bunga yang sama, tenor yang berbeda memberi hasil berbeda.
+
+| Tenor | Angsuran per bulan | Total dibayar |
+|---|---|---|
+| 3 tahun | Rp7.375.000 | Rp265.500.000 |
+| 4 tahun | Rp5.812.500 | Rp279.000.000 |
+| 5 tahun | Rp4.875.000 | Rp292.500.000 |
+
+Tenor lebih panjang membuat angsuran lebih kecil, tetapi total yang kamu bayar lebih besar. DP yang lebih besar juga menurunkan pokok pinjaman, sehingga angsuran dan total bunga ikut turun.
+
+## Bunga flat dan bunga efektif tidak sama
+Bunga flat dihitung dari pokok awal sampai akhir tenor, padahal pokokmu terus berkurang tiap bulan. Karena itu, angka bunga efektif yang setara dengan skema flat biasanya lebih tinggi daripada angka flat-nya. Saat membandingkan penawaran, jangan hanya melihat angka bunga. Bandingkan juga **total yang dibayar sampai lunas**.
+
+## Biaya lain di luar angsuran
+- Biaya provisi dan administrasi.
+- Asuransi kendaraan, yang biasanya wajib selama masa kredit.
+- Biaya jaminan fidusia dan biaya pengurusan surat.
+- Denda jika terlambat membayar.
+- Biaya atau penalti jika kamu melunasi lebih cepat.
+
+Tanyakan semua biaya ini secara rinci dan minta dicatat dalam perjanjian.
+
+## Tips menentukan cicilan yang aman
+1. Banyak perencana keuangan memakai pedoman bahwa total cicilan sebaiknya tidak melebihi sekitar sepertiga penghasilan bulanan. Anggap ini patokan umum, bukan aturan pasti.
+2. Siapkan dana untuk asuransi, pajak, bensin atau listrik, dan perawatan, bukan hanya angsuran.
+3. Bandingkan penawaran dari beberapa perusahaan pembiayaan.
+4. Baca perjanjian sampai selesai sebelum menandatangani.
+5. Riwayat kreditmu (SLIK OJK) ikut memengaruhi persetujuan, jadi pastikan cicilan lain berjalan lancar.
+
+## Langkah mengajukan kredit mobil
+1. Tentukan mobil, lalu hitung DP dan tenor yang sanggup kamu bayar.
+2. Siapkan dokumen yang umumnya diminta, seperti KTP, kartu keluarga, bukti penghasilan, dan dokumen pendukung lain sesuai ketentuan perusahaan pembiayaan.
+3. Ajukan permohonan dan ikuti proses pemeriksaan data atau survei.
+4. Setelah disetujui, baca perjanjian dengan teliti sebelum menandatangani.
+5. Bayar DP dan biaya awal, lalu mobil diserahkan sesuai kesepakatan.
+
+## Kesalahan yang sering terjadi
+- Hanya melihat angsuran bulanan dan mengabaikan total biaya sampai lunas.
+- Memilih DP terlalu kecil sehingga cicilan membengkak.
+- Tidak membaca ketentuan denda dan pelunasan lebih cepat.
+- Lupa menghitung biaya asuransi, pajak, dan perawatan.
+- Mengajukan ke banyak tempat sekaligus tanpa perbandingan yang jelas.
+
+
+## Pakai simulasi untuk perkiraan awal
+Di halaman tiap unit pada [katalog mobil](/mobil/) kami ada simulasi kredit perkiraan dengan pilihan DP dan tenor. Hasilnya hanya gambaran awal. Angka sebenarnya mengikuti perusahaan pembiayaan yang kamu pilih.`,
+  faq:`T: Mana yang lebih baik, bunga flat atau bunga efektif?
+J: Keduanya hanya cara menghitung. Yang paling penting adalah total yang kamu bayar sampai lunas. Minta rincian total biaya dari masing-masing penawaran lalu bandingkan angka akhirnya.
+T: Apakah DP besar selalu lebih baik?
+J: DP besar mengurangi pokok pinjaman dan total bunga, tetapi jangan sampai menguras dana darurat. Sisakan dana cadangan untuk kebutuhan tak terduga.
+T: Bolehkah melunasi kredit lebih cepat?
+J: Umumnya boleh, tetapi ketentuannya berbeda tiap perusahaan pembiayaan dan kadang ada penalti. Tanyakan sebelum menandatangani perjanjian.` },
+{ title:'Cara Menyimpan dan Mengolah Frozen Food agar Aman dan Enak', category:'Tips',
+  desc:'Panduan menyimpan, mencairkan, dan memasak frozen food dengan aman: suhu freezer, cara thawing, dan tips agar tetap enak dan tidak cepat rusak.',
+  body:`Frozen food praktis karena tinggal diolah kapan saja. Tapi supaya tetap aman dan rasanya tidak turun, cara menyimpan, mencairkan, dan memasaknya perlu benar. Panduan ini merangkum langkah-langkah dasarnya.
+
+## Simpan dengan benar di freezer
+- Jaga suhu freezer sekitar **-18°C** atau lebih dingin.
+- Segera masukkan ke freezer setelah barang diterima, jangan didiamkan di suhu ruang.
+- Susun rapi dan beri sedikit ruang agar udara dingin bisa bersirkulasi.
+- Pastikan kemasan tertutup rapat. Kemasan yang bocor membuat makanan cepat kering dan berbunga es.
+- Beri tanda tanggal, dan pakai yang lebih lama lebih dulu.
+- Hindari terlalu sering membuka pintu freezer.
+
+## Periksa saat menerima kiriman
+Saat paket frozen food tiba, periksa hal berikut:
+1. Kemasan masih dingin dan tidak bocor.
+2. Produk masih keras dan tidak lunak seluruhnya.
+3. Kemasan pendingin masih dingin.
+
+Segera simpan di freezer. Kalau produk sudah lunak seluruhnya dan terasa hangat, sebaiknya jangan dikonsumsi dan hubungi penjual.
+
+## Cara mencairkan (thawing) yang aman
+- **Di kulkas bagian bawah.** Ini cara paling aman, tetapi butuh waktu, biasanya semalaman.
+- **Dengan air dingin.** Masukkan ke kantong kedap, rendam di air dingin, dan ganti airnya kira-kira tiap 30 menit.
+- **Dengan microwave.** Pakai mode defrost lalu segera masak.
+
+Jangan mencairkan dengan membiarkannya berjam-jam di suhu ruang karena kuman bisa berkembang. Banyak produk siap masak seperti nugget atau dimsum memang bisa langsung digoreng atau dikukus tanpa dicairkan. Selalu ikuti petunjuk di kemasan produknya.
+
+## Masak sampai matang sempurna
+- Untuk daging unggas, pastikan suhu bagian dalam mencapai sekitar **74°C**. Termometer makanan sangat membantu.
+- Panaskan produk olahan seperti bakso, sosis, dan nugget sampai panas merata ke bagian dalam.
+- Jangan menumpuk terlalu banyak saat menggoreng karena suhu minyak turun dan hasilnya kurang renyah.
+
+## Jangan membekukan ulang sembarangan
+Makanan yang sudah dicairkan di suhu ruang sebaiknya tidak dibekukan lagi. Makanan yang dicairkan di kulkas masih boleh dibekukan ulang, tetapi tekstur dan rasanya bisa menurun. Cara paling aman adalah mencairkan sesuai porsi yang akan dimasak.
+
+## Tips agar tetap enak
+- Pakai sesuai batas waktu simpan di kemasan.
+- Jangan membeli lebih banyak dari yang muat di freezer.
+- Baca label bahan dan informasi alergen sebelum mengonsumsi.
+- Gunakan wadah kedap untuk sisa makanan yang sudah dimasak, dan simpan di kulkas.
+
+## Atur stok mingguan dengan rapi
+Frozen food paling berguna kalau stoknya teratur. Beberapa kebiasaan yang membantu:
+- Bagi menjadi porsi sekali masak sebelum dibekukan, sehingga kamu hanya mencairkan secukupnya.
+- Tulis tanggal dan isi pada kemasan atau wadah.
+- Simpan yang paling lama di bagian depan supaya terpakai lebih dulu.
+- Gunakan kantong kedap atau wadah rapat agar bau tidak tercampur.
+- Pasang termometer kecil di freezer untuk memastikan suhunya tetap rendah.
+
+## Higienis saat menyiapkan
+- Cuci tangan sebelum dan sesudah memegang bahan mentah.
+- Pisahkan talenan dan pisau untuk bahan mentah dan makanan matang.
+- Jangan membiarkan makanan matang di suhu ruang lebih dari sekitar dua jam. Simpan di kulkas jika belum dimakan.
+- Panaskan sisa makanan sampai benar-benar panas sebelum disantap.
+
+## Pilih produk yang sesuai kebutuhan
+Pilih jenis produk dan ukuran kemasan sesuai jumlah orang di rumah dan kapasitas freezer. Baca label untuk melihat bahan, petunjuk memasak, dan informasi alergen. Kalau membeli untuk acara, hitung porsi dan waktu penyajian supaya produk tidak menumpuk terlalu lama.
+
+
+## Pesan frozen food dengan tenang
+Cek [katalog LapakMu](/katalog/) untuk pilihan produk, lalu hubungi kami lewat WhatsApp kalau ingin bertanya soal penyimpanan atau cara mengolah produk tertentu.`,
+  faq:`T: Berapa lama frozen food bisa disimpan?
+J: Tergantung jenis produk dan suhu freezer. Ikuti tanggal dan petunjuk yang tertera di kemasan masing-masing produk.
+T: Kenapa muncul bunga es di dalam kemasan?
+J: Bunga es biasanya muncul karena perubahan suhu atau kemasan yang tidak rapat. Makanannya umumnya masih aman, tetapi teksturnya bisa kering atau kurang enak.
+T: Apakah frozen food boleh langsung digoreng tanpa dicairkan?
+J: Banyak produk siap goreng memang bisa, tetapi tidak semua. Ikuti petunjuk di kemasan produknya, terutama untuk produk bertepung atau berukuran tebal.` },
+{ title:'Tukar Tambah Mobil: Cara Mendapat Harga Terbaik untuk Mobil Lama', category:'Mobil baru',
+  desc:'Panduan tukar tambah mobil: persiapan dokumen, cara memperkirakan harga, tips negosiasi, dan hal yang perlu dicek agar kamu tidak dirugikan.',
+  body:`Tukar tambah memungkinkan kamu memakai mobil lama sebagai bagian pembayaran mobil berikutnya. Prosesnya praktis, tetapi hasilnya sangat dipengaruhi persiapanmu. Panduan ini membantumu mendapat penilaian yang wajar tanpa terburu-buru.
+
+## Apa itu tukar tambah?
+Dalam tukar tambah, mobil lamamu ditaksir dan nilainya dikurangkan dari harga mobil yang baru. Selisihnya yang kamu bayar, baik tunai maupun lewat pembiayaan. Dengan begitu kamu tidak perlu menjual mobil lama secara terpisah.
+
+## Siapkan dokumen dan kelengkapan
+- **BPKB dan STNK** dengan nama pemilik yang jelas.
+- **KTP pemilik** yang sesuai dengan nama di BPKB.
+- **Faktur** dan **buku servis** jika masih ada.
+- **Kunci serep** dan buku manual.
+- Bukti **pajak kendaraan** yang masih berlaku.
+
+Kalau mobilmu masih dalam masa kredit, tanyakan prosedur pelunasan ke perusahaan pembiayaan. BPKB biasanya ditahan sampai kredit lunas, jadi kamu perlu surat keterangan atau pelunasan sebelum tukar tambah bisa diproses.
+
+## Rapikan mobil sebelum ditaksir
+1. Bersihkan bagian luar dan dalam, termasuk bagasi.
+2. Perbaiki hal kecil yang murah, seperti lampu mati atau wiper rusak.
+3. Kumpulkan catatan servis agar perawatanmu terlihat.
+4. Foto kondisi mobil dari berbagai sisi untuk dokumentasi.
+
+Mobil yang bersih dan terawat memberi kesan baik, dan itu memengaruhi penilaian.
+
+## Perkirakan harga mobil lamamu
+1. Lihat harga unit sejenis (tahun, tipe, dan kondisi) di beberapa iklan dan dealer.
+2. Mintalah taksiran dari lebih dari satu tempat.
+3. Sadari faktor yang memengaruhi nilai: tahun, jarak tempuh, kondisi bodi dan mesin, riwayat tabrakan atau banjir, kelengkapan dokumen, serta minat pasar terhadap modelnya.
+
+Harga tukar tambah umumnya sedikit di bawah harga jual langsung ke pembeli lain, karena pihak dealer harus mengolah dan menjual kembali unit tersebut. Jadi bandingkan manfaatnya: praktis dan cepat, atau menjual sendiri dengan waktu lebih lama.
+
+## Tips negosiasi
+- **Pisahkan dua angka.** Tanyakan harga mobil baru dan nilai mobil lamamu secara terpisah, lalu lihat selisih totalnya. Dengan begitu kamu tahu apakah diskon di satu sisi tidak diimbangi di sisi lain.
+- Bandingkan **total yang harus kamu bayar**, bukan hanya nilai tukar yang tinggi.
+- Minta semua kesepakatan dicatat tertulis.
+- Jangan ragu membandingkan penawaran dari dua atau tiga tempat.
+
+## Pastikan proses berjalan jelas
+- Tanyakan siapa yang mengurus **balik nama** dan kapan selesainya.
+- Pastikan tidak ada tunggakan pajak atau tilang atas nama mobilmu.
+- Jangan menyerahkan mobil sebelum kesepakatan tertulis dan serah terima dokumen jelas.
+- Simpan salinan semua dokumen dan kwitansi.
+
+## Kapan waktu yang tepat untuk tukar tambah?
+- Sebelum jarak tempuh melewati batas yang membuat nilai turun jauh.
+- Sebelum biaya besar seperti penggantian ban, aki, atau servis besar.
+- Saat model baru yang kamu incar sedang ada program atau promo.
+- Sebelum jatuh tempo pajak lima tahunan atau perbaikan besar.
+
+Waktu terbaik berbeda untuk tiap orang, jadi bandingkan biaya memiliki mobil lama dengan manfaat menggantinya.
+
+## Kesalahan yang sering terjadi
+- Tidak menyiapkan dokumen sehingga proses tertunda.
+- Menyembunyikan riwayat kerusakan atau tabrakan. Penaksir biasanya menemukannya saat inspeksi, dan kejujuran menjaga kepercayaan.
+- Hanya melihat nilai tukar yang tinggi tanpa membandingkan total yang dibayar.
+- Terburu-buru menerima penawaran pertama.
+- Lupa mengecek status kredit dan pajak mobil lama.
+
+
+## Mau menanyakan tukar tambah?
+Hubungi kami lewat WhatsApp dan kirim data mobilmu: merek dan tipe, tahun, jarak tempuh, dan kondisinya. Kamu juga bisa melihat pilihan mobil di [katalog mobil](/mobil/) kami.`,
+  faq:`T: Apakah mobil yang masih kredit bisa ditukar tambah?
+J: Bisa dalam banyak kasus, tetapi kreditnya harus diselesaikan lebih dulu. Tanyakan prosedur pelunasan ke perusahaan pembiayaan karena BPKB biasanya ditahan sampai kredit lunas.
+T: Lebih untung tukar tambah atau jual sendiri?
+J: Tukar tambah lebih praktis dan cepat, sedangkan menjual sendiri bisa mendapat harga lebih tinggi tetapi butuh waktu dan tenaga. Hitung manfaat keduanya sesuai kebutuhanmu.
+T: Apa yang paling memengaruhi nilai mobil lama?
+J: Tahun pembuatan, jarak tempuh, kondisi mobil, riwayat tabrakan atau banjir, kelengkapan dokumen, dan minat pasar terhadap model itu.` },
+{ title:'Karpet Mobil Custom vs Universal: Mana yang Lebih Baik?', category:'Kaca film & aksesoris',
+  desc:'Perbandingan karpet mobil custom dan universal: kecocokan, bahan, perawatan, dan harga. Pilih yang sesuai dengan mobil dan kebutuhanmu.',
+  body:`Karpet mobil bukan hanya soal tampilan. Karpet melindungi lantai dari kotoran, air, dan pasir, sekaligus membuat kabin lebih mudah dibersihkan. Pilihan yang sering membingungkan adalah karpet custom atau universal. Panduan ini membantumu memutuskan.
+
+## Perbedaan utama
+| Aspek | Custom | Universal |
+|---|---|---|
+| Kecocokan | Dibuat sesuai bentuk lantai model mobil tertentu | Ukuran umum, dipotong atau disesuaikan sendiri |
+| Cakupan lantai | Menutup area lebih penuh, termasuk sisi dan sudut | Sering menyisakan celah di tepi |
+| Kestabilan | Lebih pas dan tidak mudah bergeser | Lebih mudah bergeser jika tidak terkunci |
+| Pemasangan | Perlu memilih sesuai model dan tahun mobil | Praktis, bisa dipasang di banyak mobil |
+| Harga | Umumnya lebih tinggi | Umumnya lebih terjangkau |
+| Cocok untuk | Pemakaian jangka panjang dan perlindungan maksimal | Kebutuhan sementara atau anggaran terbatas |
+
+## Pilihan bahan
+- **Karet atau TPE:** tahan air, mudah dibersihkan, cocok untuk musim hujan dan kondisi becek. Kadang punya bau awal yang hilang seiring waktu.
+- **Kain atau karpet berbulu:** terasa nyaman dan meredam suara, tetapi lebih sulit dibersihkan dan lebih lama kering.
+- **Model berlapis dengan tepi tinggi:** biasanya menjaga lantai lebih terlindungi dari tumpahan. Istilah seperti 3D, 5D, atau 7D dipakai produsen untuk menggambarkan model dan lapisannya, tetapi artinya tidak baku. Bandingkan bahan, ketebalan, dan cakupannya, bukan angkanya.
+
+## Faktor keselamatan yang penting
+1. Pastikan karpet **terkunci dengan pengait atau klip** di sisi pengemudi supaya tidak bergeser ke area pedal.
+2. Jangan menumpuk karpet baru di atas karpet lama, karena bisa menggeser posisi dan mengganggu pedal.
+3. Pilih permukaan yang tidak licin di bawah kaki.
+4. Periksa secara berkala bahwa karpet masih terpasang rapi.
+
+## Cara merawat karpet
+- Kibaskan dan vakum secara rutin untuk mengangkat pasir.
+- Karet: cuci dengan air dan sabun ringan, lalu keringkan.
+- Kain: vakum dan sikat lembut, bersihkan noda sesegera mungkin.
+- Pastikan karpet benar-benar kering sebelum dipasang kembali untuk mencegah bau lembap.
+
+## Cara memilih yang tepat
+1. Sesuaikan dengan **model dan tahun mobilmu**.
+2. Lihat **cakupan** karpet: apakah menutup sisi, area belakang, dan sekat tengah.
+3. Pertimbangkan kondisi pemakaian. Di kota yang sering hujan dan banjir kecil, karpet dengan tepi tinggi lebih melindungi.
+4. Tentukan anggaran dan pertimbangkan umur pakai.
+5. Tanyakan garansi dan minta contoh foto hasil pemasangan.
+
+## Pasang sendiri atau minta dipasang?
+Karpet universal mudah dipasang sendiri. Untuk karpet custom, ikuti langkah ini:
+1. Keluarkan karpet lama dan bersihkan lantai dari pasir dan debu.
+2. Pastikan karpet baru dirancang untuk **model, tahun, dan posisi setir mobilmu** (di Indonesia umumnya setir kanan).
+3. Pasang karpet pengemudi lebih dulu, lalu kunci dengan klip atau pengait yang tersedia.
+4. Cek bahwa pedal tidak tersentuh dan bergerak bebas sampai ujung.
+5. Coba injak pedal beberapa kali sebelum berkendara.
+
+## Kapan karpet perlu diganti?
+- Permukaan sudah aus, robek, atau berlubang.
+- Karpet melengkung dan tidak lagi menutup lantai dengan baik.
+- Bau lembap yang tidak hilang setelah dicuci.
+- Klip atau pengaitnya patah sehingga karpet mudah bergeser.
+
+## Anggapan yang keliru
+- **Lebih tebal selalu lebih baik.** Karpet yang terlalu tebal bisa mengganggu gerak pedal. Ketebalan perlu sesuai rancangan mobil.
+- **Lebih mahal pasti lebih awet.** Perhatikan bahan, kerapian cetakan atau jahitan, dan garansi.
+- **Semua karpet karet sama.** Kualitas bahan dan cetakan bisa sangat berbeda.
+
+
+## Lihat pilihan karpet
+Di [katalog aksesoris](/aksesoris/) kami ada pilihan karpet custom. Hubungi kami lewat WhatsApp untuk menanyakan ketersediaan untuk mobilmu.`,
+  faq:`T: Apakah karpet custom selalu lebih baik daripada universal?
+J: Karpet custom umumnya lebih pas dan melindungi lebih penuh, tetapi harganya lebih tinggi. Universal bisa cukup untuk kebutuhan sederhana atau anggaran terbatas, asalkan terpasang aman.
+T: Bolehkah memasang karpet baru di atas karpet bawaan?
+J: Sebaiknya tidak ditumpuk, terutama di sisi pengemudi. Karpet tambahan bisa bergeser dan mengganggu pedal. Lepas karpet bawaan jika karpet baru dirancang untuk menggantikannya.
+T: Bagaimana cara menghilangkan bau pada karpet karet baru?
+J: Bau awal biasanya hilang dengan sendirinya. Cuci dengan air sabun, keringkan, lalu jemur di tempat teduh dengan sirkulasi udara yang baik.` },
+{ title:'Dash Cam Mobil: Cara Memilih dan Memasang yang Benar', category:'Kaca film & aksesoris',
+  desc:'Panduan memilih dash cam mobil: resolusi, kamera depan dan belakang, mode parkir, kartu memori, dan cara pemasangan yang aman dan rapi.',
+  body:`Dash cam merekam perjalananmu dan bisa menjadi bukti jika terjadi kejadian di jalan. Tapi tidak semua dash cam sama. Kualitas rekaman, ketahanan panas, dan cara pemasangan sangat memengaruhi manfaatnya. Berikut hal-hal yang perlu kamu perhatikan.
+
+## Mengapa memasang dash cam?
+- Menyimpan bukti kejadian seperti benturan atau perselisihan di jalan.
+- Membantu menyelesaikan klaim asuransi dengan data yang jelas.
+- Merekam perjalanan dan membuat pengemudi lebih berhati-hati.
+
+## Fitur yang perlu kamu pertimbangkan
+- **Resolusi dan kualitas gambar.** Resolusi lebih tinggi seperti 2K atau 4K bisa menampilkan detail lebih banyak, tetapi kualitas sensor dan lensa sama pentingnya. Resolusi Full HD yang bagus sering lebih berguna daripada resolusi tinggi dengan sensor biasa.
+- **Rekaman malam.** Cari fitur seperti WDR atau HDR yang membantu gambar tetap terbaca di kondisi cahaya sulit.
+- **Sudut pandang.** Sudut yang terlalu lebar bisa membuat objek tampak kecil dan melengkung. Pilih yang seimbang.
+- **Kamera depan saja atau depan dan belakang.** Kamera belakang merekam kejadian dari arah belakang, misalnya tabrakan dari belakang.
+- **G-sensor.** Mengunci rekaman otomatis saat terjadi benturan supaya tidak tertimpa.
+- **GPS dan Wi-Fi.** GPS mencatat lokasi dan kecepatan, sedangkan Wi-Fi memudahkan melihat rekaman lewat ponsel.
+- **Ketahanan panas.** Di mobil yang parkir di bawah matahari, dash cam dengan kapasitor biasanya dianggap lebih tahan panas daripada yang memakai baterai.
+
+## Mode parkir
+Mode parkir merekam saat mobil dimatikan. Fitur ini butuh suplai daya terus-menerus, biasanya lewat kabel hardwire yang disambung ke sekring mobil atau baterai tambahan. Pastikan perangkat punya perlindungan agar aki tidak habis, dan minta teknisi yang memasangnya.
+
+## Kartu memori
+- Pakai kartu memori yang dirancang untuk perekaman terus-menerus (sering disebut high endurance).
+- Pilih kapasitas yang cukup untuk rekaman beberapa jam.
+- Format kartu secara berkala sesuai anjuran produsen dan ganti jika sudah lama dipakai.
+
+## Cara memasang yang aman dan rapi
+1. Letakkan di belakang kaca spion tengah supaya tidak menghalangi pandangan pengemudi.
+2. Pastikan lensa berada di area yang disapu wiper dan tidak tertutup stiker atau area gelap kaca film.
+3. Rapikan kabel di sisi atap dan pilar. Hindari jalur yang mengganggu area airbag dan pedal.
+4. Sambungkan daya ke sekring dengan fuse tap yang sesuai, sebaiknya oleh teknisi.
+5. Atur sudut kamera dan uji rekaman siang dan malam.
+
+## Privasi dan penggunaan rekaman
+Rekaman bisa dipakai sebagai bukti, tetapi hormati privasi orang lain. Jangan menyebarkan rekaman yang memuat data pribadi sembarangan. Ikuti aturan yang berlaku di daerahmu.
+
+## Perawatan
+- Bersihkan lensa dan kaca di sekitarnya secara berkala.
+- Periksa rekaman sesekali untuk memastikan alat berfungsi.
+- Cek tanggal dan jam agar rekaman akurat.
+
+## Perbandingan cepat tipe dash cam
+| Tipe | Cocok untuk | Catatan |
+|---|---|---|
+| Kamera depan saja | Kebutuhan dasar dan anggaran terbatas | Pemasangan paling sederhana |
+| Depan dan belakang | Pemakaian harian di jalan padat | Butuh kabel tambahan ke belakang |
+| Dengan mode parkir | Mobil yang sering parkir di tempat umum | Butuh suplai daya khusus dan pemasangan oleh teknisi |
+
+## Kesalahan yang sering terjadi
+- Memasang di posisi yang menghalangi pandangan pengemudi.
+- Memakai kartu memori biasa yang cepat rusak saat dipakai merekam terus-menerus.
+- Tidak pernah memeriksa rekaman, sehingga baru sadar alatnya mati saat dibutuhkan.
+- Lupa mengatur tanggal dan jam, padahal itu penting sebagai bukti.
+- Membiarkan kabel menjuntai di area pedal atau airbag.
+
+
+## Lihat pilihan dash cam
+Di [katalog aksesoris](/aksesoris/) kami ada pilihan dash cam. Hubungi kami lewat WhatsApp untuk konsultasi sesuai mobilmu.`,
+  faq:`T: Apakah resolusi 4K selalu lebih baik?
+J: Tidak selalu. Kualitas sensor, lensa, dan kemampuan merekam malam sama pentingnya. Pilih yang rekamannya jelas membaca plat nomor, bukan hanya yang angkanya paling besar.
+T: Apakah dash cam bisa menguras aki?
+J: Dash cam biasa yang menyala saat mesin hidup tidak masalah. Mode parkir yang aktif terus bisa menguras aki jika tidak dilengkapi perlindungan tegangan, jadi gunakan perangkat dengan proteksi dan pasang oleh teknisi.
+T: Perlukah kamera belakang?
+J: Sangat berguna jika kamu sering berkendara di jalan padat karena banyak benturan terjadi dari belakang. Kamera belakang juga membantu saat mundur.` },
+{ title:'Cara Merawat Kaca Film Mobil agar Awet dan Tidak Cepat Rusak', category:'Kaca film & aksesoris',
+  desc:'Cara merawat kaca film mobil: masa awal setelah pemasangan, cara membersihkan yang aman, dan kebiasaan yang membuatnya cepat rusak.',
+  body:`Kaca film yang dirawat dengan benar bisa bertahan lama dan tetap jernih. Sebaliknya, kebiasaan kecil yang keliru bisa membuatnya bergelembung, tergores, atau terkelupas lebih cepat. Panduan ini merangkum cara merawatnya sejak hari pertama.
+
+## Masa awal setelah pemasangan
+Beberapa hari pertama adalah masa film mengering dan menempel sempurna.
+- **Jangan menurunkan kaca** selama beberapa hari, atau sesuai anjuran teknisi.
+- Hindari menyentuh atau membersihkan bagian dalam kaca di masa ini.
+- Embun atau gelembung kecil di awal biasanya hilang sendiri saat film mengering. Tanyakan ke teknisi berapa lama pengeringannya.
+- Kalau ada gelembung besar atau area yang tidak menempel, hubungi tempat pemasangan.
+
+## Cara membersihkan yang aman
+1. Pakai **kain mikrofiber** yang lembut dan bersih.
+2. Gunakan air dengan sedikit sabun ringan atau pembersih kaca **tanpa amonia**.
+3. Usap dengan lembut dan searah, lalu keringkan.
+4. Bersihkan bagian tepi dengan hati-hati supaya tidak mengangkat film.
+
+Bagian dalam kaca adalah sisi yang ditempeli film, jadi perlakukan dengan lebih lembut dibanding kaca biasa.
+
+## Hal yang sebaiknya dihindari
+- **Bahan keras** seperti pembersih beramonia atau pelarut.
+- **Alat yang menggores**: sikat kasar, scraper tajam, atau tisu yang kasar.
+- **Menempel stiker atau lakban** di bagian dalam film, karena saat dilepas bisa ikut mengangkat film.
+- **Membuka kaca saat tepinya tertahan** atau terhalang benda.
+- **Goresan tidak sengaja** dari sabuk pengaman, kancing, ritsleting, atau kuku. Perhatikan saat membersihkan atau menggulung sabuk.
+- **Menekan keras** di tepi film.
+
+## Lindungi dari panas berlebih
+Kaca film membantu mengurangi panas, tetapi parkir di tempat teduh tetap membantu menjaga kabin dan film dalam jangka panjang. Hindari menyemprotkan air dingin langsung ke kaca yang sangat panas.
+
+## Tanda film perlu diperiksa
+- Gelembung yang membesar atau bertambah.
+- Tepi yang terkelupas atau terangkat.
+- Warna yang berubah atau memudar tidak merata.
+- Retak atau sobek.
+
+Kalau menemukan tanda ini, foto kondisinya dan hubungi tempat pemasanganmu. Simpan bukti pemasangan dan kartu garansi, karena klaim garansi biasanya membutuhkannya.
+
+## Jadwal perawatan sederhana
+- **Rutin:** lap debu di bagian dalam dengan kain mikrofiber kering dan lembut.
+- **Sebulan sekali:** bersihkan dengan air sabun ringan atau pembersih kaca tanpa amonia.
+- **Tiap beberapa bulan:** periksa bagian tepi film, terutama di dekat karet kaca.
+
+## Saat mencuci mobil
+Hindari menyemprotkan air bertekanan tinggi langsung ke tepi kaca atau sela-sela jendela. Keringkan bagian dalam kaca dengan kain lembut, dan jangan menyikatnya dengan alat keras.
+
+## Perawatan sesuai kondisi
+- **Sering parkir di luar:** pakai pelindung kaca depan atau cari tempat teduh bila memungkinkan.
+- **Area berdebu:** lap debu lebih sering supaya debu tidak terseret dan menggores saat dibersihkan.
+- **Setelah hujan:** keringkan embun pada bagian dalam kaca dengan kain lembut.
+
+## Jika film perlu dilepas
+Jangan mencongkel sendiri dengan benda tajam karena bisa merusak kaca dan garis pemanas kaca belakang. Serahkan kepada teknisi yang berpengalaman.
+
+## Kebiasaan kecil yang membantu
+- Naikkan dan turunkan kaca dengan halus.
+- Hindari menempelkan benda di kaca bagian dalam dengan perekat.
+- Simpan kartu garansi dan bukti pemasangan di tempat yang mudah dicari.
+- Periksa kondisi kaca film setiap kali mobil diservis, sekalian dengan pemeriksaan umum.
+- Lapor lebih cepat jika ada gelembung atau tepi terangkat, karena perbaikan dini biasanya lebih mudah dan murah.
+
+
+## Pilih kaca film yang tepat sejak awal
+Perawatan yang baik tetap bergantung pada kualitas film dan pemasangan. Baca panduan [cara memilih kaca film mobil](/katalog/) untuk membandingkan jenis dan tingkat kegelapan, atau hubungi kami lewat WhatsApp untuk konsultasi.`,
+  faq:`T: Kapan kaca film boleh dicuci pertama kali?
+J: Tunggu sampai masa pengeringan selesai. Lamanya berbeda tiap produk dan cuaca, jadi tanyakan kepada teknisi yang memasang.
+T: Boleh pakai pembersih kaca biasa?
+J: Boleh jika tidak mengandung amonia dan dipakai dengan kain lembut. Hindari pembersih keras atau pelarut yang bisa merusak lapisan film.
+T: Gelembung kecil setelah pemasangan, apakah normal?
+J: Gelembung atau embun kecil di awal biasanya hilang sendiri saat film mengering. Kalau gelembung membesar atau tidak hilang setelah masa pengeringan, hubungi tempat pemasangan.` },
+{ title:'Biaya Tambahan Saat Membeli Mobil Bekas yang Sering Terlupa', category:'Mobil bekas',
+  desc:'Daftar biaya di luar harga mobil bekas: balik nama, pajak, servis awal, asuransi, dan biaya kredit. Siapkan anggaran agar tidak kaget.',
+  body:`Banyak orang menghitung anggaran mobil bekas hanya dari harga di iklan. Padahal ada beberapa biaya lain yang muncul sebelum dan sesudah mobil jadi milikmu. Dengan mendaftarkannya dari awal, kamu bisa menyiapkan dana dengan tenang dan menghindari kejutan.
+
+## Biaya pengurusan dan dokumen
+- **Balik nama.** Mengubah nama pemilik di BPKB dan STNK. Besar biayanya bergantung daerah dan ketentuan yang berlaku.
+- **Pajak kendaraan.** Pastikan tidak ada tunggakan, dan siapkan dana untuk pajak tahunan berikutnya.
+- **Ganti plat dan STNK lima tahunan** jika waktunya sudah dekat.
+- **Biaya jasa pengurusan** jika kamu memakai jasa atau dealer.
+- **Fotokopi dan materai** untuk berkas dan kwitansi.
+
+Di sebagian daerah ada pajak progresif untuk kepemilikan kendaraan kedua dan seterusnya atas nama yang sama. Tanyakan ketentuan di daerahmu sebelum memutuskan.
+
+## Servis dan perbaikan awal
+Meski mobil tampak bagus, siapkan dana untuk servis awal:
+1. Ganti oli dan filter.
+2. Periksa dan ganti kampas rem jika perlu.
+3. Cek ban, termasuk tanggal produksinya, dan ganti jika sudah tua atau aus.
+4. Periksa aki dan sistem pengisiannya.
+5. Cek cairan seperti minyak rem dan air radiator, serta kondisi sabuk dan selang.
+6. Perbaiki AC, lampu, atau karet pintu yang bermasalah.
+
+Mobil yang lebih tua umumnya butuh dana awal lebih besar. Minta riwayat servis supaya kamu tahu mana yang baru diganti.
+
+## Asuransi
+Premi asuransi bergantung pada nilai mobil dan jenis perlindungan, misalnya perlindungan menyeluruh atau hanya kerugian total. Bandingkan beberapa penawaran dan pahami apa saja yang ditanggung serta pengecualiannya.
+
+## Biaya jika membeli lewat kredit
+- Biaya provisi dan administrasi.
+- Asuransi yang biasanya wajib selama kredit.
+- Biaya jaminan fidusia dan pengurusan surat.
+- Denda keterlambatan dan penalti pelunasan lebih cepat.
+
+Hitung total yang dibayar sampai lunas, bukan hanya angsuran bulanan.
+
+## Perlengkapan dan penyesuaian
+Banyak pembeli juga menambah perlengkapan seperti karpet, kaca film, dan dash cam, atau mengganti item yang tidak sesuai selera. Masukkan itu ke dalam anggaran sejak awal.
+
+## Cara menyusun anggaran
+1. Tulis harga mobil dan semua komponen biaya di atas.
+2. Minta dealer atau penjual merinci biaya yang menjadi tanggungannya, dan minta dicatat tertulis.
+3. Bedakan **harga unit** dengan **harga di jalan** (biaya yang sudah termasuk pengurusan).
+4. Sisihkan dana cadangan yang sepadan dengan umur dan kondisi mobil.
+5. Bandingkan beberapa unit dengan memperhitungkan biaya awalnya, bukan hanya harga iklan.
+
+## Contoh daftar anggaran
+Daftar tertulis membantu kamu membandingkan beberapa unit secara adil dan melihat total yang sebenarnya. Gunakan tabel ini sebagai kerangka, lalu isi angkanya sesuai penawaran yang kamu terima.
+
+| Komponen | Hal yang perlu dicek |
+|---|---|
+| Harga mobil | Harga akhir setelah negosiasi |
+| Balik nama dan pengurusan | Siapa yang menanggung dan rinciannya |
+| Pajak | Tunggakan dan jatuh tempo berikutnya |
+| Servis awal | Hasil inspeksi dan riwayat servis |
+| Ban dan aki | Umur dan kondisinya |
+| Asuransi | Jenis perlindungan dan premi |
+| Perlengkapan | Karpet, kaca film, dan aksesoris lain |
+| Dana cadangan | Disesuaikan dengan umur dan kondisi mobil |
+
+## Tips menekan biaya
+- Minta penjual atau dealer menanggung sebagian biaya pengurusan jika memungkinkan.
+- Bandingkan harga servis di beberapa bengkel tepercaya.
+- Tunda pembelian aksesoris yang belum mendesak.
+- Gunakan hasil inspeksi sebagai bahan negosiasi harga.
+- Jangan membayar apa pun tanpa kwitansi yang jelas.
+
+
+## Lihat unit bekas
+Di [katalog mobil](/mobil/) kami, setiap unit menampilkan data seperti tahun, jarak tempuh, pajak, riwayat servis, dan dokumen. Gunakan itu untuk memperkirakan biaya awalnya, lalu hubungi kami lewat WhatsApp kalau ada pertanyaan.`,
+  faq:`T: Berapa dana cadangan yang sebaiknya disiapkan?
+J: Tidak ada angka pasti. Semakin tua dan semakin tinggi jarak tempuh mobilnya, biasanya semakin besar dana yang perlu disiapkan. Minta riwayat servis dan inspeksi untuk memperkirakan kebutuhan awal.
+T: Apakah pajak tahunan ikut berpindah ke pemilik baru?
+J: Kewajiban pajak berjalan ke pemilik yang tercatat. Pastikan tidak ada tunggakan sebelum membeli, dan cek jatuh temponya.
+T: Apa beda harga unit dan harga on the road?
+J: Harga unit adalah harga mobilnya saja, sedangkan harga on the road biasanya sudah termasuk biaya pengurusan awal tertentu. Minta rinciannya agar bisa dibandingkan dengan adil.` },
+{ title:'Panduan Membeli Rumah Pertama: Langkah dari Survei sampai Akad', category:'Properti',
+  desc:'Panduan membeli rumah pertama: tentukan budget, cek legalitas, pahami KPR, hitung biaya tambahan, sampai proses akad dan balik nama.',
+  body:`Membeli rumah pertama adalah keputusan besar. Dengan langkah yang runtut, kamu bisa mengurangi risiko dan lebih tenang saat menandatangani akad. Panduan ini merangkum prosesnya dari awal sampai serah terima. Informasinya bersifat umum, jadi ketentuan hukum dan pajak bisa berbeda per daerah dan bisa berubah.
+
+## 1. Tentukan budget yang realistis
+Hitung penghasilan, pengeluaran tetap, dan dana yang siap dipakai. Banyak perencana keuangan memakai pedoman bahwa total cicilan sebaiknya tidak melebihi sekitar sepertiga penghasilan bulanan. Anggap ini patokan umum. Ingat juga bahwa kamu butuh dana untuk uang muka dan biaya-biaya di luar harga rumah.
+
+## 2. Tentukan prioritas lokasi
+Pertimbangkan jarak ke tempat kerja, sekolah, dan transportasi umum. Lihat juga lingkungan sekitar, akses jalan, risiko banjir, dan potensi perkembangan area. Lokasi sulit diubah setelah dibeli, jadi beri bobot besar pada hal ini.
+
+## 3. Survei beberapa rumah
+Jangan memutuskan setelah melihat satu rumah. Datang pada waktu berbeda, dan periksa kondisi rumah dengan daftar yang jelas, seperti struktur, saluran air, listrik, dan lingkungan. Catat kelebihan dan kekurangan tiap pilihan.
+
+## 4. Cek legalitas
+- **Sertifikat:** pahami jenisnya, misalnya SHM (hak milik) atau HGB (hak guna bangunan), termasuk masa berlakunya.
+- Pastikan **nama pemilik di sertifikat** sesuai dengan penjual.
+- Cek keaslian dan status sertifikat di kantor pertanahan (BPN), termasuk apakah sedang dijaminkan atau bersengketa.
+- Periksa **PBG** (Persetujuan Bangunan Gedung, yang dulu dikenal sebagai IMB) untuk bangunannya.
+- Pastikan **PBB** lunas.
+- Untuk perumahan baru, periksa izin lokasi dan reputasi pengembang.
+
+> Tips: libatkan notaris atau PPAT untuk memeriksa dokumen sebelum kamu membayar tanda jadi.
+
+## 5. Pilih cara pembayaran
+- **Tunai penuh:** langsung lunas sehingga prosesnya lebih sederhana.
+- **Tunai bertahap:** dicicil langsung ke penjual atau pengembang.
+- **KPR:** dibiayai bank dan dicicil dalam jangka panjang.
+
+## 6. Pahami KPR sebelum mengajukan
+- **Uang muka dan tenor:** besaran uang muka mengikuti ketentuan bank dan regulasi yang berlaku, dan tenor memengaruhi angsuran serta total bunga.
+- **Jenis bunga:** bunga tetap untuk periode tertentu atau mengambang yang bisa berubah.
+- **Syarat dan proses:** bank menilai penghasilan, riwayat kredit (SLIK OJK), dan nilai rumah.
+- **Penalti:** tanyakan ketentuan pelunasan lebih cepat.
+
+## 7. Hitung biaya tambahan
+- Biaya KPR seperti provisi, administrasi, penilaian rumah, dan asuransi.
+- Biaya notaris atau PPAT.
+- Pajak pembelian seperti BPHTB. Tarif dan ketentuannya mengikuti daerah.
+- Pajak lain yang mungkin berlaku, tergantung jenis pembelian.
+- Biaya pindahan dan perbaikan kecil.
+
+## 8. Perjanjian dan akad
+Untuk rumah yang belum selesai dibangun biasanya ada PPJB (perjanjian pengikatan jual beli). Transaksi resmi dilakukan lewat akta jual beli (AJB) di hadapan PPAT, lalu dilanjutkan balik nama sertifikat. Baca semua dokumen dengan teliti, dan pastikan semua janji tercatat tertulis.
+
+## 9. Serah terima
+Periksa kondisi rumah saat serah terima, termasuk listrik, air, dan kelengkapan. Catat apa saja yang perlu diperbaiki dan sepakati batas waktunya.
+
+## Kesalahan yang sering terjadi
+- Tergoda promo atau harga murah tanpa memeriksa legalitas.
+- Tidak menghitung biaya tambahan di luar harga rumah.
+- Memilih tenor yang sangat panjang tanpa menghitung total bunga.
+- Tidak memeriksa reputasi dan rekam jejak pengembang untuk rumah baru.
+- Menandatangani perjanjian tanpa membacanya sampai selesai.
+- Membayar tanda jadi tanpa kwitansi dan perjanjian tertulis.
+
+
+## Lihat rumah di katalog
+Kamu bisa melihat pilihan rumah dan spesifikasinya di [katalog LapakMu](/katalog/). Kalau ada yang menarik, buat janji survei atau hubungi kami lewat WhatsApp.`,
+  faq:`T: Apa beda SHM dan HGB?
+J: SHM adalah hak milik, sedangkan HGB adalah hak guna bangunan dengan jangka waktu tertentu yang perlu diperpanjang. Pahami jenis sertifikat rumah yang kamu beli dan konsekuensinya.
+T: Apa itu AJB?
+J: AJB adalah akta jual beli yang dibuat di hadapan PPAT sebagai bukti peralihan hak atas rumah. Setelah itu dilakukan balik nama sertifikat.
+T: Perlukah notaris saat membeli rumah?
+J: Sangat disarankan. Notaris atau PPAT membantu memeriksa dokumen, memastikan keabsahan, dan membuat akta yang diperlukan.` },
+{ title:'Checklist Survei Rumah: 15 Hal yang Wajib Dicek Sebelum Membeli', category:'Properti',
+  desc:'Checklist survei rumah: cek atap, dinding, saluran air, listrik, lingkungan, risiko banjir, hingga legalitas agar tidak menyesal setelah membeli.',
+  body:`Survei adalah kesempatanmu menemukan masalah sebelum membeli. Banyak penyesalan muncul karena hal yang sebenarnya bisa terlihat saat survei, seperti dinding lembap atau air yang kecil. Gunakan daftar ini saat melihat rumah.
+
+## Persiapan sebelum survei
+- Bawa senter, meteran, dan ponsel untuk memotret.
+- Bawa pengisi daya ponsel untuk mencoba stop kontak.
+- Datang pada siang hari. Kalau bisa, datang lagi sore atau setelah hujan untuk melihat kondisi yang berbeda.
+- Siapkan daftar pertanyaan untuk penjual atau agen.
+
+## Struktur dan bangunan
+1. **Atap dan plafon.** Cari noda cokelat, plafon melengkung, atau bekas bocor.
+2. **Dinding.** Perhatikan retakan, terutama retak besar atau bergaris miring, serta area lembap atau cat menggelembung.
+3. **Lantai.** Cek apakah rata, tidak retak, dan tidak terasa kopong saat diketuk.
+4. **Pintu dan jendela.** Coba buka dan tutup semuanya, dan lihat apakah rapat serta tidak macet.
+5. **Kondisi umum.** Bandingkan umur bangunan dengan kondisi yang kamu lihat.
+
+## Air dan listrik
+6. **Aliran air.** Nyalakan kran di beberapa titik, periksa tekanan dan kejernihan air, dan tanyakan sumbernya (PDAM atau sumur).
+7. **Saluran pembuangan.** Pastikan air mengalir lancar dan tidak ada genangan atau bau.
+8. **Listrik.** Cek daya terpasang, panel, dan stop kontak. Coba dengan pengisi daya.
+9. **Sinyal ponsel dan internet.** Cek apakah sinyal baik di dalam rumah.
+
+## Lingkungan sekitar
+10. **Risiko banjir.** Tanyakan kepada warga atau pengurus RT, dan cari bekas ketinggian air di dinding atau pagar tetangga.
+11. **Akses jalan.** Perhatikan lebar jalan, kemacetan, dan kemudahan keluar masuk, terutama untuk mobil.
+12. **Kebisingan dan keamanan.** Datang pada jam berbeda untuk merasakan suasana. Tanyakan sistem keamanan lingkungan.
+13. **Fasilitas terdekat.** Cek jarak ke sekolah, pasar, fasilitas kesehatan, dan transportasi umum.
+
+## Tata letak dan kenyamanan
+14. **Pencahayaan dan sirkulasi udara.** Lihat apakah ruangan terang dan udaranya mengalir, tanpa terlalu panas atau pengap.
+15. **Ruang dan tata letak.** Bayangkan penempatan furnitur, jumlah kamar, dan ruang untuk parkir.
+
+## Legalitas yang perlu diperiksa
+Selain kondisi fisik, minta dan periksa dokumen: sertifikat, PBG (yang dulu dikenal sebagai IMB), dan bukti pelunasan PBB. Pastikan nama pemilik sesuai dan tanyakan apakah rumah sedang dijaminkan. Libatkan notaris atau PPAT sebelum membayar tanda jadi.
+
+## Tanda yang perlu diwaspadai
+- Bau lembap atau cat baru di satu area saja, yang mungkin menutupi masalah.
+- Retakan besar atau bertambah lebar.
+- Penjual yang menghindari pertanyaan tentang dokumen atau banjir.
+- Tekanan untuk segera membayar tanda jadi.
+
+## Setelah survei
+Catat kelebihan dan kekurangan tiap rumah, lalu bandingkan. Jangan memutuskan karena terburu-buru. Kalau masih ragu, datang lagi pada waktu yang berbeda atau ajak orang yang berpengalaman.
+
+## Pertanyaan untuk penjual atau agen
+- Mengapa rumah ini dijual?
+- Sudah berapa lama dihuni, dan apakah pernah ada renovasi besar?
+- Apakah pernah bocor atau tergenang banjir?
+- Berapa biaya bulanan seperti iuran lingkungan dan keamanan?
+- Apa saja yang termasuk dalam harga, misalnya AC, lampu, atau perabot?
+- Bagaimana status dokumen, dan apakah sedang dijaminkan?
+- Apakah harga masih bisa dinegosiasi?
+
+## Catat dan bandingkan
+Buat tabel sederhana untuk membandingkan rumah: harga, luas, kondisi, jarak ke tempat kerja, dan catatan khusus. Foto setiap bagian penting supaya mudah diingat saat kamu membandingkan beberapa rumah.
+
+
+## Buat janji survei
+Di [katalog LapakMu](/katalog/) kamu bisa melihat rumah beserta spesifikasinya. Untuk rumah yang tersedia, kamu bisa membuat janji survei atau menghubungi kami lewat WhatsApp.`,
+  faq:`T: Kapan waktu terbaik survei rumah?
+J: Siang hari untuk melihat kondisi bangunan dengan jelas, dan sebaiknya datang lagi sore atau setelah hujan untuk melihat genangan dan kondisi lingkungan.
+T: Bagaimana cara mengetahui rumah rawan banjir?
+J: Tanyakan langsung kepada warga sekitar atau pengurus RT, dan cari bekas ketinggian air di dinding atau pagar. Jangan hanya mengandalkan keterangan penjual.
+T: Perlukah mengajak orang yang ahli saat survei?
+J: Sangat membantu, terutama untuk memeriksa struktur bangunan. Ajak orang yang berpengalaman jika kamu tidak yakin menilai kondisinya.` }
 ];
 function posArticleSeed(){
   const p = posCfg(); const now = new Date().toISOString(); let n = 0;
