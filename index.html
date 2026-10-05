@@ -297,6 +297,7 @@ tbody tr:hover{background:#FAFBFE;}
 .art-tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.art-tools button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
 .art-prev{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:8px;max-height:360px;overflow:auto;line-height:1.7}.art-prev h2{font-size:17px}.art-prev table{border-collapse:collapse;width:100%;font-size:13px}.art-prev th,.art-prev td{border:1px solid var(--line);padding:5px 7px;text-align:left}
 .ar-rel{max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px;background:#fff}.ar-rel label{display:flex;padding:4px 0}
+.seo-idx-row{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--line)}.si-path{font-size:12px;color:var(--muted);word-break:break-all}.si-st{font-size:11.5px;font-weight:800;padding:2px 10px;border-radius:20px;align-self:flex-start}.si-new{background:#FFF1D6;color:#8A5A00}.si-chg{background:#E8F0FF;color:#1D4ED8}.si-done{background:#DCF5E6;color:#0E7A44}.si-btns{display:flex;gap:6px;flex-wrap:wrap}
 .seo-health{list-style:none;padding:0;margin:0}.seo-health li{display:flex;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.5}.seo-health li:first-child{border-top:0}.seo-log{background:#0F172A;color:#CFE3FF;border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;max-height:220px;overflow:auto;white-space:pre-wrap;margin:12px 0 0}
 .pos-steps{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.75}.pos-steps code{background:#EEF1F6;border-radius:5px;padding:1px 6px;font-size:12.5px}
 .pos-appt.is-today{border-left:4px solid var(--amber)}.pos-appt-when{font-size:13px;color:var(--muted);margin-bottom:2px}
@@ -7094,7 +7095,10 @@ function posCfg(){
   const fzd = posFrozenDefault(); p.frozen = p.frozen || {}; Object.keys(fzd).forEach(k=>{ if(p.frozen[k]===undefined) p.frozen[k] = fzd[k]; });
   const pdd = posPropDefault(); p.property = p.property || {}; Object.keys(pdd).forEach(k=>{ if(p.property[k]===undefined) p.property[k] = pdd[k]; }); p.properties = p.properties || [];
   const mdd = posMobilDefault(); p.mobil = p.mobil || {}; Object.keys(mdd).forEach(k=>{ if(p.mobil[k]===undefined) p.mobil[k] = mdd[k]; }); p.units = p.units || []; p.articles = p.articles || [];
-  const sdd = posSeoDefault(); p.seo = Object.assign({}, sdd, p.seo || {}); p.seo.gh = Object.assign({}, sdd.gh, p.seo.gh || {}); p.seo.slugs = p.seo.slugs || {};
+  const sdd = posSeoDefault(); if(!p.seo || typeof p.seo !== 'object') p.seo = {};
+  Object.keys(sdd).forEach(k=>{ if(p.seo[k] === undefined) p.seo[k] = (sdd[k] && typeof sdd[k] === 'object') ? JSON.parse(JSON.stringify(sdd[k])) : sdd[k]; });   /* diisi di tempat: objek tidak diganti, supaya perubahan dari layar tidak hilang */
+  ['gh', 'gsc'].forEach(g=>{ if(!p.seo[g] || typeof p.seo[g] !== 'object') p.seo[g] = {}; Object.keys(sdd[g]).forEach(k=>{ if(p.seo[g][k] === undefined) p.seo[g][k] = sdd[g][k]; }); });
+  if(!p.seo.slugs) p.seo.slugs = {}; if(!p.seo.indexReq) p.seo.indexReq = {};
   if(!p.frozenSeeded){
     POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
     p.frozenSeeded = true;
@@ -8907,7 +8911,8 @@ function posUnitForm(id){
 }
 
 /* ===================== SEO: halaman statis untuk Google & iklan ===================== */
-function posSeoDefault(){ return { siteUrl:'https://lapakmu.store', name:'LapakMu', gh:{ owner:'geelywins', repo:'tokoacc', branch:'main' }, slugs:{}, lastBuild:null, lastPublish:null }; }
+function posSeoDefault(){ return { siteUrl:'https://lapakmu.store', name:'LapakMu', gh:{ owner:'geelywins', repo:'tokoacc', branch:'main' }, slugs:{}, lastBuild:null, lastPublish:null, gsc:{ property:'', user:'' }, indexReq:{} }; }
+function seoHash(t){ let h = 0x811c9dc5; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16); }
 function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').filter((w, i, a)=>w !== a[i - 1]).join('-').replace(/^(.{1,60})(?:-.*)?$/, (m, g)=>m.length > 60 ? g : m).replace(/-+$/, '').replace(/(?:-(?:dan|yang|untuk|dari|sampai|sebelum|agar|atau|di|ke|pada|dengan|vs|ini|itu))+$/, ''); }
 function seoSlug(prefix, id, title){
   const m = posCfg().seo.slugs; const key = prefix + ':' + id; if(m[key]) return m[key];
@@ -9094,9 +9099,15 @@ async function seoBuild(log){
   files.push({ path:'sitemap.xml', text:`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u=>`  <url><loc>${posEsc(u[0])}</loc><lastmod>${today}</lastmod><priority>${u[1]}</priority></url>`).join('\n')}\n</urlset>\n` });
   files.push({ path:'robots.txt', text:`User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n` });
   files.push({ path:'site.webmanifest', text:JSON.stringify({ name:S.name, short_name:S.name.slice(0, 12), description:'Aksesoris mobil, mobil baru dan bekas, serta properti.', start_url:'/', scope:'/', display:'standalone', background_color:'#ffffff', theme_color:'#16202B', lang:'id', icons:[{ src:'/favicon-192.png', sizes:'192x192', type:'image/png' }, { src:'/favicon-512.png', sizes:'512x512', type:'image/png' }] }) });
+  const unesc = t=>String(t).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&amp;/g, '&');
+  const pages = files.filter(f=>f.text && /index\.html$/.test(f.path) && !/name="robots" content="noindex/.test(f.text)).map(f=>{
+    const dir = f.path.replace(/index\.html$/, ''); const depth = dir.split('/').filter(Boolean).length; const seg = dir.split('/')[0];
+    const kind = depth > 1 ? ({ rumah:'Rumah', mobil:'Mobil', aksesoris:'Produk', 'frozen-food':'Produk', panduan:'Artikel' }[seg] || 'Halaman') : (seg === 'katalog' ? 'Katalog' : 'Daftar');
+    const title = unesc((/<title>([^<]*)<\/title>/.exec(f.text) || [])[1] || dir).replace(/\s*\|\s*[^|]*$/, '');
+    return { url:`${base}/${dir}`, label:title, kind, hash:seoHash(f.text) }; });
   p.seo.lastBuild = { at:new Date().toISOString(), rev:Number(p.rev) || 0, pages:items.length, indexable:items.filter(i=>!i.sold).length }; saveSettings();
   const articleSlugs = {}; artItems.forEach(ai=>{ articleSlugs[ai.a.id] = ai.slug; });
-  return { files, items, urls, base, articleSlugs, stats:{ articles:artItems.length, pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
+  return { files, items, urls, base, articleSlugs, pages, stats:{ articles:artItems.length, pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
 }
 
 const SEO_CRC = (()=>{ const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
@@ -9161,6 +9172,30 @@ async function seoDownloadZip(){
   catch(e){ console.error(e); log('Gagal: ' + (e.message || e)); toast('Gagal membuat halaman SEO: ' + (e.message || ''), 'err'); }
   seoBusy(false); posRenderSeo(true);
 }
+let seoIdxFilter = 'todo';
+function seoGscProp(){ const s = posCfg().seo; if(s.gsc.property) return s.gsc.property; try{ return 'sc-domain:' + new URL(s.siteUrl).hostname; }catch(e){ return ''; } }
+function seoGscLink(url){ const s = posCfg().seo; const u = String(s.gsc.user || '').trim(); return `https://search.google.com/${/^\d+$/.test(u) ? 'u/' + u + '/' : ''}search-console/inspect?resource_id=${encodeURIComponent(seoGscProp())}&id=${encodeURIComponent(url)}`; }
+function seoIdxStatus(pg){ const r = posCfg().seo.indexReq[pg.url]; if(!r) return ['new', 'Belum diminta']; if(r.hash !== pg.hash) return ['chg', 'Berubah sejak diminta']; return ['done', 'Sudah diminta ' + new Date(r.at).toLocaleDateString('id-ID')]; }
+function seoIdxMark(url){ const p = posCfg(); const pg = ((p.seo.lastPublish || {}).pages || []).find(x=>x.url === url); if(!pg) return; p.seo.indexReq[url] = { at:new Date().toISOString(), hash:pg.hash }; saveSettings(); posRenderSeo(true); }
+function seoIdxMarkAll(){
+  confirmModal('Tandai semua sudah diminta', 'Semua halaman di daftar ditandai sudah diminta pengindeksannya. Pakai ini kalau kamu sudah mengirim sebagian besar ke Google dengan cara lain.', ()=>{ const p = posCfg(); const now = new Date().toISOString(); ((p.seo.lastPublish || {}).pages || []).forEach(pg=>{ p.seo.indexReq[pg.url] = { at:now, hash:pg.hash }; }); saveSettings(); posRenderSeo(true); });
+}
+async function seoIdxCopy(url){ try{ await navigator.clipboard.writeText(url); toast('Alamat disalin'); }catch(e){ window.prompt('Salin alamat ini:', url); } }
+function seoIdxCard(){
+  const p = posCfg(); const lp = p.seo.lastPublish || {}; const pages = lp.pages;
+  if(!pages) return `<div class="card"><h2 style="margin:0 0 6px">Minta pengindeksan di Google</h2><p class="ex-sub" style="margin:0">Daftar halaman dan tombol pemeriksaan URL muncul setelah kamu menekan <b>Terbitkan ke GitHub</b>.</p></div>`;
+  const st = pages.map(pg=>[pg, seoIdxStatus(pg)]); const nNew = st.filter(x=>x[1][0] === 'new').length, nChg = st.filter(x=>x[1][0] === 'chg').length, nDone = st.filter(x=>x[1][0] === 'done').length;
+  const order = { Artikel:0, Mobil:1, Rumah:2, Produk:3, Daftar:4, Katalog:5, Halaman:6 }; const rank = { new:0, chg:1, done:2 };
+  const rows = st.filter(x=>seoIdxFilter === 'all' || x[1][0] !== 'done').sort((a, b)=>(rank[a[1][0]] - rank[b[1][0]]) || ((order[a[0].kind] ?? 9) - (order[b[0].kind] ?? 9)) || a[0].label.localeCompare(b[0].label));
+  let path = u=>u.replace(/^https?:\/\/[^/]+/, '');
+  return `<div class="card"><h2 style="margin:0 0 4px">Minta pengindeksan di Google</h2>
+    <p class="ex-sub" style="margin:0 0 10px"><b>${nNew}</b> belum diminta · <b>${nChg}</b> berubah · <b>${nDone}</b> sudah. Google sudah membaca sitemap-mu sendiri, jadi daftar ini hanya untuk <b>mendorong halaman terpenting</b>. Kuota sekitar 10-12 permintaan per hari, jadi mulai dari artikel dan unit yang paling ingin cepat tampil.</p>
+    <p class="ex-sub" style="margin:0 0 10px">Ketuk <b>Periksa di Google</b>, tunggu hasil pemeriksaan, tekan <b>Request indexing</b>, lalu kembali dan ketuk <b>Sudah</b>.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><select id="seo_idxf" style="max-width:240px"><option value="todo" ${seoIdxFilter === 'todo' ? 'selected' : ''}>Belum atau berubah</option><option value="all" ${seoIdxFilter === 'all' ? 'selected' : ''}>Semua halaman</option></select>
+      ${nNew + nChg ? '<button class="btn ghost sm" id="seo_idxall" type="button">Tandai semua sudah</button>' : ''}</div>
+    <div id="seoIdxList">${rows.length ? rows.map(([pg, s2])=>`<div class="seo-idx-row" data-url="${posEsc(pg.url)}"><div><b>${posEsc(pg.label)}</b> <span class="pill">${posEsc(pg.kind)}</span><div class="si-path">${posEsc(path(pg.url))}</div></div><span class="si-st si-${s2[0]}">${posEsc(s2[1])}</span>
+      <div class="si-btns"><a class="btn sm" target="_blank" rel="noopener noreferrer" href="${posEsc(seoGscLink(pg.url))}">Periksa di Google ↗</a><button class="btn ghost sm" type="button" data-copy="1">Salin alamat</button>${s2[0] === 'done' ? '' : '<button class="btn ghost sm" type="button" data-mark="1">Sudah</button>'}</div></div>`).join('') : `<div class="empty">Semua halaman sudah diminta. Setelah kamu menerbitkan perubahan, halaman yang berubah muncul di sini lagi.</div>`}</div></div>`;
+}
 function seoResetSlugs(){
   confirmModal('Atur ulang alamat halaman', 'Alamat (URL) semua halaman dibuat ulang dari judul terbaru. Lakukan ini hanya sebelum Google mengindeks halamanmu, karena alamat lama akan hilang. Setelah ini tekan Terbitkan ke GitHub. Lanjutkan?', ()=>{
     const p = posCfg(); p.seo.slugs = {}; if(p.seo.lastPublish) p.seo.lastPublish.rev = -1; saveSettings(); posUpdateBadge(); toast('Alamat diatur ulang. Tekan Terbitkan ke GitHub.'); posRenderSeo();
@@ -9173,7 +9208,7 @@ async function seoPublishGithub(){
   seoBusy(true);
   try{ log('Membuat halaman…'); const r = await seoBuild(log); log(`Menghubungi GitHub (${gh.owner}/${gh.repo}, branch ${gh.branch})…`); const res = await seoPublish(r.files, gh, token, log);
     const prev = p.seo.lastPublish || {};
-    p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit || prev.commit || '', pages:r.stats.pages, created:res.created, removed:res.removed, articles:r.articleSlugs }; saveSettings();
+    p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit || prev.commit || '', pages:r.stats.pages, created:res.created, removed:res.removed, articles:r.articleSlugs, pages:r.pages }; saveSettings();
     if(!res.commit){ log('Tidak ada perubahan: semua file sudah sama dengan yang ada di GitHub.'); toast('Tidak ada perubahan untuk diterbitkan'); }
     else { log(`Berhasil: ${res.created} file diunggah, ${res.same} tidak berubah, ${res.removed} file lama dihapus. GitHub Pages memperbarui situs dalam sekitar 1 menit.`); toast('Halaman SEO diterbitkan ke GitHub'); }
     if(posIsAdmin){ log('Memperbarui katalog toko (bagian Panduan di beranda)…'); await posPublish(false); log(posPublishError ? 'Katalog toko belum terbarui, tekan Update katalog di atas.' : `Beranda toko menampilkan ${Object.keys(r.articleSlugs).length} artikel terbit.`); } }
@@ -9218,19 +9253,26 @@ function posRenderSeo(keepLog){
         <div class="field"><label>Nama repo</label><input type="text" id="seo_repo" value="${posEsc(s.gh.repo)}" autocapitalize="none"></div>
         <div class="field"><label>Branch</label><input type="text" id="seo_branch" value="${posEsc(s.gh.branch)}" autocapitalize="none"></div>
         <div class="field"><label>Token GitHub <span class="muted">${hasTok ? '(tersimpan di browser ini)' : '(belum diisi)'}</span></label><input type="password" id="seo_token" autocomplete="off" placeholder="${hasTok ? '•••••••• kosongkan kalau tidak diganti' : 'github_pat_...'}"></div>
+        <div class="field"><label>Properti Search Console <span class="muted">(kosong = domain otomatis)</span></label><input type="text" id="seo_gscprop" value="${posEsc(s.gsc.property)}" placeholder="sc-domain:lapakmu.store" autocapitalize="none"></div>
+        <div class="field"><label>Nomor akun Google <span class="muted">(opsional)</span></label><input type="text" id="seo_gscuser" inputmode="numeric" value="${posEsc(s.gsc.user)}" placeholder="mis. 3"></div>
       </div>
+      <p class="ex-sub" style="margin:6px 0 0">Nomor akun dipakai kalau tautan Search Console membuka akun Google yang salah. Lihat angka setelah <code>/u/</code> di alamat Search Console-mu, misalnya <code>search.google.com/u/3/...</code> berarti 3.</p>
       <p class="ex-sub" style="margin:6px 0 0">Token hanya disimpan di browser ini, tidak ikut ke database atau katalog. Buat token <b>fine-grained</b> khusus repo toko dengan izin <b>Contents: Read and write</b>, dan beri masa berlaku.${hasTok ? ' <button class="link-btn" id="seo_deltok" type="button">Hapus token</button>' : ''}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost seo-act" id="seo_save">Simpan pengaturan</button><button class="btn seo-act" id="seo_pub">Terbitkan ke GitHub</button><button class="btn ghost seo-act" id="seo_zip">Unduh ZIP</button><button class="btn ghost seo-act" id="seo_reslug" type="button">Atur ulang alamat</button></div>
       <pre id="seoLog" class="seo-log" ${prevLog ? '' : 'hidden'}>${posEsc(prevLog)}</pre></div>
+    ${seoIdxCard()}
     <div class="card"><h2 style="margin:0 0 6px">Setelah terbit: daftarkan ke Google</h2>
-      <ol class="pos-steps"><li>Buka <b>search.google.com/search-console</b> dan tambahkan properti <b>Domain</b> <code>lapakmu.store</code>.</li><li>Verifikasi dengan record <b>TXT</b> di DNS Hostinger (Google menunjukkan nilainya).</li><li>Di menu <b>Sitemap</b>, kirim <code>sitemap.xml</code>.</li><li>Di <b>Pemeriksaan URL</b>, tempel alamat beranda dan satu halaman rumah atau mobil, lalu tekan <b>Minta pengindeksan</b>.</li><li>Cek lagi beberapa hari kemudian di laporan <b>Halaman</b>. Google tidak menjamin waktunya.</li></ol></div>`;
+      <ol class="pos-steps"><li>Buka <b>search.google.com/search-console</b> dan tambahkan properti <b>Domain</b> <code>lapakmu.store</code>.</li><li>Verifikasi dengan record <b>TXT</b> di DNS Hostinger (Google menunjukkan nilainya).</li><li>Di menu <b>Sitemap</b>, kirim <code>sitemap.xml</code>.</li><li>Di <b>Pemeriksaan URL</b>, tempel alamat beranda dan satu halaman rumah atau mobil, lalu tekan <b>Request indexing</b>. Untuk halaman yang baru terbit, pakai daftar di kartu <b>Minta pengindeksan di Google</b> di atas.</li><li>Cek lagi beberapa hari kemudian di laporan <b>Halaman</b>. Google tidak menjamin waktunya.</li></ol></div>`;
   document.getElementById('seo_save').onclick = ()=>{
     const url = document.getElementById('seo_url').value.trim().replace(/\/+$/, ''); if(!/^https:\/\/[^\s/]+$/.test(url)){ toast('Alamat situs harus diawali https://, contoh https://lapakmu.store','err'); return; }
-    Object.assign(s, { siteUrl:url, name:document.getElementById('seo_name').value.trim() || 'LapakMu' }); Object.assign(s.gh, { owner:document.getElementById('seo_owner').value.trim(), repo:document.getElementById('seo_repo').value.trim(), branch:document.getElementById('seo_branch').value.trim() || 'main' });
+    Object.assign(s, { siteUrl:url, name:document.getElementById('seo_name').value.trim() || 'LapakMu' }); Object.assign(s.gsc, { property:document.getElementById('seo_gscprop').value.trim(), user:document.getElementById('seo_gscuser').value.trim().replace(/\D/g, '') }); Object.assign(s.gh, { owner:document.getElementById('seo_owner').value.trim(), repo:document.getElementById('seo_repo').value.trim(), branch:document.getElementById('seo_branch').value.trim() || 'main' });
     const tk = document.getElementById('seo_token').value.trim(); if(tk){ try{ localStorage.setItem('dd_gh_token', tk); }catch(e){ toast('Browser menolak menyimpan token','err'); return; } }
     saveSettings(); toast('Pengaturan SEO disimpan'); posRenderSeo();
   };
   const dt = document.getElementById('seo_deltok'); if(dt) dt.onclick = ()=>{ try{ localStorage.removeItem('dd_gh_token'); }catch(e){} toast('Token dihapus'); posRenderSeo(); };
+  const il = document.getElementById('seoIdxList'); if(il) il.addEventListener('click', e=>{ const row = e.target.closest('.seo-idx-row'); if(!row) return; if(e.target.closest('[data-mark]')) seoIdxMark(row.dataset.url); else if(e.target.closest('[data-copy]')) seoIdxCopy(row.dataset.url); });
+  const xf = document.getElementById('seo_idxf'); if(xf) xf.onchange = ()=>{ seoIdxFilter = xf.value; posRenderSeo(true); };
+  const xa = document.getElementById('seo_idxall'); if(xa) xa.onclick = seoIdxMarkAll;
   document.getElementById('seo_pub').onclick = seoPublishGithub; document.getElementById('seo_zip').onclick = seoDownloadZip; document.getElementById('seo_reslug').onclick = seoResetSlugs;
 }
 
