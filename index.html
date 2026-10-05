@@ -294,6 +294,7 @@ tbody tr:hover{background:#FAFBFE;}
 .rep-bar{height:8px;background:#E8ECF4;border-radius:8px;overflow:hidden}.rep-bar i{display:block;height:100%;background:var(--blue);border-radius:8px}
 .rf-evid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rf-evid img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#EEF1F6}
 .rp-mode{display:flex;flex-direction:column;gap:4px;margin-top:10px}.rp-mode label{font-size:12px;font-weight:700;color:var(--muted)}.rp-mode select{max-width:100%}
+.seo-health{list-style:none;padding:0;margin:0}.seo-health li{display:flex;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.5}.seo-health li:first-child{border-top:0}.seo-log{background:#0F172A;color:#CFE3FF;border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;max-height:220px;overflow:auto;white-space:pre-wrap;margin:12px 0 0}
 .pos-steps{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.75}.pos-steps code{background:#EEF1F6;border-radius:5px;padding:1px 6px;font-size:12.5px}
 .pos-appt.is-today{border-left:4px solid var(--amber)}.pos-appt-when{font-size:13px;color:var(--muted);margin-bottom:2px}
 .pos-kv{display:grid;grid-template-columns:130px 1fr;gap:6px 12px;font-size:13.5px;margin-bottom:6px}.pos-kv .k{color:var(--muted)}.pos-kv .v{font-weight:600}
@@ -1432,6 +1433,7 @@ tbody tr:hover{background:#FAFBFE;}
           <button class="growth-tab" data-ptab="frozen">🧊 Frozen Food</button>
           <button class="growth-tab" data-ptab="props">🏠 Properti</button>
           <button class="growth-tab" data-ptab="units">🚗 Mobil Baru &amp; Bekas</button>
+          <button class="growth-tab" data-ptab="seo">🔎 SEO <span id="posSeoBadge"></span></button>
           <button class="growth-tab" data-ptab="appts">📅 Janji Temu <span id="posApptBadge"></span></button>
           <button class="growth-tab" data-ptab="promos">🏷️ Kode Promo &amp; Deal</button>
           <button class="growth-tab" data-ptab="banners">🖼️ Banner</button>
@@ -1480,6 +1482,7 @@ tbody tr:hover{background:#FAFBFE;}
           <div class="card"><div id="posMobilCfg"></div></div>
           <div class="card"><div class="vd-head"><h2 style="margin:0">Katalog mobil</h2><button class="btn sm" onclick="posUnitForm()">+ Tambah unit</button></div><div id="posUnitList"></div></div>
         </div>
+        <div class="pos-panel" id="ppanel-seo" style="display:none"><div id="posSeoBody"></div></div>
         <div class="pos-panel" id="ppanel-appts" style="display:none">
           <div class="card"><div class="toolbar"><select id="posApptStatus"><option value="">Semua status</option><option value="baru">Menunggu konfirmasi</option><option value="dikonfirmasi">Dikonfirmasi</option><option value="selesai">Selesai</option><option value="batal">Dibatalkan</option></select>
             <select id="posApptWhen"><option value="">Semua tanggal</option><option value="today">Hari ini</option><option value="upcoming">Mendatang</option><option value="past">Sudah lewat</option></select></div></div>
@@ -7082,6 +7085,7 @@ function posCfg(){
   const fzd = posFrozenDefault(); p.frozen = p.frozen || {}; Object.keys(fzd).forEach(k=>{ if(p.frozen[k]===undefined) p.frozen[k] = fzd[k]; });
   const pdd = posPropDefault(); p.property = p.property || {}; Object.keys(pdd).forEach(k=>{ if(p.property[k]===undefined) p.property[k] = pdd[k]; }); p.properties = p.properties || [];
   const mdd = posMobilDefault(); p.mobil = p.mobil || {}; Object.keys(mdd).forEach(k=>{ if(p.mobil[k]===undefined) p.mobil[k] = mdd[k]; }); p.units = p.units || [];
+  const sdd = posSeoDefault(); p.seo = Object.assign({}, sdd, p.seo || {}); p.seo.gh = Object.assign({}, sdd.gh, p.seo.gh || {}); p.seo.slugs = p.seo.slugs || {};
   if(!p.frozenSeeded){
     POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
     p.frozenSeeded = true;
@@ -7358,6 +7362,7 @@ function posBuildCatalog(){
     frozen: p.frozen.enabled ? posFrozenOut(p.frozen) : null,
     properties: p.property.enabled ? posPropertiesOut() : [], property: p.property.enabled ? posPropertyOut(p.property) : null,
     units: p.mobil.enabled ? posUnitsOut() : [], mobil: p.mobil.enabled ? posMobilOut(p.mobil) : null,
+    live: posLiveMap(p),
     refundPolicy: { returnDays:Number((p.refundPolicy||{}).returnDays) || 7, note:(p.refundPolicy||{}).note || '' },
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
@@ -7429,6 +7434,7 @@ function renderToko(){
   if(t==='frozen') posRenderFrozen();
   if(t==='props') posRenderProps();
   if(t==='units') posRenderUnits();
+  if(t==='seo') posRenderSeo();
   if(t==='appts') posRenderAppts();
   if(t==='reports') posRenderReports();
   if(t==='promos') posRenderPromos();
@@ -8342,6 +8348,7 @@ function posUpdateBadge(){
   const nav = document.getElementById('navTokoBadge'); if(nav) nav.textContent = (n + na) ? (n + na) : '';
   const tb = document.getElementById('posNewBadge'); if(tb) tb.textContent = n ? `(${n})` : '';
   const ab = document.getElementById('posApptBadge'); if(ab) ab.textContent = na ? `(${na})` : '';
+  const sb = document.getElementById('posSeoBadge'); if(sb){ const sp = posCfg(); sb.textContent = (sp.seo.lastPublish && Number(sp.rev) > Number(sp.seo.lastPublish.rev)) ? '(!)' : ''; }
 }
 function posStatusLabelFor(o, k){
   if(o && o.shipping && o.shipping.pending && k==='baru') return 'Menunggu ongkir';
@@ -8741,6 +8748,12 @@ function posUnitsOut(){
     city:s(x.city), address:s(x.address), mapUrl:posSafeUrl(x.mapUrl), features:x.features || [], highlights:x.highlights || [], serviceHistory:s(x.serviceHistory), docs:s(x.docs), desc:s(x.desc),
     images:x.images || [], videoUrl:posSafeUrl(x.videoUrl), agentName:s(x.agentName), agentWa:s(x.agentWa), createdAt:s(x.createdAt), order:i }));
 }
+function posLiveMap(p){
+  const o = {};
+  if(p.property.enabled) p.properties.filter(x=>x.active!==false && x.title).forEach(x=>{ o[x.id] = { s:x.status || 'tersedia', p:Number(x.price) || 0 }; });
+  if(p.mobil.enabled) p.units.filter(x=>x.active!==false && x.brand && x.model).forEach(x=>{ o[x.id] = { s:x.status || 'tersedia', p:Number(x.price) || 0 }; });
+  return o;
+}
 function posMobilOut(f){
   return { name:f.name || 'Mobil', tagline:f.tagline || '', wa:f.wa || '', slots:(f.slots || []).filter(Boolean), leadHours:Number(f.leadHours) || 0, horizonDays:Math.max(1, Number(f.horizonDays) || 14),
     closedWeekdays:f.closedWeekdays || [], closedDates:f.closedDates || [], meetNote:f.meetNote || '', address:f.address || '', mapUrl:posSafeUrl(f.mapUrl), kreditRate:Number(f.kreditRate) || 0, tradeIn:f.tradeIn!==false, disclaimer:f.disclaimer || '' };
@@ -8871,6 +8884,304 @@ function posUnitForm(id){
     closeModal(); await posSaveAndPublish('Unit disimpan'); posRenderUnits(); posRenderStatus();
   };
 }
+
+/* ===================== SEO: halaman statis untuk Google & iklan ===================== */
+function posSeoDefault(){ return { siteUrl:'https://lapakmu.store', name:'LapakMu', gh:{ owner:'geelywins', repo:'tokoacc', branch:'main' }, slugs:{}, lastBuild:null, lastPublish:null }; }
+function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, ''); }
+function seoSlug(prefix, id, title){
+  const m = posCfg().seo.slugs; const key = prefix + ':' + id; if(m[key]) return m[key];
+  const base = seoSlugify(title) || 'item'; const used = new Set(Object.entries(m).filter(([k])=>k.startsWith(prefix + ':')).map(e=>e[1])); let slug = base, n = 2;
+  while(used.has(slug)) slug = base + '-' + (n++); m[key] = slug; return slug;
+}
+const SEO_CSS = 'body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#EEF1F6;color:#16202B;line-height:1.6}a{color:#B91C1C}img{max-width:100%;height:auto}header.h{background:#16202B;color:#fff}header.h div{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}header.h a{color:#fff;text-decoration:none;font-weight:700;font-size:14px}header.h .b{display:flex;align-items:center;gap:8px;font-size:17px}header.h .b img{width:30px;height:30px;border-radius:8px}main{max-width:960px;margin:0 auto;padding:16px 16px 96px}nav.bc{font-size:13px;color:#5A6673;margin-bottom:10px}nav.bc a{color:#5A6673}h1{font-size:26px;line-height:1.25;margin:4px 0 6px;letter-spacing:-.01em}h2{font-size:18px;margin:26px 0 8px}.loc{color:#5A6673;margin:0 0 8px}.price{font-size:26px;font-weight:800;color:#C2370F;margin:6px 0 4px}.price small{font-size:13px;color:#5A6673;font-weight:700}.badge{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;background:#DCF5E6;color:#0E7A44;vertical-align:middle;margin-left:6px}.badge.sold{background:#E6E9EE;color:#5A6673}.badge.book{background:#FFF1D6;color:#8A5A00}.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(22,32,43,.08)}.gal{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:12px 0}.gal img{width:100%;border-radius:12px;background:#DDE3EA;object-fit:cover;aspect-ratio:4/3}dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:0;font-size:14.5px}dt,dd{padding:8px 0;border-top:1px solid #E6E9EE;margin:0}dt{color:#5A6673}dd{font-weight:700}ul.f{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none;margin:0}ul.f li{background:#fff;border-radius:20px;padding:5px 13px;font-size:13.5px;font-weight:600}ul.l{padding-left:20px;margin:0}.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.it{display:block;background:#fff;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 1px 4px rgba(22,32,43,.08)}.it img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#DDE3EA}.it div{padding:12px 14px}.it b{display:block}.it .p{color:#C2370F;font-weight:800}.it small{color:#5A6673}.cta{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -4px 18px rgba(22,32,43,.12);padding:10px 16px;display:flex;gap:10px;justify-content:center}.cta a{flex:1;max-width:320px;text-align:center;padding:13px 10px;border-radius:12px;font-weight:800;text-decoration:none;font-size:14.5px}.cta .w{background:#fff;border:2px solid #B91C1C;color:#B91C1C}.cta .a{background:#FFB020;color:#16202B}.note{font-size:13px;color:#5A6673}.gone{background:#FFF1D6;border-radius:12px;padding:12px 14px;margin:10px 0;font-weight:700;color:#8A5A00}footer{max-width:960px;margin:0 auto;padding:0 16px 120px;color:#5A6673;font-size:13px}@media(max-width:560px){dl{grid-template-columns:120px 1fr}h1{font-size:22px}}';
+function seoJson(o){ return JSON.stringify(o).replace(/</g, '\\u003c'); }
+function seoTrim(t, n){ t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t; }
+function seoParas(t){ return String(t || '').split(/\n{1,}/).map(x=>x.trim()).filter(Boolean).map(x=>`<p>${posEsc(x)}</p>`).join(''); }
+function seoRp(n){ return 'Rp' + Math.round(Number(n) || 0).toLocaleString('id-ID'); }
+function seoNums(o, out){ out = out || []; if(typeof o === 'number'){ if(o > 0) out.push(o); } else if(o && typeof o === 'object'){ Object.values(o).forEach(v=>seoNums(v, out)); } else if(typeof o === 'string' && /^\d+(\.\d+)?$/.test(o) && Number(o) > 0) out.push(Number(o)); return out; }
+function seoAvail(st){ return st === 'terjual' ? 'https://schema.org/SoldOut' : st === 'booking' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock'; }
+function seoLayout(S, o){
+  const nav = (S.sections || []).map(s=>`<a href="${S.base}/${s.path}/">${posEsc(s.label)}</a>`).join('');
+  const img = o.image || { url:S.base + '/og-default.jpg', w:1200, h:630 };
+  const ld = (o.ld || []).map(x=>`<script type="application/ld+json">${seoJson(x)}<\/script>`).join('\n');
+  return `<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${posEsc(o.title)}</title>
+<meta name="description" content="${posEsc(o.desc)}">
+<meta name="robots" content="${o.robots || 'index,follow,max-image-preview:large'}">
+<link rel="canonical" href="${posEsc(o.canonical)}">
+<link rel="icon" href="${S.base}/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="${S.base}/apple-touch-icon.png">
+<meta property="og:type" content="${o.ogType || 'website'}"><meta property="og:site_name" content="${posEsc(S.name)}"><meta property="og:locale" content="id_ID">
+<meta property="og:title" content="${posEsc(o.title)}"><meta property="og:description" content="${posEsc(o.desc)}"><meta property="og:url" content="${posEsc(o.canonical)}">
+<meta property="og:image" content="${posEsc(img.url)}">${img.w ? `<meta property="og:image:width" content="${img.w}"><meta property="og:image:height" content="${img.h}">` : ''}
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${posEsc(o.title)}"><meta name="twitter:description" content="${posEsc(o.desc)}"><meta name="twitter:image" content="${posEsc(img.url)}">
+${ld}
+<style>${SEO_CSS}</style></head>
+<body><header class="h"><div><a class="b" href="${S.base}/"><img src="${o.up || (S.base + '/')}favicon-48.png" width="30" height="30" alt="${posEsc(S.name)}">${posEsc(S.name)}</a><a href="${S.base}/katalog/">Katalog</a>${nav}<a href="${S.base}/">Toko online</a></div></header>
+<main>${o.crumbs ? `<nav class="bc" aria-label="Breadcrumb">${o.crumbs.map((c, i)=>i < o.crumbs.length - 1 ? `<a href="${posEsc(c[1])}">${posEsc(c[0])}</a>` : `<span>${posEsc(c[0])}</span>`).join(' › ')}</nav>` : ''}${o.body}</main>
+<footer><p>${posEsc(S.name)}${S.area ? ' · ' + posEsc(S.area) : ''}. Harga dan ketersediaan dapat berubah. Hubungi kami untuk informasi terbaru.</p></footer>${o.cta || ''}${o.script || ''}
+</body></html>`;
+}
+function seoBreadcrumbLd(S, crumbs){ return { '@context':'https://schema.org', '@type':'BreadcrumbList', itemListElement:crumbs.map((c, i)=>({ '@type':'ListItem', position:i + 1, name:c[0], item:c[1] })) }; }
+function seoCta(S, it){
+  if(it.sold) return it.wa ? `<div class="cta" id="cta"><a class="w" href="${posEsc(waLink(it.wa, 'Halo, saya cari unit seperti ' + it.title + '. Bisa dibantu?'))}" rel="noopener">Tanya unit serupa</a></div>` : '';
+  return `<div class="cta" id="cta">${it.wa ? `<a class="w" href="${posEsc(waLink(it.wa, `Halo, saya tertarik dengan ${it.title} (${it.priceText}). Bisa minta info lebih lanjut? ${it.url}`))}" rel="noopener">Hubungi WhatsApp</a>` : ''}<a class="a" href="${posEsc(it.appHref)}">${posEsc(it.appLabel)}</a></div>`;
+}
+function seoLiveScript(S, it, dbUrl){
+  if(!dbUrl || !it.live) return '';
+  return `<script>(function(){var id=${seoJson(it.id)},u=${seoJson(String(dbUrl).replace(/\/+$/, ''))}+'/pos/catalog/live/'+encodeURIComponent(id)+'.json';var L={tersedia:['Tersedia',''],booking:['Sedang booking','book'],terjual:['Terjual','sold']};
+fetch(u).then(function(r){return r.json()}).then(function(v){var st=document.getElementById('status'),pr=document.getElementById('price'),cta=document.getElementById('cta');
+if(v===null){var g=document.createElement('div');g.className='gone';g.textContent='Listing ini sudah tidak tersedia. Lihat pilihan lain di katalog kami.';(document.querySelector('h1')||document.body).after(g);if(cta)cta.remove();return}
+if(st&&L[v.s]){st.textContent=L[v.s][0];st.className='badge '+L[v.s][1]}if(pr&&v.p)pr.firstChild.nodeValue='Rp'+Number(v.p).toLocaleString('id-ID')+' ';
+if(v.s==='terjual'){var g2=document.createElement('div');g2.className='gone';g2.textContent='Properti/unit ini sudah terjual.';(document.querySelector('h1')||document.body).after(g2);if(cta){var w=cta.querySelector('.w');cta.innerHTML='';if(w)cta.appendChild(w)}}}).catch(function(){})})();<\/script>`;
+}
+function seoSpecRows(rows){ rows = rows.filter(r=>r[1] !== '' && r[1] != null && r[1] !== 0); return rows.length ? `<h2>Spesifikasi</h2><div class="card"><dl>${rows.map(r=>`<dt>${posEsc(r[0])}</dt><dd>${posEsc(r[1])}</dd>`).join('')}</dl></div>` : ''; }
+function seoGallery(it){ return it.imgs.length ? `<div class="gal">${it.imgs.map((im, i)=>`<img src="../../${posEsc(im.file)}" ${im.w ? `width="${im.w}" height="${im.h}"` : ''} alt="${posEsc(it.title + (i ? ' foto ' + (i + 1) : ''))}" ${i ? 'loading="lazy"' : 'fetchpriority="high"'}>`).join('')}</div>` : ''; }
+function seoItemCard(S, it){ return `<a class="it" href="${posEsc(it.url)}">${it.imgs[0] ? `<img src="../${posEsc(it.imgs[0].file)}" ${it.imgs[0].w ? `width="${it.imgs[0].w}" height="${it.imgs[0].h}"` : ''} alt="${posEsc(it.title)}" loading="lazy">` : '<img alt="" src="../favicon-192.png" style="object-fit:contain;padding:30px">'}<div><b>${posEsc(it.title)}</b><span class="p">${posEsc(it.priceText)}</span><br><small>${posEsc(it.sub || '')}</small></div></a>`; }
+
+async function seoImage(id){
+  const url = await posImgSrc(id); if(!url) return null;
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i.exec(url); if(!m) return null;
+  const ext = /webp/i.test(m[1]) ? 'webp' : /png/i.test(m[1]) ? 'png' : 'jpg'; const bin = atob(m[2]); const bytes = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const dims = await new Promise(res=>{ const im = new Image(); im.onload = ()=>res({ w:im.naturalWidth, h:im.naturalHeight }); im.onerror = ()=>res({ w:0, h:0 }); im.src = url; });
+  return { ext, bytes, w:dims.w, h:dims.h };
+}
+function seoOffer(S, it, extra){ return Object.assign({ '@type':'Offer', price:Math.round(it.price), priceCurrency:'IDR', availability:seoAvail(it.status), url:it.url, seller:{ '@id':S.base + '/#org' } }, extra || {}); }
+function seoItemLd(S, it, x, cat){
+  const imgs = it.imgs.map(i=>i.abs); const crumbs = [['Beranda', S.base + '/'], [it.sectionLabel, S.base + '/' + it.section + '/'], [it.title, it.url]];
+  let main;
+  if(it.kind === 'rumah'){
+    const about = { '@type':'House', name:it.title, address:{ '@type':'PostalAddress', addressLocality:x.city, addressCountry:'ID' } };
+    if(x.address) about.address.streetAddress = x.address; if(x.kt) about.numberOfBedrooms = x.kt; if(x.km) about.numberOfBathroomsTotal = x.km;
+    if(x.lb) about.floorSize = { '@type':'QuantitativeValue', value:x.lb, unitCode:'MTK' }; if(x.lt) about.lotSize = { '@type':'QuantitativeValue', value:x.lt, unitCode:'MTK' }; if(x.yearBuilt) about.yearBuilt = x.yearBuilt;
+    main = { '@context':'https://schema.org', '@type':'RealEstateListing', name:it.title, url:it.url, description:it.metaDesc, datePosted:String(x.createdAt || '').slice(0, 10) || undefined, image:imgs.length ? imgs : undefined, offers:seoOffer(S, it), about };
+  } else if(it.kind === 'mobil'){
+    main = { '@context':'https://schema.org', '@type':['Car', 'Product'], name:it.title, url:it.url, description:it.metaDesc, image:imgs.length ? imgs : undefined, sku:it.id, brand:{ '@type':'Brand', name:x.brand }, model:x.model, vehicleModelDate:x.year ? String(x.year) : undefined,
+      itemCondition:x.cond === 'baru' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition', vehicleTransmission:x.trans || undefined, fuelType:x.fuel || undefined, bodyType:x.body || undefined, color:x.color || undefined,
+      vehicleSeatingCapacity:x.seats || undefined, mileageFromOdometer:x.km ? { '@type':'QuantitativeValue', value:x.km, unitCode:'KMT' } : undefined, offers:seoOffer(S, it) };
+  } else {
+    const offer = it.priceMax > it.price ? { '@type':'AggregateOffer', lowPrice:Math.round(it.price), highPrice:Math.round(it.priceMax), priceCurrency:'IDR', offerCount:it.offerCount || 1, availability:seoAvail('tersedia'), url:it.url, seller:{ '@id':S.base + '/#org' } } : seoOffer(S, it);
+    main = { '@context':'https://schema.org', '@type':'Product', name:it.title, url:it.url, description:it.metaDesc, image:imgs.length ? imgs : undefined, sku:it.id, brand:x.brand ? { '@type':'Brand', name:x.brand } : undefined, offers:offer };
+  }
+  return [JSON.parse(JSON.stringify(main)), seoBreadcrumbLd(S, crumbs)];
+}
+function seoItemBody(S, it, x, cat){
+  const sold = it.sold, stCls = x.status === 'terjual' ? 'sold' : x.status === 'booking' ? 'book' : '';
+  const head = `<h1>${posEsc(it.title)}</h1>${it.loc ? `<p class="loc">📍 ${posEsc(it.loc)}</p>` : ''}<div class="price" id="price">${posEsc(it.priceText)} ${x.priceNote ? `<small>${posEsc(x.priceNote)}</small>` : ''}${it.live ? `<span class="badge ${stCls}" id="status">${posEsc(posPropStatusLabel(x.status || 'tersedia'))}</span>` : ''}</div>`;
+  let rows = [], blocks = '';
+  if(it.kind === 'rumah'){
+    rows = [['Tipe', x.type], ['Kondisi', x.condition], ['Sertifikat', x.cert], ['Luas tanah', x.lt ? x.lt + ' m²' : ''], ['Luas bangunan', x.lb ? x.lb + ' m²' : ''], ['Kamar tidur', x.kt], ['Kamar mandi', x.km], ['Carport', x.carport ? x.carport + ' mobil' : ''], ['Jumlah lantai', x.floors],
+      ['Listrik', x.elec ? x.elec + ' watt' : ''], ['Sumber air', x.water], ['Arah hadap', x.facing], ['Tahun dibangun', x.yearBuilt], ['Furnished', x.furnished], ['Cara pembelian', (x.payment || []).join(', ')]];
+    blocks = ((x.facilities || []).length ? `<h2>Fasilitas rumah</h2><ul class="f">${x.facilities.map(f=>`<li>${posEsc(f)}</li>`).join('')}</ul>` : '') + ((x.nearby || []).length ? `<h2>Fasilitas sekitar</h2><ul class="l">${x.nearby.map(f=>`<li>${posEsc(f)}</li>`).join('')}</ul>` : '');
+  } else if(it.kind === 'mobil'){
+    const used = x.cond === 'bekas';
+    rows = [['Kondisi', used ? 'Bekas' : 'Baru'], ['Merek', x.brand], ['Model', x.model], ['Varian', x.variant], ['Tahun', x.year], ['Jarak tempuh', used && x.km ? Number(x.km).toLocaleString('id-ID') + ' km' : ''], ['Transmisi', x.trans], ['Bahan bakar', x.fuel], ['Kapasitas mesin', x.cc ? Number(x.cc).toLocaleString('id-ID') + ' cc' : ''],
+      ['Tipe bodi', x.body], ['Warna', x.color], ['Penumpang', x.seats ? x.seats + ' orang' : ''], ['Pintu', x.doors], ['Tangan ke-', used ? x.owners : ''], ['Plat nomor', used ? x.plate : ''], ['Pajak (PKB) sampai', used ? x.taxUntil : '']];
+    blocks = ((x.highlights || []).length ? `<h2>Kelebihan unit</h2><ul class="l">${x.highlights.map(f=>`<li>${posEsc(f)}</li>`).join('')}</ul>` : '') + ((x.features || []).length ? `<h2>Fitur</h2><ul class="f">${x.features.map(f=>`<li>${posEsc(f)}</li>`).join('')}</ul>` : '')
+      + (used && (x.serviceHistory || x.docs) ? `<h2>Riwayat &amp; dokumen</h2>${x.serviceHistory ? `<p><b>Servis:</b> ${posEsc(x.serviceHistory)}</p>` : ''}${x.docs ? `<p><b>Dokumen:</b> ${posEsc(x.docs)}</p>` : ''}` : '');
+  } else {
+    rows = [['Merek', x.brand], ['Kategori', it.catName], ['Daya tahan / masa simpan', x.shelfLife], ['Cara penyimpanan', x.storage], ['Cara penyajian', x.howTo]];
+    if((x.variants || []).length > 0) blocks += `<h2>Pilihan &amp; harga</h2><div class="card"><dl>${x.variants.map(v=>`<dt>${posEsc(v.name)}</dt><dd>${seoRp(v.price)}</dd>`).join('')}</dl></div>`;
+    else blocks += `<h2>Harga</h2><p>${posEsc(it.priceText)}. Harga final bergantung pada ukuran mobil dan paket yang dipilih di toko online.</p>`;
+    if(x.buyUrl) blocks += `<p><a href="${posEsc(x.buyUrl)}" rel="sponsored nofollow noopener">Beli di ${posEsc(x.platform || 'toko mitra')} ↗</a></p>`;
+  }
+  const where = it.kind !== 'produk' && (x.address || x.mapUrl || it.addrFallback) ? `<h2>Lokasi</h2><p>${posEsc(x.address || it.addrFallback || '')}</p>${x.mapUrl || it.mapFallback ? `<p><a href="${posEsc(x.mapUrl || it.mapFallback)}" rel="noopener">Buka di Google Maps ↗</a></p>` : ''}${x.videoUrl ? `<p><a href="${posEsc(x.videoUrl)}" rel="noopener">Tonton video ↗</a></p>` : ''}` : '';
+  const how = it.kind === 'produk' ? '' : `<h2>Cara membeli</h2><p>Tidak ada pembayaran di situs ini. Hubungi kami lewat WhatsApp, atau <a href="${posEsc(it.appHref)}">buat janji ${it.kind === 'mobil' ? (x.cond === 'baru' ? 'test drive' : 'melihat unit') : 'survei'}</a>.</p>`;
+  return head + seoGallery(it) + seoSpecRows(rows) + blocks + (x.desc ? `<h2>Deskripsi</h2><div class="card">${seoParas(x.desc)}</div>` : '') + where + how + `<p class="note"><a href="${posEsc(it.spaHref)}">Lihat versi lengkap di toko online ›</a></p>`;
+}
+async function seoBuild(log){
+  log = log || (()=>{}); const p = posCfg(); const S0 = p.seo; const base = String(S0.siteUrl || '').trim().replace(/\/+$/, '');
+  if(!/^https:\/\/[^\s/]+$/.test(base)) throw new Error('Alamat situs harus diawali https:// dan tanpa garis miring, contoh https://lapakmu.store');
+  const cat = JSON.parse(JSON.stringify(posBuildCatalog())); const dbUrl = (cat.auth && cat.auth.databaseURL) || '';
+  const S = { base, name:S0.name || 'LapakMu', area:(cat.store && cat.store.area) || '', sections:[] };
+  const catName = id=>((cat.categories || []).find(c=>c.id===id) || {}).name || ''; const catSeg = id=>((cat.categories || []).find(c=>c.id===id) || {}).segment || 'otomotif';
+  const storeWa = cat.store.wa || ''; const items = []; const files = []; const today = todayISO();
+  const SEC = { rumah:{ path:'rumah', label:'Rumah', h1:'Rumah dijual', desc:'Katalog rumah dijual lengkap dengan harga, lokasi, dan spesifikasi. Hubungi WhatsApp atau buat janji survei.' },
+    mobil:{ path:'mobil', label:'Mobil', h1:'Mobil baru & bekas', desc:'Katalog mobil baru dan bekas lengkap dengan harga, tahun, dan spesifikasi. Hubungi WhatsApp atau buat janji test drive.' },
+    aksesoris:{ path:'aksesoris', label:'Aksesoris', h1:'Aksesoris mobil', desc:'Kaca film, karpet custom, dash cam, dan aksesoris mobil. Lihat harga lalu pesan lewat toko online.' },
+    'frozen-food':{ path:'frozen-food', label:'Frozen Food', h1:'Frozen food', desc:'Frozen food siap masak. Lihat pilihan dan harga, lalu pesan lewat toko online.' } };
+  const mk = (section, kind, x, o)=>{ const slug = seoSlug(section, x.id, o.slugFrom || o.title); const path = `${SEC[section].path}/${slug}/`;
+    return Object.assign({ section, sectionLabel:SEC[section].label, kind, id:x.id, title:o.title, slug, path, url:`${base}/${path}`, price:0, priceMax:0, status:x.status || 'tersedia', sold:x.status === 'terjual', imgs:[], files:[], loc:'', wa:storeWa,
+      live:false, appHref:`${base}/#/${kind==='rumah' ? 'rumah' : kind==='mobil' ? 'mobil' : 'p/' + (kind==='produk' ? 'generic' : kind) }/${x.id}`, spaHref:'', appLabel:'Lihat di toko online' }, o); };
+  const mkImgs = async (it, ids)=>{ for(let n = 0; n < Math.min(3, (ids || []).length); n++){ const im = await seoImage(ids[n]); if(!im) continue; const file = `img/${it.section}-${it.slug}-${n + 1}.${im.ext}`; files.push({ path:file, bytes:im.bytes }); it.imgs.push({ file, src:'/' + file, abs:`${base}/${file}`, w:im.w, h:im.h }); } };
+  // rumah
+  for(const x of (cat.properties || [])){
+    const loc = [x.area, x.city].filter(Boolean).join(', '); const sp = [x.kt ? x.kt + ' KT' : '', x.km ? x.km + ' KM' : '', x.lt ? 'LT ' + x.lt + ' m²' : '', x.lb ? 'LB ' + x.lb + ' m²' : ''].filter(Boolean);
+    const it = mk('rumah', 'rumah', x, { title:x.title, price:x.price, priceText:seoRp(x.price), loc, sub:sp.join(' · ') + (x.city ? ' · ' + x.city : ''), live:true, wa:x.agentWa || (cat.property && cat.property.wa) || storeWa, appLabel:'Buat janji survei',
+      metaDesc:seoTrim([x.type + ' dijual di ' + (loc || x.city), sp.join(', '), x.desc].filter(Boolean).join('. '), 155), spaHref:`${base}/#/rumah/${x.id}` });
+    it.appHref = `${base}/#/janji/${x.id}`; await mkImgs(it, x.images); it.x = x; items.push(it);
+  }
+  // mobil
+  for(const x of (cat.units || [])){
+    const used = x.cond === 'bekas'; const sp = [x.year, used ? (x.km ? Number(x.km).toLocaleString('id-ID') + ' km' : 'Bekas') : 'Baru', x.trans, x.fuel].filter(Boolean);
+    const it = mk('mobil', 'mobil', x, { title:x.title, price:x.price, priceText:seoRp(x.price), loc:x.city, sub:sp.join(' · '), live:true, wa:x.agentWa || (cat.mobil && cat.mobil.wa) || storeWa, appLabel:used ? 'Janji lihat unit' : 'Janji test drive',
+      metaDesc:seoTrim([(used ? 'Mobil bekas ' : 'Mobil baru ') + x.title + (x.city ? ' di ' + x.city : ''), used && x.km ? Number(x.km).toLocaleString('id-ID') + ' km' : '', x.trans, x.fuel, x.desc].filter(Boolean).join('. '), 155), spaHref:`${base}/#/mobil/${x.id}`,
+      addrFallback:(cat.mobil && cat.mobil.address) || '', mapFallback:(cat.mobil && cat.mobil.mapUrl) || '' });
+    it.appHref = `${base}/#/janjim/${x.id}`; await mkImgs(it, x.images); it.x = x; items.push(it);
+  }
+  // aksesoris & frozen
+  const prodItem = async (kind, x, nums, extra)=>{ const lo = nums.length ? Math.min(...nums) : 0, hi = nums.length ? Math.max(...nums) : 0; if(!lo) return;
+    const sec = extra.section; const it = mk(sec, kind, x, { title:x.name + (x.brand ? ' ' + x.brand : ''), slugFrom:x.name, price:lo, priceMax:hi, offerCount:nums.length, priceText:(hi > lo ? 'Mulai ' : '') + seoRp(lo), sub:extra.sub || '', catName:extra.catName || '', status:'tersedia',
+      metaDesc:seoTrim([x.name + (x.brand ? ' ' + x.brand : ''), (hi > lo ? 'mulai ' : '') + seoRp(lo), x.desc].filter(Boolean).join('. '), 155), spaHref:`${base}/#/p/${kind==='produk' ? 'generic' : kind}/${x.id}`, appLabel:'Pesan di toko online' });
+    it.appHref = it.spaHref; await mkImgs(it, x.images); it.x = x; items.push(it); };
+  for(const b of ((cat.film && cat.film.brands) || [])) await prodItem('film', Object.assign({}, b, { name:'Kaca Film ' + b.name }), seoNums(b.prices), { section:'aksesoris', sub:'Kaca film', catName:'Kaca Film' });
+  for(const c of (cat.carpets || [])) await prodItem('karpet', Object.assign({}, c, { name:'Karpet Custom ' + c.name }), seoNums(c.prices), { section:'aksesoris', sub:'Karpet custom', catName:'Karpet Custom' });
+  for(const x of (cat.products || [])){ const frozen = catSeg(x.categoryId) === 'frozen'; await prodItem('produk', x, (x.variants || []).map(v=>Number(v.price)).filter(n=>n > 0), { section:frozen ? 'frozen-food' : 'aksesoris', sub:catName(x.categoryId), catName:catName(x.categoryId) }); }
+  log(`Mengumpulkan ${items.length} halaman, ${files.length} foto…`);
+  S.sections = Object.values(SEC).filter(s=>items.some(i=>i.section === s.path));
+  // halaman item
+  for(const it of items){
+    const crumbs = [['Beranda', base + '/'], [it.sectionLabel, `${base}/${it.section}/`], [it.title, it.url]]; it.metaDesc = it.metaDesc || seoTrim(it.title, 155);
+    const title = seoTrim(`${it.title} – ${it.kind==='rumah' || it.kind==='mobil' ? posPropMoney(it.price) : it.priceText} | ${S.name}`, 70);
+    const html = seoLayout(S, { up:'../../', title, desc:it.metaDesc, canonical:it.url, robots:it.sold ? 'noindex,follow' : '', image:it.imgs[0] ? { url:it.imgs[0].abs, w:it.imgs[0].w, h:it.imgs[0].h } : null, ogType:'website', crumbs, ld:seoItemLd(S, it, it.x, cat), body:seoItemBody(S, it, it.x, cat), cta:seoCta(S, it), script:seoLiveScript(S, it, dbUrl) });
+    files.push({ path:it.path + 'index.html', text:html });
+  }
+  // halaman bagian
+  for(const sec of S.sections){
+    const list = items.filter(i=>i.section === sec.path).sort((a, b)=>(a.sold - b.sold)); const url = `${base}/${sec.path}/`;
+    const body = `<h1>${posEsc(sec.h1)}</h1><p>${posEsc(sec.desc)}</p><p class="note">${list.length} pilihan</p><div class="grid">${list.map(i=>seoItemCard(S, i)).join('')}</div>`;
+    const ld = [seoBreadcrumbLd(S, [['Beranda', base + '/'], [sec.label, url]]), { '@context':'https://schema.org', '@type':'ItemList', itemListElement:list.map((i, n)=>({ '@type':'ListItem', position:n + 1, url:i.url, name:i.title })) }];
+    files.push({ path:`${sec.path}/index.html`, text:seoLayout(S, { up:'../', title:`${sec.h1} | ${S.name}`, desc:sec.desc, canonical:url, ld, crumbs:[['Beranda', base + '/'], [sec.label, url]], body }) });
+  }
+  // hub katalog
+  const hubUrl = `${base}/katalog/`; const hubBody = `<h1>Katalog ${posEsc(S.name)}</h1><p>Aksesoris mobil, mobil baru dan bekas, serta properti. Pilih kategori di bawah, lalu hubungi kami lewat WhatsApp atau buka toko online untuk memesan dan membuat janji.</p>`
+    + (S.sections.length ? S.sections.map(sec=>{ const list = items.filter(i=>i.section === sec.path && !i.sold).slice(0, 6); return `<h2><a href="${base}/${sec.path}/">${posEsc(sec.h1)}</a></h2><div class="grid">${list.map(i=>seoItemCard(S, i)).join('')}</div>`; }).join('') : '<div class="card"><p>Katalog akan tampil di sini setelah produk ditambahkan.</p></div>')
+    + `<p><a href="${base}/">Buka toko online ${posEsc(S.name)} ›</a></p>`;
+  files.push({ path:'katalog/index.html', text:seoLayout(S, { up:'../', title:`Katalog ${S.name} – Aksesoris Mobil, Mobil Baru & Bekas, Properti`, desc:`Katalog ${S.name}: kaca film, karpet custom, dash cam, mobil baru dan bekas, serta rumah. Hubungi WhatsApp atau buka toko online.`, canonical:hubUrl, crumbs:[['Beranda', base + '/'], ['Katalog', hubUrl]], ld:[seoBreadcrumbLd(S, [['Beranda', base + '/'], ['Katalog', hubUrl]])], body:hubBody }) });
+  // sitemap & robots
+  const urls = [[base + '/', '1.0'], [hubUrl, '0.8']].concat(S.sections.map(s=>[`${base}/${s.path}/`, '0.8'])).concat(items.filter(i=>!i.sold).map(i=>[i.url, '0.7']));
+  files.push({ path:'sitemap.xml', text:`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u=>`  <url><loc>${posEsc(u[0])}</loc><lastmod>${today}</lastmod><priority>${u[1]}</priority></url>`).join('\n')}\n</urlset>\n` });
+  files.push({ path:'robots.txt', text:`User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n` });
+  files.push({ path:'site.webmanifest', text:JSON.stringify({ name:S.name, short_name:S.name.slice(0, 12), description:'Aksesoris mobil, mobil baru dan bekas, serta properti.', start_url:'/', scope:'/', display:'standalone', background_color:'#ffffff', theme_color:'#16202B', lang:'id', icons:[{ src:'/favicon-192.png', sizes:'192x192', type:'image/png' }, { src:'/favicon-512.png', sizes:'512x512', type:'image/png' }] }) });
+  p.seo.lastBuild = { at:new Date().toISOString(), rev:Number(p.rev) || 0, pages:items.length, indexable:items.filter(i=>!i.sold).length }; saveSettings();
+  return { files, items, urls, base, stats:{ pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
+}
+
+const SEO_CRC = (()=>{ const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+function seoCrc32(b){ let c = 0xFFFFFFFF; for(let i = 0; i < b.length; i++) c = SEO_CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function seoBytes(f){ return f.bytes || new TextEncoder().encode(f.text); }
+function seoB64(bytes){ let s = ''; for(let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+function seoZip(files){
+  const enc = new TextEncoder(); const chunks = []; const central = []; let offset = 0;
+  const u16 = n=>new Uint8Array([n & 255, (n >> 8) & 255]); const u32 = n=>new Uint8Array([n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]);
+  const now = new Date(); const dt = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1); const dd = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const push = (...a)=>a.forEach(x=>{ chunks.push(x); offset += x.length; });
+  files.forEach(f=>{ const name = enc.encode(f.path); const data = seoBytes(f); const crc = seoCrc32(data); const start = offset;
+    push(u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dt), u16(dd), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), name, data); central.push({ name, crc, size:data.length, start }); });
+  const cdStart = offset;
+  central.forEach(c=>push(u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dt), u16(dd), u32(c.crc), u32(c.size), u32(c.size), u16(c.name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.start), c.name));
+  const cdSize = offset - cdStart; push(u32(0x06054b50), u16(0), u16(0), u16(central.length), u16(central.length), u32(cdSize), u32(cdStart), u16(0));
+  return new Blob(chunks, { type:'application/zip' });
+}
+async function seoGitSha(bytes){ const head = new TextEncoder().encode('blob ' + bytes.length + '\0'); const all = new Uint8Array(head.length + bytes.length); all.set(head); all.set(bytes, head.length); const h = await crypto.subtle.digest('SHA-1', all); return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2, '0')).join(''); }
+async function seoPool(list, n, fn){ let i = 0; await Promise.all(Array.from({ length:Math.min(n, list.length) }, async ()=>{ while(i < list.length){ const k = i++; await fn(list[k], k); } })); }
+const SEO_MANAGED = ['rumah/', 'mobil/', 'aksesoris/', 'frozen-food/', 'katalog/', 'img/'];
+async function seoGh(path, token, opts){
+  const r = await fetch('https://api.github.com' + path, Object.assign({ headers:{ Authorization:'Bearer ' + token, Accept:'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28', 'Content-Type':'application/json' } }, opts || {}));
+  if(!r.ok){ const t = await r.text().catch(()=>''); const e = new Error('GitHub ' + r.status); e.status = r.status; e.detail = t.slice(0, 200); throw e; }
+  return r.status === 204 ? null : r.json();
+}
+function seoGhMessage(e){
+  const s = e && e.status; if(s === 401) return 'Token ditolak GitHub (salah atau kedaluwarsa). Buat token baru lalu simpan lagi.';
+  if(s === 403) return 'GitHub menolak akses (token tanpa izin Contents: Read and write, atau batas permintaan tercapai).';
+  if(s === 404) return 'Repo atau branch tidak ditemukan, atau token tidak punya akses ke repo itu. Periksa pemilik, nama repo, dan branch.';
+  if(s === 409 || s === 422) return 'GitHub menolak perubahan (' + s + '). Coba lagi sebentar lagi. ' + ((e && e.detail) || '');
+  if(!s || /Failed to fetch|NetworkError|Load failed/i.test((e && e.message) || '')) return 'Tidak bisa terhubung ke GitHub. Periksa koneksi internet, lalu coba lagi.';
+  return (e && e.message) || 'Gagal terhubung ke GitHub.';
+}
+async function seoPublish(files, gh, token, log){
+  const repo = `/repos/${gh.owner}/${gh.repo}`;
+  const ref = await seoGh(`${repo}/git/ref/heads/${gh.branch}`, token); const headSha = ref.object.sha;
+  const commit = await seoGh(`${repo}/git/commits/${headSha}`, token); const baseTree = commit.tree.sha;
+  const tree = await seoGh(`${repo}/git/trees/${baseTree}?recursive=1`, token);
+  const existing = new Map((tree.tree || []).filter(e=>e.type === 'blob').map(e=>[e.path, e.sha]));
+  const entries = []; let created = 0, same = 0, done = 0; const todo = files.map(f=>({ f, bytes:seoBytes(f) }));
+  await seoPool(todo, 4, async t=>{
+    const sha = await seoGitSha(t.bytes); if(existing.get(t.f.path) === sha){ same++; return; }
+    const blob = await seoGh(`${repo}/git/blobs`, token, { method:'POST', body:JSON.stringify({ content:seoB64(t.bytes), encoding:'base64' }) });
+    entries.push({ path:t.f.path, mode:'100644', type:'blob', sha:blob.sha }); created++; done++; log(`Mengunggah file ${done}…`);
+  });
+  const keep = new Set(files.map(f=>f.path)); let removed = 0;
+  if(!tree.truncated) existing.forEach((sha, path)=>{ if(SEO_MANAGED.some(pre=>path.startsWith(pre)) && !keep.has(path)){ entries.push({ path, mode:'100644', type:'blob', sha:null }); removed++; } });
+  if(!entries.length) return { commit:null, created:0, same, removed:0 };
+  const nt = await seoGh(`${repo}/git/trees`, token, { method:'POST', body:JSON.stringify({ base_tree:baseTree, tree:entries }) });
+  const nc = await seoGh(`${repo}/git/commits`, token, { method:'POST', body:JSON.stringify({ message:`SEO: perbarui halaman statis (${created} file baru atau berubah, ${removed} dihapus)`, tree:nt.sha, parents:[headSha] }) });
+  await seoGh(`${repo}/git/refs/heads/${gh.branch}`, token, { method:'PATCH', body:JSON.stringify({ sha:nc.sha }) });
+  return { commit:nc.sha, created, same, removed };
+}
+function seoToken(){ try{ return localStorage.getItem('dd_gh_token') || ''; }catch(e){ return ''; } }
+function seoLogger(){ const el = document.getElementById('seoLog'); if(el){ el.hidden = false; el.textContent = ''; } return msg=>{ if(el){ el.textContent += msg + '\n'; el.scrollTop = el.scrollHeight; } }; }
+function seoBusy(on){ document.querySelectorAll('#ppanel-seo .seo-act').forEach(b=>b.disabled = on); }
+async function seoDownloadZip(){
+  const log = seoLogger(); seoBusy(true);
+  try{ log('Membuat halaman…'); const r = await seoBuild(log); const blob = seoZip(r.files); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `lapakmu-seo-${todayISO()}.zip`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    log(`Selesai: ${r.stats.pages} halaman, ${r.stats.photos} foto, ${r.stats.indexable} alamat di sitemap. ZIP diunduh. Ekstrak lalu unggah isinya ke repo (folder rumah, mobil, aksesoris, katalog, img, serta sitemap.xml).`); }
+  catch(e){ console.error(e); log('Gagal: ' + (e.message || e)); toast('Gagal membuat halaman SEO: ' + (e.message || ''), 'err'); }
+  seoBusy(false); posRenderSeo(true);
+}
+async function seoPublishGithub(){
+  const log = seoLogger(); const p = posCfg(); const gh = p.seo.gh; const token = seoToken();
+  if(!token){ log('Isi token GitHub dulu di pengaturan di atas, lalu tekan Simpan.'); toast('Isi token GitHub dulu','err'); return; }
+  if(!gh.owner || !gh.repo || !gh.branch){ log('Isi pemilik, nama repo, dan branch GitHub.'); return; }
+  seoBusy(true);
+  try{ log('Membuat halaman…'); const r = await seoBuild(log); log(`Menghubungi GitHub (${gh.owner}/${gh.repo}, branch ${gh.branch})…`); const res = await seoPublish(r.files, gh, token, log);
+    if(!res.commit){ log('Tidak ada perubahan: semua file sudah sama dengan yang ada di GitHub.'); toast('Tidak ada perubahan untuk diterbitkan'); }
+    else { p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit, pages:r.stats.pages, created:res.created, removed:res.removed }; saveSettings();
+      log(`Berhasil: ${res.created} file diunggah, ${res.same} tidak berubah, ${res.removed} file lama dihapus. GitHub Pages memperbarui situs dalam sekitar 1 menit.`); toast('Halaman SEO diterbitkan ke GitHub'); } }
+  catch(e){ console.error(e); log('Gagal: ' + seoGhMessage(e)); toast('Gagal menerbitkan: ' + seoGhMessage(e), 'err'); }
+  seoBusy(false); posRenderSeo(true);
+}
+function seoHealth(){
+  const p = posCfg(); const cat = posBuildCatalog(); const out = []; const base = String(p.seo.siteUrl || '').replace(/\/+$/, '');
+  out.push(/^https:\/\/[^\s/]+$/.test(base) ? ['ok', 'Alamat situs: ' + base] : ['warn', 'Alamat situs belum benar (harus diawali https:// tanpa garis miring)']);
+  out.push(cat.store.wa ? ['ok', 'Nomor WhatsApp toko terisi'] : ['warn', 'Nomor WhatsApp toko belum diisi (Pengaturan). Tombol Hubungi WhatsApp tidak akan muncul di halaman.']);
+  const rows = [];
+  (cat.properties || []).forEach(x=>rows.push({ t:x.title, img:(x.images || []).length, desc:(x.desc || '').length, loc:x.city, kind:'rumah' }));
+  (cat.units || []).forEach(x=>rows.push({ t:x.title, img:(x.images || []).length, desc:(x.desc || '').length, loc:x.city, kind:'mobil' }));
+  (cat.products || []).forEach(x=>rows.push({ t:x.name, img:(x.images || []).length, desc:(x.desc || '').length, loc:'-', kind:'produk' }));
+  ((cat.film && cat.film.brands) || []).forEach(x=>rows.push({ t:'Kaca Film ' + x.name, img:(x.images || []).length, desc:(x.desc || '').length, loc:'-', kind:'produk' }));
+  (cat.carpets || []).forEach(x=>rows.push({ t:'Karpet ' + x.name, img:(x.images || []).length, desc:(x.desc || '').length, loc:'-', kind:'produk' }));
+  const list = a=>a.slice(0, 4).map(x=>x.t).join(', ') + (a.length > 4 ? ` dan ${a.length - 4} lainnya` : '');
+  const noImg = rows.filter(r=>!r.img), shortDesc = rows.filter(r=>r.desc < 80), noLoc = rows.filter(r=>!r.loc);
+  out.push(rows.length ? ['ok', `${rows.length} halaman akan dibuat`] : ['warn', 'Belum ada produk, rumah, atau mobil yang tampil di toko']);
+  if(noImg.length) out.push(['warn', `${noImg.length} item tanpa foto (Google butuh foto): ${list(noImg)}`]);
+  if(shortDesc.length) out.push(['warn', `${shortDesc.length} item dengan deskripsi kurang dari 80 karakter: ${list(shortDesc)}`]);
+  if(noLoc.length) out.push(['warn', `${noLoc.length} item tanpa kota: ${list(noLoc)}`]);
+  if(rows.length && !noImg.length && !shortDesc.length && !noLoc.length) out.push(['ok', 'Semua item punya foto, deskripsi, dan lokasi']);
+  const lp = p.seo.lastPublish;
+  out.push(!lp ? ['warn', 'Halaman statis belum pernah diterbitkan'] : (Number(p.rev) > Number(lp.rev) ? ['warn', 'Ada perubahan katalog sejak terakhir diterbitkan (' + new Date(lp.at).toLocaleDateString('id-ID') + '). Terbitkan ulang supaya Google melihat data terbaru.'] : ['ok', 'Halaman statis terbaru sudah diterbitkan (' + new Date(lp.at).toLocaleString('id-ID') + ')']));
+  return out;
+}
+function posRenderSeo(keepLog){
+  const el = document.getElementById('posSeoBody'); if(!el) return; const p = posCfg(); const s = p.seo; const hasTok = !!seoToken(); const prevLog = keepLog && document.getElementById('seoLog') ? document.getElementById('seoLog').textContent : '';
+  const health = seoHealth(); const warn = health.filter(h=>h[0] === 'warn').length;
+  el.innerHTML = `<div class="card"><h2 style="margin:0 0 4px">Kesiapan SEO</h2><p class="ex-sub" style="margin:0 0 10px">${warn ? warn + ' hal perlu diperhatikan' : 'Semua pemeriksaan lolos'}</p>
+      <ul class="seo-health">${health.map(h=>`<li class="${h[0]}"><span>${h[0] === 'ok' ? '✅' : '⚠️'}</span><span>${posEsc(h[1])}</span></li>`).join('')}</ul></div>
+    <div class="card"><h2 style="margin:0 0 6px">Halaman statis untuk Google dan iklan</h2>
+      <p class="ex-sub" style="margin:0 0 12px">Toko memakai alamat <code>#/</code> yang tidak bisa diindeks per halaman. Fitur ini membuat <b>halaman nyata</b> untuk tiap rumah, mobil, dan produk (alamat bersih, isi terbaca Google, data terstruktur, sitemap). Halaman ini juga bisa jadi tujuan iklan per unit.</p>
+      <div class="form-grid">
+        <div class="field"><label>Alamat situs</label><input type="url" id="seo_url" value="${posEsc(s.siteUrl)}" placeholder="https://lapakmu.store"></div>
+        <div class="field"><label>Nama bisnis</label><input type="text" id="seo_name" value="${posEsc(s.name)}"></div>
+        <div class="field"><label>Pemilik repo GitHub</label><input type="text" id="seo_owner" value="${posEsc(s.gh.owner)}" autocapitalize="none"></div>
+        <div class="field"><label>Nama repo</label><input type="text" id="seo_repo" value="${posEsc(s.gh.repo)}" autocapitalize="none"></div>
+        <div class="field"><label>Branch</label><input type="text" id="seo_branch" value="${posEsc(s.gh.branch)}" autocapitalize="none"></div>
+        <div class="field"><label>Token GitHub <span class="muted">${hasTok ? '(tersimpan di browser ini)' : '(belum diisi)'}</span></label><input type="password" id="seo_token" autocomplete="off" placeholder="${hasTok ? '•••••••• kosongkan kalau tidak diganti' : 'github_pat_...'}"></div>
+      </div>
+      <p class="ex-sub" style="margin:6px 0 0">Token hanya disimpan di browser ini, tidak ikut ke database atau katalog. Buat token <b>fine-grained</b> khusus repo toko dengan izin <b>Contents: Read and write</b>, dan beri masa berlaku.${hasTok ? ' <button class="link-btn" id="seo_deltok" type="button">Hapus token</button>' : ''}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost seo-act" id="seo_save">Simpan pengaturan</button><button class="btn seo-act" id="seo_pub">Terbitkan ke GitHub</button><button class="btn ghost seo-act" id="seo_zip">Unduh ZIP</button></div>
+      <pre id="seoLog" class="seo-log" ${prevLog ? '' : 'hidden'}>${posEsc(prevLog)}</pre></div>
+    <div class="card"><h2 style="margin:0 0 6px">Setelah terbit: daftarkan ke Google</h2>
+      <ol class="pos-steps"><li>Buka <b>search.google.com/search-console</b> dan tambahkan properti <b>Domain</b> <code>lapakmu.store</code>.</li><li>Verifikasi dengan record <b>TXT</b> di DNS Hostinger (Google menunjukkan nilainya).</li><li>Di menu <b>Sitemap</b>, kirim <code>sitemap.xml</code>.</li><li>Di <b>Pemeriksaan URL</b>, tempel alamat beranda dan satu halaman rumah atau mobil, lalu tekan <b>Minta pengindeksan</b>.</li><li>Cek lagi beberapa hari kemudian di laporan <b>Halaman</b>. Google tidak menjamin waktunya.</li></ol></div>`;
+  document.getElementById('seo_save').onclick = ()=>{
+    const url = document.getElementById('seo_url').value.trim().replace(/\/+$/, ''); if(!/^https:\/\/[^\s/]+$/.test(url)){ toast('Alamat situs harus diawali https://, contoh https://lapakmu.store','err'); return; }
+    Object.assign(s, { siteUrl:url, name:document.getElementById('seo_name').value.trim() || 'LapakMu' }); Object.assign(s.gh, { owner:document.getElementById('seo_owner').value.trim(), repo:document.getElementById('seo_repo').value.trim(), branch:document.getElementById('seo_branch').value.trim() || 'main' });
+    const tk = document.getElementById('seo_token').value.trim(); if(tk){ try{ localStorage.setItem('dd_gh_token', tk); }catch(e){ toast('Browser menolak menyimpan token','err'); return; } }
+    saveSettings(); toast('Pengaturan SEO disimpan'); posRenderSeo();
+  };
+  const dt = document.getElementById('seo_deltok'); if(dt) dt.onclick = ()=>{ try{ localStorage.removeItem('dd_gh_token'); }catch(e){} toast('Token dihapus'); posRenderSeo(); };
+  document.getElementById('seo_pub').onclick = seoPublishGithub; document.getElementById('seo_zip').onclick = seoDownloadZip;
+}
+
 
 /* ---- janji temu ---- */
 function posApptDateLabel(iso){ const d = new Date(String(iso) + 'T00:00:00'); return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); }
