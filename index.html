@@ -9176,13 +9176,20 @@ let seoIdxFilter = 'todo';
 function seoGscProp(){ const s = posCfg().seo; if(s.gsc.property) return s.gsc.property; try{ return 'sc-domain:' + new URL(s.siteUrl).hostname; }catch(e){ return ''; } }
 function seoGscLink(url){ const s = posCfg().seo; const u = String(s.gsc.user || '').trim(); return `https://search.google.com/${/^\d+$/.test(u) ? 'u/' + u + '/' : ''}search-console/inspect?resource_id=${encodeURIComponent(seoGscProp())}&id=${encodeURIComponent(url)}`; }
 function seoIdxStatus(pg){ const r = posCfg().seo.indexReq[pg.url]; if(!r) return ['new', 'Belum diminta']; if(r.hash !== pg.hash) return ['chg', 'Berubah sejak diminta']; return ['done', 'Sudah diminta ' + new Date(r.at).toLocaleDateString('id-ID')]; }
-function seoIdxMark(url){ const p = posCfg(); const pg = ((p.seo.lastPublish || {}).pages || []).find(x=>x.url === url); if(!pg) return; p.seo.indexReq[url] = { at:new Date().toISOString(), hash:pg.hash }; saveSettings(); posRenderSeo(true); }
+function seoIdxMark(url){ const p = posCfg(); const pg = (((p.seo.lastPublish || {}).pageList) || []).find(x=>x.url === url); if(!pg) return; p.seo.indexReq[url] = { at:new Date().toISOString(), hash:pg.hash }; saveSettings(); posRenderSeo(true); }
 function seoIdxMarkAll(){
-  confirmModal('Tandai semua sudah diminta', 'Semua halaman di daftar ditandai sudah diminta pengindeksannya. Pakai ini kalau kamu sudah mengirim sebagian besar ke Google dengan cara lain.', ()=>{ const p = posCfg(); const now = new Date().toISOString(); ((p.seo.lastPublish || {}).pages || []).forEach(pg=>{ p.seo.indexReq[pg.url] = { at:now, hash:pg.hash }; }); saveSettings(); posRenderSeo(true); });
+  confirmModal('Tandai semua sudah diminta', 'Semua halaman di daftar ditandai sudah diminta pengindeksannya. Pakai ini kalau kamu sudah mengirim sebagian besar ke Google dengan cara lain.', ()=>{ const p = posCfg(); const now = new Date().toISOString(); (((p.seo.lastPublish || {}).pageList) || []).forEach(pg=>{ p.seo.indexReq[pg.url] = { at:now, hash:pg.hash }; }); saveSettings(); posRenderSeo(true); });
 }
 async function seoIdxCopy(url){ try{ await navigator.clipboard.writeText(url); toast('Alamat disalin'); }catch(e){ window.prompt('Salin alamat ini:', url); } }
+/* pengaman: kalau satu tab gagal digambar, tampilkan pesan yang jelas, bukan layar kosong */
+function posRenderFail(id, nama, e){
+  console.error(nama, e); const el = document.getElementById(id); if(!el) return;
+  el.innerHTML = `<div class="card"><h2 style="margin:0 0 6px">Tab ${posEsc(nama)} gagal dimuat</h2><p class="ex-sub" style="margin:0 0 8px">Data tokomu aman. Muat ulang halaman dulu. Kalau pesan ini muncul lagi, kirim tangkapan layar ini supaya penyebabnya bisa dicari.</p><pre class="seo-log" style="white-space:pre-wrap">${posEsc((e && e.message) || String(e))}\n${posEsc(String((e && e.stack) || '').split('\n').slice(1, 4).join('\n'))}</pre><button class="btn sm" type="button" onclick="location.reload()">Muat ulang halaman</button></div>`;
+}
+function posRenderSeo(keepLog){ try{ posRenderSeoInner(keepLog); }catch(e){ posRenderFail('posSeoBody', 'SEO', e); } }
+function posRenderArticles(){ try{ posRenderArticlesInner(); }catch(e){ posRenderFail('posArticleList', 'Konten', e); } }
 function seoIdxCard(){
-  const p = posCfg(); const lp = p.seo.lastPublish || {}; const pages = lp.pages;
+  const p = posCfg(); const lp = p.seo.lastPublish || {}; const pages = Array.isArray(lp.pageList) ? lp.pageList : null;
   if(!pages) return `<div class="card"><h2 style="margin:0 0 6px">Minta pengindeksan di Google</h2><p class="ex-sub" style="margin:0">Daftar halaman dan tombol pemeriksaan URL muncul setelah kamu menekan <b>Terbitkan ke GitHub</b>.</p></div>`;
   const st = pages.map(pg=>[pg, seoIdxStatus(pg)]); const nNew = st.filter(x=>x[1][0] === 'new').length, nChg = st.filter(x=>x[1][0] === 'chg').length, nDone = st.filter(x=>x[1][0] === 'done').length;
   const order = { Artikel:0, Mobil:1, Rumah:2, Produk:3, Daftar:4, Katalog:5, Halaman:6 }; const rank = { new:0, chg:1, done:2 };
@@ -9208,7 +9215,7 @@ async function seoPublishGithub(){
   seoBusy(true);
   try{ log('Membuat halaman…'); const r = await seoBuild(log); log(`Menghubungi GitHub (${gh.owner}/${gh.repo}, branch ${gh.branch})…`); const res = await seoPublish(r.files, gh, token, log);
     const prev = p.seo.lastPublish || {};
-    p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit || prev.commit || '', pages:r.stats.pages, created:res.created, removed:res.removed, articles:r.articleSlugs, pages:r.pages }; saveSettings();
+    p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit || prev.commit || '', pages:r.stats.pages, created:res.created, removed:res.removed, articles:r.articleSlugs, pageList:r.pages }; saveSettings();
     if(!res.commit){ log('Tidak ada perubahan: semua file sudah sama dengan yang ada di GitHub.'); toast('Tidak ada perubahan untuk diterbitkan'); }
     else { log(`Berhasil: ${res.created} file diunggah, ${res.same} tidak berubah, ${res.removed} file lama dihapus. GitHub Pages memperbarui situs dalam sekitar 1 menit.`); toast('Halaman SEO diterbitkan ke GitHub'); }
     if(posIsAdmin){ log('Memperbarui katalog toko (bagian Panduan di beranda)…'); await posPublish(false); log(posPublishError ? 'Katalog toko belum terbarui, tekan Update katalog di atas.' : `Beranda toko menampilkan ${Object.keys(r.articleSlugs).length} artikel terbit.`); } }
@@ -9239,7 +9246,11 @@ function seoHealth(){
   out.push(!lp ? ['warn', 'Halaman statis belum pernah diterbitkan'] : (Number(p.rev) > Number(lp.rev) ? ['warn', 'Ada perubahan katalog sejak terakhir diterbitkan (' + new Date(lp.at).toLocaleDateString('id-ID') + '). Terbitkan ulang supaya Google melihat data terbaru.'] : ['ok', 'Halaman statis terbaru sudah diterbitkan (' + new Date(lp.at).toLocaleString('id-ID') + ')']));
   return out;
 }
-function posRenderSeo(keepLog){
+function posRenderSeoInner(keepLog){
+  try{ posRenderSeoInner(keepLog); }
+  catch(e){ console.error(e); const el = document.getElementById('posSeoBody'); if(el) el.innerHTML = `<div class="card"><h2 style="margin:0 0 6px">Tab SEO belum bisa ditampilkan</h2><p class="ex-sub" style="margin:0 0 8px">Terjadi kesalahan saat menyiapkan tampilan. Salin pesan ini dan kirim ke pembuat aplikasi:</p><pre class="seo-log">${posEsc((e && e.message) || String(e))}</pre><button class="btn ghost sm" onclick="posRenderSeo()">Coba lagi</button></div>`; }
+}
+function posRenderSeoInner(keepLog){
   const el = document.getElementById('posSeoBody'); if(!el) return; const p = posCfg(); const s = p.seo; const hasTok = !!seoToken(); const prevLog = keepLog && document.getElementById('seoLog') ? document.getElementById('seoLog').textContent : '';
   const health = seoHealth(); const warn = health.filter(h=>h[0] === 'warn').length;
   el.innerHTML = `<div class="card"><h2 style="margin:0 0 4px">Kesiapan SEO</h2><p class="ex-sub" style="margin:0 0 10px">${warn ? warn + ' hal perlu diperhatikan' : 'Semua pemeriksaan lolos'}</p>
@@ -9338,7 +9349,11 @@ function artRelatedOptions(){
   p.products.forEach(x=>o.push({ id:x.id, label:'Produk: ' + x.name }));
   return o;
 }
-function posRenderArticles(){
+function posRenderArticlesInner(){
+  try{ posRenderArticlesInner(); }
+  catch(e){ console.error(e); const el = document.getElementById('posArticleList'); if(el) el.innerHTML = `<div class="empty">Daftar artikel belum bisa ditampilkan: ${posEsc((e && e.message) || String(e))}</div>`; }
+}
+function posRenderArticlesInner(){
   const el = document.getElementById('posArticleList'); if(!el) return; const p = posCfg();
   const arts = p.articles.slice().sort((a, b)=>String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
   const siteUrl = String(p.seo.siteUrl || '').replace(/\/+$/, '');
