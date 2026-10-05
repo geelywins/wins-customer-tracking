@@ -294,6 +294,9 @@ tbody tr:hover{background:#FAFBFE;}
 .rep-bar{height:8px;background:#E8ECF4;border-radius:8px;overflow:hidden}.rep-bar i{display:block;height:100%;background:var(--blue);border-radius:8px}
 .rf-evid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.rf-evid img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#EEF1F6}
 .rp-mode{display:flex;flex-direction:column;gap:4px;margin-top:10px}.rp-mode label{font-size:12px;font-weight:700;color:var(--muted)}.rp-mode select{max-width:100%}
+.art-tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}.art-tools button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
+.art-prev{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:8px;max-height:360px;overflow:auto;line-height:1.7}.art-prev h2{font-size:17px}.art-prev table{border-collapse:collapse;width:100%;font-size:13px}.art-prev th,.art-prev td{border:1px solid var(--line);padding:5px 7px;text-align:left}
+.ar-rel{max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin-top:6px;background:#fff}.ar-rel label{display:flex;padding:4px 0}
 .seo-health{list-style:none;padding:0;margin:0}.seo-health li{display:flex;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.5}.seo-health li:first-child{border-top:0}.seo-log{background:#0F172A;color:#CFE3FF;border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;max-height:220px;overflow:auto;white-space:pre-wrap;margin:12px 0 0}
 .pos-steps{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.75}.pos-steps code{background:#EEF1F6;border-radius:5px;padding:1px 6px;font-size:12.5px}
 .pos-appt.is-today{border-left:4px solid var(--amber)}.pos-appt-when{font-size:13px;color:var(--muted);margin-bottom:2px}
@@ -1433,6 +1436,7 @@ tbody tr:hover{background:#FAFBFE;}
           <button class="growth-tab" data-ptab="frozen">🧊 Frozen Food</button>
           <button class="growth-tab" data-ptab="props">🏠 Properti</button>
           <button class="growth-tab" data-ptab="units">🚗 Mobil Baru &amp; Bekas</button>
+          <button class="growth-tab" data-ptab="articles">✍️ Konten</button>
           <button class="growth-tab" data-ptab="seo">🔎 SEO <span id="posSeoBadge"></span></button>
           <button class="growth-tab" data-ptab="appts">📅 Janji Temu <span id="posApptBadge"></span></button>
           <button class="growth-tab" data-ptab="promos">🏷️ Kode Promo &amp; Deal</button>
@@ -1481,6 +1485,11 @@ tbody tr:hover{background:#FAFBFE;}
         <div class="pos-panel" id="ppanel-units" style="display:none">
           <div class="card"><div id="posMobilCfg"></div></div>
           <div class="card"><div class="vd-head"><h2 style="margin:0">Katalog mobil</h2><button class="btn sm" onclick="posUnitForm()">+ Tambah unit</button></div><div id="posUnitList"></div></div>
+        </div>
+        <div class="pos-panel" id="ppanel-articles" style="display:none">
+          <div class="card"><div class="vd-head"><h2 style="margin:0">Panduan &amp; artikel</h2><button class="btn sm" onclick="posArticleForm()">+ Tulis artikel</button></div>
+            <p class="ex-sub" style="margin:6px 0 12px">Artikel yang <b>Terbit</b> menjadi halaman nyata di situs (alamat <code>/panduan/judul/</code>) setelah kamu menekan <b>Terbitkan ke GitHub</b> di tab SEO. Artikel panduan mendatangkan orang yang sedang mencari informasi, lalu mengarahkan mereka ke produk, mobil, atau rumah yang kamu pilih.</p>
+            <div id="posArticleList"></div></div>
         </div>
         <div class="pos-panel" id="ppanel-seo" style="display:none"><div id="posSeoBody"></div></div>
         <div class="pos-panel" id="ppanel-appts" style="display:none">
@@ -7084,7 +7093,7 @@ function posCfg(){
   p.categories.forEach(c=>{ if(!c.segment) c.segment = 'otomotif'; });
   const fzd = posFrozenDefault(); p.frozen = p.frozen || {}; Object.keys(fzd).forEach(k=>{ if(p.frozen[k]===undefined) p.frozen[k] = fzd[k]; });
   const pdd = posPropDefault(); p.property = p.property || {}; Object.keys(pdd).forEach(k=>{ if(p.property[k]===undefined) p.property[k] = pdd[k]; }); p.properties = p.properties || [];
-  const mdd = posMobilDefault(); p.mobil = p.mobil || {}; Object.keys(mdd).forEach(k=>{ if(p.mobil[k]===undefined) p.mobil[k] = mdd[k]; }); p.units = p.units || [];
+  const mdd = posMobilDefault(); p.mobil = p.mobil || {}; Object.keys(mdd).forEach(k=>{ if(p.mobil[k]===undefined) p.mobil[k] = mdd[k]; }); p.units = p.units || []; p.articles = p.articles || [];
   const sdd = posSeoDefault(); p.seo = Object.assign({}, sdd, p.seo || {}); p.seo.gh = Object.assign({}, sdd.gh, p.seo.gh || {}); p.seo.slugs = p.seo.slugs || {};
   if(!p.frozenSeeded){
     POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
@@ -7435,6 +7444,7 @@ function renderToko(){
   if(t==='props') posRenderProps();
   if(t==='units') posRenderUnits();
   if(t==='seo') posRenderSeo();
+  if(t==='articles') posRenderArticles();
   if(t==='appts') posRenderAppts();
   if(t==='reports') posRenderReports();
   if(t==='promos') posRenderPromos();
@@ -8893,21 +8903,22 @@ function posUnitForm(id){
 
 /* ===================== SEO: halaman statis untuk Google & iklan ===================== */
 function posSeoDefault(){ return { siteUrl:'https://lapakmu.store', name:'LapakMu', gh:{ owner:'geelywins', repo:'tokoacc', branch:'main' }, slugs:{}, lastBuild:null, lastPublish:null }; }
-function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').filter((w, i, a)=>w !== a[i - 1]).join('-').slice(0, 60).replace(/-+$/, ''); }
+function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').filter((w, i, a)=>w !== a[i - 1]).join('-').replace(/^(.{1,60})(?:-.*)?$/, (m, g)=>m.length > 60 ? g : m).replace(/-+$/, ''); }
 function seoSlug(prefix, id, title){
   const m = posCfg().seo.slugs; const key = prefix + ':' + id; if(m[key]) return m[key];
   const base = seoSlugify(title) || 'item'; const used = new Set(Object.entries(m).filter(([k])=>k.startsWith(prefix + ':')).map(e=>e[1])); let slug = base, n = 2;
   while(used.has(slug)) slug = base + '-' + (n++); m[key] = slug; return slug;
 }
-const SEO_CSS = 'body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#EEF1F6;color:#16202B;line-height:1.6}a{color:#B91C1C}img{max-width:100%;height:auto}header.h{background:#16202B;color:#fff}header.h div{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}header.h a{color:#fff;text-decoration:none;font-weight:700;font-size:14px}header.h .b{display:flex;align-items:center;gap:8px;font-size:17px}header.h .b img{width:30px;height:30px;border-radius:8px}main{max-width:960px;margin:0 auto;padding:16px 16px 96px}nav.bc{font-size:13px;color:#5A6673;margin-bottom:10px}nav.bc a{color:#5A6673}h1{font-size:26px;line-height:1.25;margin:4px 0 6px;letter-spacing:-.01em}h2{font-size:18px;margin:26px 0 8px}.loc{color:#5A6673;margin:0 0 8px}.price{font-size:26px;font-weight:800;color:#C2370F;margin:6px 0 4px}.price small{font-size:13px;color:#5A6673;font-weight:700}.badge{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;background:#DCF5E6;color:#0E7A44;vertical-align:middle;margin-left:6px}.badge.sold{background:#E6E9EE;color:#5A6673}.badge.book{background:#FFF1D6;color:#8A5A00}.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(22,32,43,.08)}.gal{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:12px 0}.gal img{width:100%;border-radius:12px;background:#DDE3EA;object-fit:cover;aspect-ratio:4/3}dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:0;font-size:14.5px}dt,dd{padding:8px 0;border-top:1px solid #E6E9EE;margin:0}dt{color:#5A6673}dd{font-weight:700}ul.f{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none;margin:0}ul.f li{background:#fff;border-radius:20px;padding:5px 13px;font-size:13.5px;font-weight:600}ul.l{padding-left:20px;margin:0}.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.it{display:block;background:#fff;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 1px 4px rgba(22,32,43,.08)}.it img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#DDE3EA}.it div{padding:12px 14px}.it b{display:block}.it .p{color:#C2370F;font-weight:800}.it small{color:#5A6673}.cta{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -4px 18px rgba(22,32,43,.12);padding:10px 16px;display:flex;gap:10px;justify-content:center}.cta a{flex:1;max-width:320px;text-align:center;padding:13px 10px;border-radius:12px;font-weight:800;text-decoration:none;font-size:14.5px}.cta .w{background:#fff;border:2px solid #B91C1C;color:#B91C1C}.cta .a{background:#FFB020;color:#16202B}.note{font-size:13px;color:#5A6673}.gone{background:#FFF1D6;border-radius:12px;padding:12px 14px;margin:10px 0;font-weight:700;color:#8A5A00}footer{max-width:960px;margin:0 auto;padding:0 16px 120px;color:#5A6673;font-size:13px}@media(max-width:560px){dl{grid-template-columns:120px 1fr}h1{font-size:22px}}';
+const SEO_CSS = 'body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#EEF1F6;color:#16202B;line-height:1.6}a{color:#B91C1C}img{max-width:100%;height:auto}header.h{background:#16202B;color:#fff}header.h div{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}header.h a{color:#fff;text-decoration:none;font-weight:700;font-size:14px}header.h .b{display:flex;align-items:center;gap:8px;font-size:17px}header.h .b img{width:30px;height:30px;border-radius:8px}main{max-width:960px;margin:0 auto;padding:16px 16px 96px}nav.bc{font-size:13px;color:#5A6673;margin-bottom:10px}nav.bc a{color:#5A6673}h1{font-size:26px;line-height:1.25;margin:4px 0 6px;letter-spacing:-.01em}h2{font-size:18px;margin:26px 0 8px}.loc{color:#5A6673;margin:0 0 8px}.price{font-size:26px;font-weight:800;color:#C2370F;margin:6px 0 4px}.price small{font-size:13px;color:#5A6673;font-weight:700}.badge{display:inline-block;font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;background:#DCF5E6;color:#0E7A44;vertical-align:middle;margin-left:6px}.badge.sold{background:#E6E9EE;color:#5A6673}.badge.book{background:#FFF1D6;color:#8A5A00}.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(22,32,43,.08)}.gal{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:12px 0}.gal img{width:100%;border-radius:12px;background:#DDE3EA;object-fit:cover;aspect-ratio:4/3}dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:0;font-size:14.5px}dt,dd{padding:8px 0;border-top:1px solid #E6E9EE;margin:0}dt{color:#5A6673}dd{font-weight:700}ul.f{display:flex;flex-wrap:wrap;gap:8px;padding:0;list-style:none;margin:0}ul.f li{background:#fff;border-radius:20px;padding:5px 13px;font-size:13.5px;font-weight:600}ul.l{padding-left:20px;margin:0}.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.it{display:block;background:#fff;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 1px 4px rgba(22,32,43,.08)}.it img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#DDE3EA}.it div{padding:12px 14px}.it b{display:block}.it .p{color:#C2370F;font-weight:800}.it small{color:#5A6673}.cta{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -4px 18px rgba(22,32,43,.12);padding:10px 16px;display:flex;gap:10px;justify-content:center}.cta a{flex:1;max-width:320px;text-align:center;padding:13px 10px;border-radius:12px;font-weight:800;text-decoration:none;font-size:14.5px}.cta .w{background:#fff;border:2px solid #B91C1C;color:#B91C1C}.cta .a{background:#FFB020;color:#16202B}.note{font-size:13px;color:#5A6673}.art h2{font-size:21px;margin:30px 0 8px}.art h3{font-size:17px;margin:20px 0 6px}.art p,.art li{font-size:16.5px;line-height:1.8}.art ul,.art ol{padding-left:22px}.art .meta{color:#5A6673;font-size:13.5px;margin:0 0 12px}.art .cover{width:100%;height:auto;border-radius:14px;margin:6px 0 14px;background:#DDE3EA}.art blockquote{margin:16px 0;padding:10px 16px;border-left:4px solid #B91C1C;background:#fff;border-radius:0 12px 12px 0}.art .tw{overflow-x:auto;margin:14px 0}.art table{border-collapse:collapse;width:100%;font-size:14.5px;background:#fff}.art th,.art td{border:1px solid #E6E9EE;padding:9px 11px;text-align:left;vertical-align:top}.art th{background:#F1F4F8}.toc{background:#fff;border-radius:14px;padding:12px 18px;margin:12px 0}.toc ol{margin:6px 0 0;padding-left:20px;font-size:14.5px}details.faq{background:#fff;border-radius:12px;padding:10px 14px;margin:8px 0}details.faq summary{font-weight:700;cursor:pointer}.gone{background:#FFF1D6;border-radius:12px;padding:12px 14px;margin:10px 0;font-weight:700;color:#8A5A00}footer{max-width:960px;margin:0 auto;padding:0 16px 120px;color:#5A6673;font-size:13px}@media(max-width:560px){dl{grid-template-columns:120px 1fr}h1{font-size:22px}}';
 function seoJson(o){ return JSON.stringify(o).replace(/</g, '\\u003c'); }
+function seoTitle(t, name, max){ max = max || 66; t = String(t || '').replace(/\s+/g, ' ').trim(); const full = name ? `${t} | ${name}` : t; return full.length <= max ? full : (t.length <= max ? t : seoTrim(t, max)); }
 function seoTrim(t, n){ t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t; }
 function seoParas(t){ return String(t || '').split(/\n{1,}/).map(x=>x.trim()).filter(Boolean).map(x=>`<p>${posEsc(x)}</p>`).join(''); }
 function seoRp(n){ return 'Rp' + Math.round(Number(n) || 0).toLocaleString('id-ID'); }
 function seoNums(o, out){ out = out || []; if(typeof o === 'number'){ if(o > 0) out.push(o); } else if(o && typeof o === 'object'){ Object.values(o).forEach(v=>seoNums(v, out)); } else if(typeof o === 'string' && /^\d+(\.\d+)?$/.test(o) && Number(o) > 0) out.push(Number(o)); return out; }
 function seoAvail(st){ return st === 'terjual' ? 'https://schema.org/SoldOut' : st === 'booking' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock'; }
 function seoLayout(S, o){
-  const nav = (S.sections || []).map(s=>`<a href="${S.base}/${s.path}/">${posEsc(s.label)}</a>`).join('');
+  const nav = (S.sections || []).concat(S.extraNav || []).map(s=>`<a href="${S.base}/${s.path}/">${posEsc(s.label)}</a>`).join('');
   const img = o.image || { url:S.base + '/og-default.jpg', w:1200, h:630 };
   const ld = (o.ld || []).map(x=>`<script type="application/ld+json">${seoJson(x)}<\/script>`).join('\n');
   return `<!DOCTYPE html>
@@ -8943,7 +8954,7 @@ if(v.s==='terjual'){var g2=document.createElement('div');g2.className='gone';g2.
 }
 function seoSpecRows(rows){ rows = rows.filter(r=>r[1] !== '' && r[1] != null && r[1] !== 0); return rows.length ? `<h2>Spesifikasi</h2><div class="card"><dl>${rows.map(r=>`<dt>${posEsc(r[0])}</dt><dd>${posEsc(r[1])}</dd>`).join('')}</dl></div>` : ''; }
 function seoGallery(it){ return it.imgs.length ? `<div class="gal">${it.imgs.map((im, i)=>`<img src="../../${posEsc(im.file)}" ${im.w ? `width="${im.w}" height="${im.h}"` : ''} alt="${posEsc(it.title + (i ? ' foto ' + (i + 1) : ''))}" ${i ? 'loading="lazy"' : 'fetchpriority="high"'}>`).join('')}</div>` : ''; }
-function seoItemCard(S, it){ return `<a class="it" href="${posEsc(it.url)}">${it.imgs[0] ? `<img src="../${posEsc(it.imgs[0].file)}" ${it.imgs[0].w ? `width="${it.imgs[0].w}" height="${it.imgs[0].h}"` : ''} alt="${posEsc(it.title)}" loading="lazy">` : '<img alt="" src="../favicon-192.png" style="object-fit:contain;padding:30px">'}<div><b>${posEsc(it.title)}</b><span class="p">${posEsc(it.priceText)}</span><br><small>${posEsc(it.sub || '')}</small></div></a>`; }
+function seoItemCard(S, it, up){ up = up || '../'; return `<a class="it" href="${posEsc(it.url)}">${it.imgs[0] ? `<img src="${up}${posEsc(it.imgs[0].file)}" ${it.imgs[0].w ? `width="${it.imgs[0].w}" height="${it.imgs[0].h}"` : ''} alt="${posEsc(it.title)}" loading="lazy">` : '<img alt="" src="' + up + 'favicon-192.png" style="object-fit:contain;padding:30px">'}<div><b>${posEsc(it.title)}</b><span class="p">${posEsc(it.priceText)}</span><br><small>${posEsc(it.sub || '')}</small></div></a>`; }
 
 async function seoImage(id){
   const url = await posImgSrc(id); if(!url) return null;
@@ -9035,13 +9046,31 @@ async function seoBuild(log){
   for(const x of (cat.products || [])){ const frozen = catSeg(x.categoryId) === 'frozen'; await prodItem('produk', x, (x.variants || []).map(v=>Number(v.price)).filter(n=>n > 0), { section:frozen ? 'frozen-food' : 'aksesoris', sub:catName(x.categoryId), catName:catName(x.categoryId) }); }
   log(`Mengumpulkan ${items.length} halaman, ${files.length} foto…`);
   S.sections = Object.values(SEC).filter(s=>items.some(i=>i.section === s.path));
+  S.extraNav = [{ path:'panduan', label:'Panduan' }];
   // halaman item
   for(const it of items){
     const crumbs = [['Beranda', base + '/'], [it.sectionLabel, `${base}/${it.section}/`], [it.title, it.url]]; it.metaDesc = it.metaDesc || seoTrim(it.title, 155);
-    const title = seoTrim(`${it.title} – ${it.kind==='rumah' || it.kind==='mobil' ? posPropMoney(it.price) : it.priceText} | ${S.name}`, 70);
+    const title = seoTitle(`${it.title} – ${it.kind==='rumah' || it.kind==='mobil' ? posPropMoney(it.price) : it.priceText}`, S.name);
     const html = seoLayout(S, { up:'../../', title, desc:it.metaDesc, canonical:it.url, robots:it.sold ? 'noindex,follow' : '', image:it.imgs[0] ? { url:it.imgs[0].abs, w:it.imgs[0].w, h:it.imgs[0].h } : null, ogType:'website', crumbs, ld:seoItemLd(S, it, it.x, cat), body:seoItemBody(S, it, it.x, cat), cta:seoCta(S, it), script:seoLiveScript(S, it, dbUrl) });
     files.push({ path:it.path + 'index.html', text:html });
   }
+  // artikel panduan
+  const artItems = [];
+  for(const a of (p.articles || []).filter(x=>x.status === 'published' && x.title && x.body)){
+    const slug = seoSlug('panduan', a.id, a.title); const url = `${base}/panduan/${slug}/`; let cover = null;
+    if((a.images || [])[0]){ const im = await seoImage(a.images[0]); if(im){ const file = `img/panduan-${slug}-1.${im.ext}`; files.push({ path:file, bytes:im.bytes }); cover = { file, abs:`${base}/${file}`, w:im.w, h:im.h }; } }
+    const md = seoMd(a.body); const plain = md.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    artItems.push({ a, slug, url, cover, md, faq:artFaq(a.faq), desc:seoTrim(a.desc || plain, 155) });
+  }
+  for(const ai of artItems){
+    const rel = (ai.a.related || []).map(id=>items.find(i=>i.id === id && !i.sold)).filter(Boolean).slice(0, 6); const others = artItems.filter(o=>o !== ai).slice(0, 3);
+    const crumbs = [['Beranda', base + '/'], ['Panduan', base + '/panduan/'], [ai.a.title, ai.url]];
+    const cta = `<div class="cta">${storeWa ? `<a class="w" href="${posEsc(waLink(storeWa, 'Halo, saya membaca artikel "' + ai.a.title + '". Bisa minta info lebih lanjut? ' + ai.url))}" rel="noopener">Tanya lewat WhatsApp</a>` : ''}<a class="a" href="${base}/katalog/">Lihat katalog</a></div>`;
+    files.push({ path:`panduan/${ai.slug}/index.html`, text:seoLayout(S, { up:'../../', title:seoTitle(ai.a.title, S.name), desc:ai.desc, canonical:ai.url, ogType:'article', image:ai.cover ? { url:ai.cover.abs, w:ai.cover.w, h:ai.cover.h } : null, crumbs, ld:seoArticleLd(S, ai), body:seoArticleBody(S, ai, rel, others), cta }) });
+  }
+  { const idxUrl = `${base}/panduan/`; const has = artItems.length > 0;
+    const body = `<h1>Panduan &amp; tips</h1><p>${has ? 'Panduan memilih kaca film, membandingkan mobil, dan tips membeli mobil bekas dari tim ' + posEsc(S.name) + '.' : 'Artikel panduan akan tampil di sini. Sementara itu, lihat katalog kami.'}</p>${has ? `<div class="grid">${artItems.map(ai=>seoArticleCard(S, ai)).join('')}</div>` : `<p><a href="${base}/katalog/">Lihat katalog ›</a></p>`}`;
+    files.push({ path:'panduan/index.html', text:seoLayout(S, { up:'../', title:`Panduan & Tips Otomotif dan Properti | ${S.name}`, desc:`Panduan memilih kaca film, membandingkan mobil baru, tips membeli mobil bekas, dan informasi lain dari ${S.name}.`, canonical:idxUrl, robots:has ? '' : 'noindex,follow', crumbs:[['Beranda', base + '/'], ['Panduan', idxUrl]], ld:[seoBreadcrumbLd(S, [['Beranda', base + '/'], ['Panduan', idxUrl]])], body }) }); }
   // halaman bagian
   for(const sec of S.sections){
     const list = items.filter(i=>i.section === sec.path).sort((a, b)=>(a.sold - b.sold)); const url = `${base}/${sec.path}/`;
@@ -9052,15 +9081,16 @@ async function seoBuild(log){
   // hub katalog
   const hubUrl = `${base}/katalog/`; const hubBody = `<h1>Katalog ${posEsc(S.name)}</h1><p>Aksesoris mobil, mobil baru dan bekas, serta properti. Pilih kategori di bawah, lalu hubungi kami lewat WhatsApp atau buka toko online untuk memesan dan membuat janji.</p>`
     + (S.sections.length ? S.sections.map(sec=>{ const list = items.filter(i=>i.section === sec.path && !i.sold).slice(0, 6); return `<h2><a href="${base}/${sec.path}/">${posEsc(sec.h1)}</a></h2><div class="grid">${list.map(i=>seoItemCard(S, i)).join('')}</div>`; }).join('') : '<div class="card"><p>Katalog akan tampil di sini setelah produk ditambahkan.</p></div>')
+    + (artItems.length ? `<h2><a href="${base}/panduan/">Panduan &amp; tips</a></h2><div class="grid">${artItems.slice(0, 6).map(ai=>seoArticleCard(S, ai)).join('')}</div>` : '')
     + `<p><a href="${base}/">Buka toko online ${posEsc(S.name)} ›</a></p>`;
   files.push({ path:'katalog/index.html', text:seoLayout(S, { up:'../', title:`Katalog ${S.name} – Aksesoris Mobil, Mobil Baru & Bekas, Properti`, desc:`Katalog ${S.name}: kaca film, karpet custom, dash cam, mobil baru dan bekas, serta rumah. Hubungi WhatsApp atau buka toko online.`, canonical:hubUrl, crumbs:[['Beranda', base + '/'], ['Katalog', hubUrl]], ld:[seoBreadcrumbLd(S, [['Beranda', base + '/'], ['Katalog', hubUrl]])], body:hubBody }) });
   // sitemap & robots
-  const urls = [[base + '/', '1.0'], [hubUrl, '0.8']].concat(S.sections.map(s=>[`${base}/${s.path}/`, '0.8'])).concat(items.filter(i=>!i.sold).map(i=>[i.url, '0.7']));
+  const urls = [[base + '/', '1.0'], [hubUrl, '0.8']].concat(S.sections.map(s=>[`${base}/${s.path}/`, '0.8'])).concat(artItems.length ? [[`${base}/panduan/`, '0.7']] : []).concat(artItems.map(ai=>[ai.url, '0.6'])).concat(items.filter(i=>!i.sold).map(i=>[i.url, '0.7']));
   files.push({ path:'sitemap.xml', text:`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u=>`  <url><loc>${posEsc(u[0])}</loc><lastmod>${today}</lastmod><priority>${u[1]}</priority></url>`).join('\n')}\n</urlset>\n` });
   files.push({ path:'robots.txt', text:`User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n` });
   files.push({ path:'site.webmanifest', text:JSON.stringify({ name:S.name, short_name:S.name.slice(0, 12), description:'Aksesoris mobil, mobil baru dan bekas, serta properti.', start_url:'/', scope:'/', display:'standalone', background_color:'#ffffff', theme_color:'#16202B', lang:'id', icons:[{ src:'/favicon-192.png', sizes:'192x192', type:'image/png' }, { src:'/favicon-512.png', sizes:'512x512', type:'image/png' }] }) });
   p.seo.lastBuild = { at:new Date().toISOString(), rev:Number(p.rev) || 0, pages:items.length, indexable:items.filter(i=>!i.sold).length }; saveSettings();
-  return { files, items, urls, base, stats:{ pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
+  return { files, items, urls, base, stats:{ articles:artItems.length, pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
 }
 
 const SEO_CRC = (()=>{ const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
@@ -9081,7 +9111,7 @@ function seoZip(files){
 }
 async function seoGitSha(bytes){ const head = new TextEncoder().encode('blob ' + bytes.length + '\0'); const all = new Uint8Array(head.length + bytes.length); all.set(head); all.set(bytes, head.length); const h = await crypto.subtle.digest('SHA-1', all); return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2, '0')).join(''); }
 async function seoPool(list, n, fn){ let i = 0; await Promise.all(Array.from({ length:Math.min(n, list.length) }, async ()=>{ while(i < list.length){ const k = i++; await fn(list[k], k); } })); }
-const SEO_MANAGED = ['rumah/', 'mobil/', 'aksesoris/', 'frozen-food/', 'katalog/', 'img/'];
+const SEO_MANAGED = ['rumah/', 'mobil/', 'aksesoris/', 'frozen-food/', 'katalog/', 'panduan/', 'img/'];
 async function seoGh(path, token, opts){
   const r = await fetch('https://api.github.com' + path, Object.assign({ headers:{ Authorization:'Bearer ' + token, Accept:'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28', 'Content-Type':'application/json' } }, opts || {}));
   if(!r.ok){ const t = await r.text().catch(()=>''); const e = new Error('GitHub ' + r.status); e.status = r.status; e.detail = t.slice(0, 200); throw e; }
@@ -9121,7 +9151,7 @@ function seoBusy(on){ document.querySelectorAll('#ppanel-seo .seo-act').forEach(
 async function seoDownloadZip(){
   const log = seoLogger(); seoBusy(true);
   try{ log('Membuat halaman…'); const r = await seoBuild(log); const blob = seoZip(r.files); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `lapakmu-seo-${todayISO()}.zip`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 800);
-    log(`Selesai: ${r.stats.pages} halaman, ${r.stats.photos} foto, ${r.stats.indexable} alamat di sitemap. ZIP diunduh. Ekstrak lalu unggah isinya ke repo (folder rumah, mobil, aksesoris, katalog, img, serta sitemap.xml).`); }
+    log(`Selesai: ${r.stats.pages} halaman unit, ${r.stats.articles} artikel, ${r.stats.photos} foto, ${r.stats.indexable} alamat di sitemap. ZIP diunduh. Ekstrak lalu unggah isinya ke repo (folder rumah, mobil, aksesoris, katalog, img, serta sitemap.xml).`); }
   catch(e){ console.error(e); log('Gagal: ' + (e.message || e)); toast('Gagal membuat halaman SEO: ' + (e.message || ''), 'err'); }
   seoBusy(false); posRenderSeo(true);
 }
@@ -9159,6 +9189,9 @@ function seoHealth(){
   if(shortDesc.length) out.push(['warn', `${shortDesc.length} item dengan deskripsi kurang dari 80 karakter: ${list(shortDesc)}`]);
   if(noLoc.length) out.push(['warn', `${noLoc.length} item tanpa kota: ${list(noLoc)}`]);
   if(rows.length && !noImg.length && !shortDesc.length && !noLoc.length) out.push(['ok', 'Semua item punya foto, deskripsi, dan lokasi']);
+  const pub = p.articles.filter(a=>a.status === 'published'), drafts = p.articles.filter(a=>a.status !== 'published');
+  out.push(pub.length ? ['ok', `${pub.length} artikel terbit akan dibuat`] : ['warn', 'Belum ada artikel terbit. Tulis panduan di tab Konten untuk menjaring pencarian informasi.']);
+  if(drafts.length) out.push(['warn', `${drafts.length} artikel masih draf (tidak ikut diterbitkan)`]);
   const lp = p.seo.lastPublish;
   out.push(!lp ? ['warn', 'Halaman statis belum pernah diterbitkan'] : (Number(p.rev) > Number(lp.rev) ? ['warn', 'Ada perubahan katalog sejak terakhir diterbitkan (' + new Date(lp.at).toLocaleDateString('id-ID') + '). Terbitkan ulang supaya Google melihat data terbaru.'] : ['ok', 'Halaman statis terbaru sudah diterbitkan (' + new Date(lp.at).toLocaleString('id-ID') + ')']));
   return out;
@@ -9191,6 +9224,376 @@ function posRenderSeo(keepLog){
   };
   const dt = document.getElementById('seo_deltok'); if(dt) dt.onclick = ()=>{ try{ localStorage.removeItem('dd_gh_token'); }catch(e){} toast('Token dihapus'); posRenderSeo(); };
   document.getElementById('seo_pub').onclick = seoPublishGithub; document.getElementById('seo_zip').onclick = seoDownloadZip; document.getElementById('seo_reslug').onclick = seoResetSlugs;
+}
+
+
+/* ===================== KONTEN: panduan & artikel ===================== */
+function mdInline(raw){
+  let s = posEsc(raw);
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g, (m, t, u)=>`<a href="${u}"${/^https?:/.test(u) ? ' rel="noopener"' : ''}>${t}</a>`);
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
+  return s;
+}
+function artWords(text){ return String(text || '').replace(/[#>*|`]/g, ' ').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/^\s*[-\d.)]+\s+/gm, ' ').split(/\s+/).filter(w=>/[\p{L}\p{N}]/u.test(w)).length; }
+function artReadMins(words){ return Math.max(1, Math.round(words / 200)); }
+function seoMd(text){
+  const lines = String(text || '').replace(/\r/g, '').split('\n'); const out = [], toc = [], used = {}; let para = [], list = null, quote = [], table = [];
+  const flushP = ()=>{ if(para.length){ out.push('<p>' + mdInline(para.join(' ')) + '</p>'); para = []; } };
+  const flushL = ()=>{ if(list){ out.push(`<${list.t}>${list.items.map(i=>`<li>${mdInline(i)}</li>`).join('')}</${list.t}>`); list = null; } };
+  const flushQ = ()=>{ if(quote.length){ out.push('<blockquote>' + mdInline(quote.join(' ')) + '</blockquote>'); quote = []; } };
+  const flushT = ()=>{ if(table.length){
+    const rows = table.map(r=>r.replace(/^\||\|$/g, '').split('|').map(c=>c.trim())); const hasSep = rows[1] && rows[1].every(c=>/^:?-{2,}:?$/.test(c)); const head = hasSep ? rows[0] : null; const body = hasSep ? rows.slice(2) : rows;
+    out.push('<div class="tw"><table>' + (head ? `<thead><tr>${head.map(c=>`<th>${mdInline(c)}</th>`).join('')}</tr></thead>` : '') + `<tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${mdInline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`); table = []; } };
+  const flush = ()=>{ flushP(); flushL(); flushQ(); flushT(); };
+  lines.forEach(raw=>{
+    const l = raw.trim(); let m;
+    if(!l){ flush(); return; }
+    if((m = /^(#{1,3})\s+(.+)$/.exec(l))){ flush(); const lvl = m[1].length === 3 ? 3 : 2; const txt = m[2].trim(); let id = seoSlugify(txt) || 'bagian'; used[id] = (used[id] || 0) + 1; if(used[id] > 1) id += '-' + used[id]; if(lvl === 2) toc.push({ id, text:txt }); out.push(`<h${lvl} id="${id}">${mdInline(txt)}</h${lvl}>`); return; }
+    if(/^---+$/.test(l)){ flush(); out.push('<hr>'); return; }
+    if(l.startsWith('|')){ flushP(); flushL(); flushQ(); table.push(l); return; }
+    flushT();
+    if((m = /^>\s?(.*)$/.exec(l))){ flushP(); flushL(); quote.push(m[1]); return; }
+    flushQ();
+    if((m = /^[-*]\s+(.+)$/.exec(l))){ flushP(); if(!list || list.t !== 'ul'){ flushL(); list = { t:'ul', items:[] }; } list.items.push(m[1]); return; }
+    if((m = /^\d+[.)]\s+(.+)$/.exec(l))){ flushP(); if(!list || list.t !== 'ol'){ flushL(); list = { t:'ol', items:[] }; } list.items.push(m[1]); return; }
+    flushL(); para.push(l);
+  });
+  flush(); return { html:out.join('\n'), toc, words:artWords(text) };
+}
+function artFaq(text){
+  const out = []; let cur = null;
+  String(text || '').split('\n').forEach(l=>{ l = l.trim(); if(!l) return; const q = /^T:\s*(.+)/i.exec(l), a = /^J:\s*(.+)/i.exec(l);
+    if(q){ cur = { q:q[1], a:'' }; out.push(cur); } else if(a && cur){ cur.a = (cur.a + ' ' + a[1]).trim(); } else if(cur && cur.a){ cur.a += ' ' + l; } });
+  return out.filter(x=>x.q && x.a);
+}
+const ART_PLACEHOLDER = /\[ISI[^\]]*\]/i;
+function artPlaceholders(a){ return ART_PLACEHOLDER.test([a.title, a.desc, a.body, a.faq].join('\n')); }
+function artChecks(a){
+  const md = seoMd(a.body); const t = String(a.title || '').length, d = String(a.desc || '').length; const out = [];
+  out.push([t >= 30 && t <= 65, `Judul ${t} karakter (ideal 30-65)`]);
+  out.push([d >= 70 && d <= 155, `Deskripsi ${d} karakter (ideal 70-155)`]);
+  out.push([md.words >= 500, `${md.words} kata (disarankan minimal 500)`]);
+  out.push([md.toc.length >= 2, `${md.toc.length} sub-judul (minimal 2)`]);
+  out.push([!!(a.images || [])[0], 'Gambar sampul']);
+  out.push([(a.related || []).length > 0, 'Ada produk, unit, atau rumah terkait']);
+  out.push([!artPlaceholders(a), 'Tidak ada teks [ISI ...] yang belum dilengkapi']);
+  return out;
+}
+function artRelatedOptions(){
+  const p = posCfg(); const o = [];
+  p.properties.forEach(x=>o.push({ id:x.id, label:'Rumah: ' + x.title }));
+  p.units.forEach(x=>o.push({ id:x.id, label:'Mobil: ' + posUnitTitle(x) }));
+  p.filmBrands.forEach(x=>o.push({ id:x.id, label:'Kaca film: ' + x.name }));
+  p.carpets.forEach(x=>o.push({ id:x.id, label:'Karpet: ' + x.name }));
+  p.products.forEach(x=>o.push({ id:x.id, label:'Produk: ' + x.name }));
+  return o;
+}
+function posRenderArticles(){
+  const el = document.getElementById('posArticleList'); if(!el) return; const p = posCfg();
+  const arts = p.articles.slice().sort((a, b)=>String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)));
+  const siteUrl = String(p.seo.siteUrl || '').replace(/\/+$/, '');
+  el.innerHTML = arts.length ? arts.map(a=>{
+    const ch = artChecks(a); const warn = ch.filter(c=>!c[0]); const words = seoMd(a.body).words; const live = a.status === 'published';
+    const link = live && p.seo.lastPublish ? `${siteUrl}/panduan/${posEsc(seoSlug('panduan', a.id, a.title))}/` : '';
+    return `<div class="vd-vendor"><div class="vd-head"><div><strong>${posEsc(a.title || '(tanpa judul)')}</strong> <span class="pill ${live ? 'lead' : ''}">${live ? 'Terbit' : 'Draf'}</span>${a.category ? ` <span class="pill">${posEsc(a.category)}</span>` : ''}
+        <div class="ex-sub">${words} kata · ${artReadMins(words)} menit baca · diubah ${new Date(a.updatedAt || a.createdAt).toLocaleDateString('id-ID')}</div>
+        <div class="ex-sub">${warn.length ? '⚠️ ' + warn.length + ' catatan: ' + posEsc(warn.slice(0, 3).map(c=>c[1]).join('; ')) + (warn.length > 3 ? '…' : '') : '✅ Siap diterbitkan'}</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${link ? `<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${link}">Lihat ↗</a>` : ''}<button class="btn ghost sm" onclick="posArticleForm('${a.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posArticleToggle('${a.id}')">${live ? 'Jadikan draf' : 'Terbitkan'}</button><button class="btn ghost sm" onclick="posArticleDelete('${a.id}')">🗑</button></div></div></div>`;
+  }).join('') : `<div class="empty">Belum ada artikel.<div style="margin-top:10px"><button class="btn" onclick="posArticleSeed()">Tambah 3 contoh artikel (draf)</button></div></div>`;
+}
+function posArticleToggle(id){
+  const a = posCfg().articles.find(x=>x.id === id); if(!a) return;
+  if(a.status !== 'published'){
+    if(artPlaceholders(a)){ toast('Masih ada teks [ISI ...]. Lengkapi dulu sebelum diterbitkan.', 'err'); return; }
+    if(!a.title || seoMd(a.body).words < 150){ toast('Isi artikel masih terlalu pendek untuk diterbitkan', 'err'); return; }
+    a.status = 'published'; a.publishedAt = a.publishedAt || new Date().toISOString();
+  } else a.status = 'draft';
+  a.updatedAt = new Date().toISOString(); posSave(); posRenderArticles(); posRenderStatus(); posUpdateBadge();
+  toast(a.status === 'published' ? 'Artikel ditandai terbit. Tekan Terbitkan ke GitHub di tab SEO.' : 'Artikel dikembalikan jadi draf');
+}
+function posArticleDelete(id){
+  const a = posCfg().articles.find(x=>x.id === id); if(!a) return;
+  confirmModal('Hapus artikel', `Hapus "${a.title}"? Halamannya ikut hilang dari situs saat kamu menerbitkan ulang.`, ()=>{ (a.images || []).forEach(posDeleteImage); const p = posCfg(); p.articles = p.articles.filter(x=>x.id !== id); posSave(); posRenderArticles(); posUpdateBadge(); });
+}
+function artInsert(kind){
+  const ta = document.getElementById('ar_body'); if(!ta) return; const s = ta.selectionStart, e = ta.selectionEnd; const sel = ta.value.slice(s, e);
+  const tpl = { h2:['\n\n## ', sel || 'Judul bagian', '\n\n'], h3:['\n\n### ', sel || 'Sub-judul', '\n\n'], bold:['**', sel || 'teks tebal', '**'], ul:['\n- ', sel || 'butir pertama', '\n- butir kedua\n'], ol:['\n1. ', sel || 'langkah pertama', '\n2. langkah kedua\n'], quote:['\n\n> ', sel || 'catatan atau tips', '\n\n'],
+    link:['[', sel || 'teks tautan', '](https://)'], table:['\n\n| Kolom 1 | Kolom 2 |\n|---|---|\n| isi | isi |\n| isi | isi |\n\n', '', ''] }[kind];
+  const text = tpl.join(''); ta.value = ta.value.slice(0, s) + text + ta.value.slice(e); ta.focus(); const pos = s + text.length; ta.setSelectionRange(pos, pos); ta.dispatchEvent(new Event('input'));
+}
+function posArticleForm(id){
+  const p = posCfg(); const x = p.articles.find(y=>y.id === id) || { status:'draft', images:[], related:[], author:(p.seo.name || 'Tim LapakMu'), category:'Panduan' };
+  const cats = ['Panduan', 'Mobil baru', 'Mobil bekas', 'Kaca film & aksesoris', 'Properti', 'Tips']; const rel = artRelatedOptions();
+  openModal(`<div class="modal-head"><h3>${id ? 'Edit' : 'Tulis'} Artikel</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Judul * <span class="muted" id="ar_tc"></span></label><input type="text" id="ar_title" value="${posEsc(x.title)}" maxlength="100" placeholder="mis. Cara Memilih Kaca Film Mobil: Panduan Lengkap"></div>
+      <div class="field full"><label>Deskripsi singkat untuk Google <span class="muted" id="ar_dc"></span></label><textarea id="ar_desc" rows="2" maxlength="200" placeholder="Ringkasan 1-2 kalimat yang menarik orang untuk mengeklik">${posEsc(x.desc)}</textarea></div>
+      <div class="field"><label>Kategori</label><select id="ar_cat">${cats.map(c=>`<option ${c===x.category ? 'selected' : ''}>${posEsc(c)}</option>`).join('')}</select></div>
+      <div class="field"><label>Penulis</label><input type="text" id="ar_author" value="${posEsc(x.author)}"></div>
+      <div class="field full"><label>Gambar sampul <span class="muted">(opsional, tampil di atas artikel dan saat dibagikan)</span></label><div id="posImgsWrap"></div></div>
+      <div class="field full"><label>Isi artikel *</label>
+        <div class="art-tools"><button type="button" onclick="artInsert('h2')">Judul</button><button type="button" onclick="artInsert('h3')">Sub</button><button type="button" onclick="artInsert('bold')"><b>B</b></button><button type="button" onclick="artInsert('ul')">• Daftar</button><button type="button" onclick="artInsert('ol')">1. Daftar</button><button type="button" onclick="artInsert('table')">Tabel</button><button type="button" onclick="artInsert('quote')">Tips</button><button type="button" onclick="artInsert('link')">Tautan</button><button type="button" id="ar_pv">Pratinjau</button></div>
+        <textarea id="ar_body" rows="16" placeholder="Tulis dengan format sederhana:&#10;## Judul bagian&#10;Paragraf biasa. **tebal**&#10;- butir daftar&#10;| Kolom | Kolom |">${posEsc(x.body)}</textarea>
+        <div class="ex-sub" id="ar_stats" style="margin-top:4px"></div><div class="art-prev" id="ar_preview" hidden></div></div>
+      <div class="field full"><label>Tanya jawab (FAQ) <span class="muted">— opsional. Tulis: T: pertanyaan, lalu J: jawaban</span></label><textarea id="ar_faq" rows="5" placeholder="T: Apa itu VLT?&#10;J: Persentase cahaya yang masih lolos melewati kaca film.">${posEsc(x.faq)}</textarea></div>
+      <div class="field full"><label>Produk, mobil, atau rumah terkait <span class="muted">— tampil sebagai kartu di bawah artikel, bagus untuk tautan internal</span></label>
+        <input type="text" id="ar_relq" placeholder="Cari..." autocomplete="off"><div class="ar-rel" id="ar_rel">${rel.length ? rel.map(r=>`<label class="ex-check" data-l="${posEsc(r.label.toLowerCase())}"><input type="checkbox" class="ar_relc" value="${posEsc(r.id)}" ${(x.related || []).includes(r.id) ? 'checked' : ''}> ${posEsc(r.label)}</label>`).join('') : '<div class="ex-sub">Belum ada produk, mobil, atau rumah.</div>'}</div></div>
+      <div class="field"><label>Status</label><select id="ar_status"><option value="draft" ${x.status !== 'published' ? 'selected' : ''}>Draf</option><option value="published" ${x.status === 'published' ? 'selected' : ''}>Terbit</option></select></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="ar_save">Simpan</button></div>`, true);
+  posBindImages(x.images, 1);
+  const upd = ()=>{
+    const t = document.getElementById('ar_title').value.length, d = document.getElementById('ar_desc').value.length; const md = seoMd(document.getElementById('ar_body').value);
+    document.getElementById('ar_tc').textContent = `${t} karakter (ideal 30-65)`; document.getElementById('ar_dc').textContent = `${d} karakter (ideal 70-155)`;
+    document.getElementById('ar_stats').textContent = `${md.words} kata · ${artReadMins(md.words)} menit baca · ${md.toc.length} sub-judul${md.words < 500 ? ' · disarankan minimal 500 kata' : ''}`;
+    const pv = document.getElementById('ar_preview'); if(!pv.hidden) pv.innerHTML = md.html;
+  };
+  ['ar_title', 'ar_desc', 'ar_body'].forEach(i=>document.getElementById(i).addEventListener('input', upd)); upd();
+  document.getElementById('ar_pv').onclick = ()=>{ const pv = document.getElementById('ar_preview'); pv.hidden = !pv.hidden; document.getElementById('ar_pv').textContent = pv.hidden ? 'Pratinjau' : 'Tutup pratinjau'; upd(); };
+  document.getElementById('ar_relq').addEventListener('input', e=>{ const q = e.target.value.trim().toLowerCase(); document.querySelectorAll('#ar_rel label').forEach(l=>l.style.display = !q || l.dataset.l.includes(q) ? '' : 'none'); });
+  document.getElementById('ar_save').onclick = ()=>{
+    const v = n=>document.getElementById(n).value.trim(); const title = v('ar_title'), body = document.getElementById('ar_body').value.trim();
+    if(!title){ toast('Judul wajib diisi', 'err'); return; } if(body.length < 100){ toast('Isi artikel masih terlalu pendek', 'err'); return; }
+    const data = { title, desc:v('ar_desc'), category:v('ar_cat'), author:v('ar_author') || 'Tim LapakMu', body, faq:document.getElementById('ar_faq').value.trim(), images:posCommitImages(x.images), related:[...document.querySelectorAll('.ar_relc:checked')].map(i=>i.value), status:v('ar_status') };
+    if(data.status === 'published'){
+      if(artPlaceholders(data)){ toast('Masih ada teks [ISI ...]. Lengkapi dulu, atau simpan sebagai Draf.', 'err'); return; }
+      if(seoMd(body).words < 150){ toast('Artikel terlalu pendek untuk diterbitkan (minimal 150 kata)', 'err'); return; }
+    }
+    const now = new Date().toISOString(); if(data.status === 'published') data.publishedAt = x.publishedAt || now;
+    if(id) Object.assign(x, data, { updatedAt:now }); else p.articles.unshift(Object.assign({ id:'ar_' + uid(), createdAt:now, updatedAt:now }, data));
+    p.rev = (Number(p.rev) || 0) + 1; closeModal(); posSave(); posRenderArticles(); posRenderStatus(); posUpdateBadge(); toast(data.status === 'published' ? 'Artikel disimpan. Tekan Terbitkan ke GitHub di tab SEO.' : 'Draf disimpan');
+  };
+}
+
+const ART_SEEDS = [
+{ title:'Cara Memilih Kaca Film Mobil: Panduan Lengkap Sebelum Memasang', category:'Kaca film & aksesoris',
+  desc:'Panduan memilih kaca film mobil: jenis, VLT, penolakan panas, pemasangan, dan perawatan. Cek dulu sebelum memasang agar tidak salah pilih.',
+  body:`Kaca film membuat kabin lebih adem, mengurangi silau, dan menambah privasi. Tapi pilihan jenis dan tingkat kegelapannya banyak, dan salah pilih bisa membuat pandangan malam hari terganggu atau panas tetap terasa. Panduan ini membantumu memilih dengan tenang.
+
+## Kenapa kaca film penting
+- **Kabin lebih sejuk.** Kaca film yang baik menolak sebagian panas matahari sehingga AC tidak bekerja sekeras biasanya.
+- **Melindungi dari sinar UV.** Membantu melindungi kulit dan interior seperti dasbor dan jok dari pudar.
+- **Mengurangi silau** dan menambah privasi barang di dalam mobil.
+- **Menambah rasa aman.** Beberapa film membantu menahan pecahan kaca jika terjadi benturan.
+
+## Kenali jenis kaca film
+| Jenis | Kelebihan | Yang perlu diperhatikan |
+|---|---|---|
+| Dyed (berpewarna) | Harga paling terjangkau, tampilan gelap | Penolakan panas terbatas, warna bisa memudar seiring waktu |
+| Metalized | Penolakan panas lebih baik dan tahan lama | Lapisan logam pada sebagian produk bisa mengganggu sinyal GPS atau radio |
+| Carbon | Warna stabil dan tidak mengganggu sinyal | Harga di atas dyed |
+| Ceramic | Penolakan panas tinggi dengan tampilan tetap jernih | Harga paling tinggi |
+
+Kemampuan tiap merek berbeda-beda. Selalu minta data produk dari penjual, jangan hanya mengandalkan nama jenisnya.
+
+## Istilah yang perlu kamu tahu
+- **VLT (Visible Light Transmission):** persentase cahaya yang masih lolos. Makin kecil angkanya, makin gelap.
+- **TSER (Total Solar Energy Rejected):** seberapa besar total energi matahari yang ditolak. Ini yang paling menentukan terasa adem atau tidak.
+- **IRR (Infrared Rejection):** penolakan sinar inframerah, penyumbang panas yang besar.
+- **UV rejection:** penolakan sinar ultraviolet. Film berkualitas umumnya menolak hampir seluruhnya.
+
+## Cara memilih sesuai kebutuhan
+1. **Tentukan tujuan utama:** adem, privasi, atau hemat budget.
+2. **Pilih kegelapan yang aman.** Kaca depan sebaiknya lebih terang supaya pandangan jelas, terutama malam hari dan saat hujan. Kaca samping dan belakang bisa lebih gelap sesuai kebutuhan. Ikuti ketentuan keselamatan dan lalu lintas yang berlaku.
+3. **Bandingkan penolakan panas (TSER dan IRR),** bukan hanya kegelapan. Film yang lebih gelap belum tentu lebih adem.
+4. **Pilih area pemasangan:** seluruh kaca, kaca depan saja, atau kaca belakang dan samping saja.
+5. **Cek garansi** dan syaratnya, termasuk garansi pemasangan.
+
+> Tips: datang pada siang hari dan minta contoh sampel film untuk dicoba langsung di kaca mobilmu.
+
+## Pemasangan dan perawatan
+- Pilih teknisi berpengalaman dan tempat yang bersih dari debu, supaya hasil tidak bergelembung.
+- Dalam beberapa hari pertama, **jangan menurunkan kaca** dan hindari membersihkan bagian dalam kaca.
+- Embun atau gelembung kecil di awal biasanya hilang sendiri saat film mengering. Tanyakan lama pengeringan ke teknisi.
+- Bersihkan dengan kain mikrofiber lembut dan pembersih kaca tanpa amonia.
+
+## Kesalahan yang sering terjadi
+- Memilih hanya berdasarkan harga termurah.
+- Memasang film terlalu gelap di kaca depan.
+- Tidak menanyakan garansi tertulis.
+- Mengabaikan penolakan panas dan hanya melihat kegelapan.
+
+## Ciri kaca film yang berkualitas
+- Tampilan jernih, tidak buram atau berkabut saat dilihat dari dalam.
+- Warna stabil dan tidak berubah keunguan seiring waktu.
+- Tepi pemasangan rapi, tanpa gelembung besar atau sobekan.
+- Ada data produk dan garansi yang jelas dari penjual.
+
+## Pertanyaan yang sebaiknya kamu ajukan ke penjual
+1. Merek dan seri apa yang dipasang, dan apa data penolakan panasnya?
+2. Berapa persen kegelapan (VLT) yang cocok untuk kaca depan dan kaca lainnya?
+3. Apa saja yang ditanggung garansi, dan berapa lama?
+4. Berapa lama proses pemasangan dan pengeringannya?
+5. Bagaimana jika ada gelembung atau bagian yang terkelupas setelah dipasang?
+
+## Pilihan kaca film di LapakMu
+[ISI: sebutkan merek dan paket kaca film yang tersedia, lokasi pemasangan, dan estimasi waktu pengerjaan.] Hubungi kami lewat WhatsApp untuk konsultasi dan penawaran sesuai mobilmu.`,
+  faq:`T: Apa bedanya VLT dan penolakan panas?
+J: VLT hanya menunjukkan seberapa gelap kaca. Penolakan panas (TSER dan IRR) menunjukkan seberapa besar panas yang dihalangi. Dua film dengan kegelapan sama bisa punya kemampuan menolak panas yang berbeda.
+T: Apakah kaca film yang lebih gelap pasti lebih adem?
+J: Tidak selalu. Kemampuan menolak panas ditentukan oleh teknologi dan bahan filmnya, bukan hanya warnanya.
+T: Berapa lama proses pemasangan?
+J: [ISI: estimasi waktu pemasangan di tempatmu]` },
+{ title:'Geely EX2 vs EX5: Mana yang Lebih Cocok untuk Kebutuhanmu?', category:'Mobil baru',
+  desc:'Perbandingan Geely EX2 dan EX5: ukuran, kenyamanan, fitur, dan pemakaian harian. Cari tahu mana yang cocok sebelum test drive.',
+  body:`Memilih antara dua mobil listrik dari merek yang sama sering membingungkan karena keduanya sama-sama menarik. Artikel ini membantumu menimbang Geely EX2 dan EX5 dari sisi yang paling berpengaruh pada pemakaian sehari-hari: ukuran, ruang, fitur, dan cara pakainya.
+
+Semua angka di tabel mengikuti informasi resmi Geely Indonesia dan dapat berbeda per varian. Tanyakan data terbaru ke tim penjualan sebelum memutuskan.
+
+## Sekilas perbedaannya
+- **EX2** adalah mobil listrik berukuran lebih ringkas. Cocok untuk mobilitas dalam kota, parkir di ruang sempit, dan pemakaian harian jarak dekat sampai menengah.
+- **EX5** adalah SUV listrik yang lebih besar dan lebih lega. Cocok untuk keluarga, barang bawaan lebih banyak, dan perjalanan yang lebih jauh.
+
+## Tabel perbandingan
+| Aspek | EX2 | EX5 |
+|---|---|---|
+| Tipe bodi | [ISI] | [ISI] |
+| Dimensi (panjang x lebar x tinggi) | [ISI] | [ISI] |
+| Kapasitas baterai | [ISI] | [ISI] |
+| Estimasi jarak tempuh | [ISI] | [ISI] |
+| Tenaga motor | [ISI] | [ISI] |
+| Kapasitas penumpang | [ISI] | [ISI] |
+| Fitur keselamatan dan bantuan berkendara | [ISI] | [ISI] |
+| Garansi | [ISI] | [ISI] |
+| Harga | [ISI] | [ISI] |
+
+## Pilih EX2 jika kamu...
+- Lebih sering berkendara di dalam kota dengan jarak harian yang tidak terlalu jauh.
+- Butuh mobil yang mudah dimanuver dan diparkir.
+- Biasanya berkendara sendiri atau berdua.
+- Ingin biaya kepemilikan yang lebih ringan.
+
+## Pilih EX5 jika kamu...
+- Sering membawa keluarga atau banyak barang.
+- Butuh ruang kabin dan bagasi yang lebih lega.
+- Sering melakukan perjalanan yang lebih jauh.
+- Mengutamakan kenyamanan dan posisi duduk SUV.
+
+## Hal yang perlu dicek saat test drive
+1. **Posisi duduk dan visibilitas.** Pastikan nyaman untuk tinggi badanmu.
+2. **Ruang kabin belakang dan bagasi.** Coba bawa barang yang biasa kamu bawa.
+3. **Respons akselerasi dan pengereman,** termasuk mode berkendara yang tersedia.
+4. **Layar dan fitur infotainment.** Coba sambungkan ponselmu.
+5. **Fitur bantuan berkendara.** Tanyakan cara kerjanya dan batasannya.
+
+## Soal pengisian daya di rumah
+Banyak pemilik mobil listrik mengisi daya di rumah. Pastikan daya listrik rumahmu mencukupi dan instalasinya aman, dan konsultasikan pemasangan charger dengan teknisi atau tim penjualan. [ISI: informasi layanan pemasangan charger dan lokasi pengisian daya terdekat.]
+
+## Biaya kepemilikan yang perlu dipertimbangkan
+Harga beli bukan satu-satunya angka. Hitung juga biaya listrik untuk mengisi daya, perawatan berkala, asuransi, dan pajak kendaraan. Ketentuan pajak dan insentif kendaraan listrik bisa berubah, jadi tanyakan informasi terbaru kepada tim penjualan. [ISI: perkiraan biaya perawatan dan ketentuan pajak terbaru.]
+
+## Pertanyaan yang sebaiknya disiapkan sebelum ke showroom
+1. Berapa jarak yang biasa kamu tempuh dalam sehari, dan apakah kamu bisa mengisi daya di rumah atau kantor?
+2. Berapa orang yang biasa ikut, dan barang apa yang sering kamu bawa?
+3. Apakah kamu lebih sering di dalam kota atau perjalanan antarkota?
+4. Berapa anggaran total termasuk asuransi dan pemasangan charger?
+5. Fitur apa yang paling penting bagimu: keselamatan, hiburan, atau kenyamanan?
+
+## Cobalah langsung
+Cara terbaik membandingkan adalah mencoba keduanya. Hubungi kami lewat WhatsApp atau buat janji test drive, lalu rasakan perbedaannya sendiri.`,
+  faq:`T: Mana yang lebih hemat, EX2 atau EX5?
+J: Tergantung cara pakai. Mobil yang lebih ringkas umumnya lebih mudah dalam pemakaian harian dalam kota, sedangkan mobil yang lebih besar memberi ruang dan kenyamanan lebih. Bandingkan angka resmi di tabel untuk kebutuhanmu.
+T: Apakah bisa test drive kedua-duanya?
+J: [ISI: ketentuan test drive dan jadwal showroom]
+T: Bagaimana cara mengisi daya di rumah?
+J: [ISI: penjelasan charger dan instalasi]` },
+{ title:'Tips Membeli Mobil Bekas: 12 Hal yang Wajib Dicek Sebelum Deal', category:'Mobil bekas',
+  desc:'Panduan membeli mobil bekas: cek dokumen, kondisi bodi, mesin, riwayat servis, test drive, sampai balik nama agar tidak menyesal.',
+  body:`Membeli mobil bekas bisa sangat menguntungkan kalau kamu teliti, tapi bisa merugikan kalau terburu-buru. Gunakan daftar ini sebagai pegangan sebelum menyerahkan uang muka.
+
+## 1. Tentukan kebutuhan dan batas budget
+Tulis dulu kebutuhanmu: jumlah penumpang, jarak harian, dan anggaran total. Ingat bahwa harga mobil bukan satu-satunya biaya. Hitung juga pajak, asuransi, servis awal, dan kemungkinan ganti ban atau aki.
+
+## 2. Periksa dokumen dengan teliti
+- **BPKB dan STNK** harus ada dan atas nama yang jelas.
+- **Faktur dan kwitansi** jika tersedia.
+- **Pajak kendaraan (PKB)** masih berlaku dan tidak menunggak.
+- **Nomor rangka dan nomor mesin** di mobil harus cocok dengan yang tertulis di dokumen. Periksa langsung secara fisik.
+
+## 3. Cek riwayat servis
+Minta buku servis atau catatan bengkel. Servis berkala di bengkel resmi biasanya jadi nilai tambah. Tanyakan juga penyebab jika ada penggantian besar.
+
+## 4. Periksa bodi dan cat
+- Lihat bodi dari sudut miring di bawah cahaya terang untuk menemukan perbedaan warna cat.
+- Cek celah antar panel apakah rata di kiri dan kanan.
+- Periksa karat di lipatan pintu, bagian bawah, dan sekitar roda.
+
+## 5. Waspadai tanda bekas banjir atau tabrakan
+- Bau apek yang menyengat di kabin.
+- Karat atau lumpur di bawah karpet, jok, dan sudut yang sulit terlihat.
+- Sambungan bodi tidak simetris atau ada bekas las dan dempul tebal.
+
+> Tips: ajak mekanik atau minta inspeksi di bengkel yang kamu percaya sebelum memutuskan. Biayanya kecil dibanding risiko salah beli.
+
+## 6. Dengarkan mesin
+Hidupkan mesin dalam keadaan dingin. Perhatikan suara kasar, asap knalpot berlebihan, atau getaran tidak wajar. Cek juga kebocoran oli atau cairan di bawah mobil.
+
+## 7. Tes transmisi dan kaki-kaki
+Pindah gigi dengan lembut tanpa entakan. Saat melewati jalan tidak rata, dengarkan bunyi dari suspensi. Cek juga setir apakah mobil tetap lurus saat dilepas sebentar di jalan datar yang aman.
+
+## 8. Cek kelistrikan dan AC
+Coba semua lampu, wiper, jendela, kunci pintu, audio, dan AC. Pastikan AC dingin dan tidak berisik.
+
+## 9. Lihat ban dan rem
+Cek keausan ban yang merata, kedalaman alur, dan tanggal produksi. Coba rem untuk memastikan tidak ada getaran atau suara aneh.
+
+## 10. Pertimbangkan jarak tempuh dengan wajar
+Jarak tempuh perlu dibandingkan dengan umur mobil dan kondisi fisiknya. Angka yang sangat rendah untuk mobil tua patut ditanyakan, dan angka yang tinggi tidak selalu buruk jika perawatannya baik.
+
+## 11. Lakukan test drive cukup lama
+Coba di berbagai kondisi: jalan sepi, tanjakan, dan jalan ramai. Rasakan kenyamanan, kemudi, dan posisi duduk.
+
+## 12. Bandingkan harga dan negosiasi
+Bandingkan dengan unit sejenis (tahun, tipe, dan kondisi) di beberapa tempat. Gunakan temuan inspeksi sebagai dasar negosiasi yang sopan.
+
+## Setelah sepakat
+- Buat kwitansi atau perjanjian tertulis yang jelas.
+- Urus **balik nama** dan cek kewajiban pajak sesuai aturan yang berlaku.
+- Pastikan asuransi dan servis awal sudah direncanakan.
+
+## Kesalahan yang sering dilakukan pembeli
+- Terburu-buru karena takut unit diambil orang lain.
+- Hanya melihat harga dan mengabaikan kondisi serta dokumen.
+- Tidak melakukan test drive atau melakukannya terlalu singkat.
+- Tidak menyiapkan dana cadangan untuk servis awal.
+- Menerima janji lisan tanpa catatan tertulis.
+
+## Dokumen yang perlu kamu bawa saat transaksi
+- Kartu identitas (KTP) pembeli.
+- Bukti kesepakatan harga dan metode pembayaran.
+- Berkas kredit jika kamu membeli lewat pembiayaan.
+- Nomor kontak yang bisa dihubungi untuk proses balik nama.
+
+## Mobil bekas di LapakMu
+[ISI: jelaskan standar pemeriksaan unit bekas di tempatmu, garansi (jika ada), dan cara melihat unit.] Hubungi kami lewat WhatsApp atau buat janji untuk melihat unit langsung.`,
+  faq:`T: Apa dokumen terpenting saat membeli mobil bekas?
+J: BPKB, STNK, dan bukti pajak yang masih berlaku. Pastikan juga nomor rangka dan nomor mesin di mobil cocok dengan dokumen.
+T: Perlukah inspeksi di bengkel sebelum membeli?
+J: Sangat disarankan. Pemeriksaan oleh mekanik bisa menemukan masalah yang tidak terlihat oleh mata awam.
+T: Bagaimana jika mobil pernah terkena banjir atau tabrakan?
+J: Tanyakan secara langsung dan periksa tanda-tandanya. Jika ragu, pilih unit lain atau minta inspeksi mendalam.` }
+];
+function posArticleSeed(){
+  const p = posCfg(); const now = new Date().toISOString(); let n = 0;
+  ART_SEEDS.forEach(s=>{ if(p.articles.some(a=>a.title === s.title)) return; p.articles.push({ id:'ar_' + uid(), status:'draft', images:[], related:[], author:(p.seo.name || 'Tim LapakMu'), createdAt:now, updatedAt:now, title:s.title, desc:s.desc, category:s.category, body:s.body, faq:s.faq }); n++; });
+  posSave(); posRenderArticles(); toast(n ? `${n} contoh artikel ditambahkan sebagai draf. Lengkapi bagian [ISI ...] lalu terbitkan.` : 'Contoh artikel sudah ada');
+}
+
+function seoArticleCard(S, ai, up){ up = up || '../'; return `<a class="it" href="${posEsc(ai.url)}">${ai.cover ? `<img src="${up}${posEsc(ai.cover.file)}" width="${ai.cover.w}" height="${ai.cover.h}" alt="${posEsc(ai.a.title)}" loading="lazy">` : ''}<div><b>${posEsc(ai.a.title)}</b><small>${posEsc(seoTrim(ai.a.desc || '', 130))}</small></div></a>`; }
+function seoArticleBody(S, ai, rel, others){
+  const a = ai.a, md = ai.md; const mins = artReadMins(md.words); const when = new Date(a.updatedAt || a.publishedAt || a.createdAt).toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+  const toc = md.toc.length >= 3 ? `<nav class="toc" aria-label="Daftar isi"><b>Daftar isi</b><ol>${md.toc.map(t=>`<li><a href="#${t.id}">${posEsc(t.text)}</a></li>`).join('')}</ol></nav>` : '';
+  const faq = ai.faq.length ? `<h2 id="tanya-jawab">Tanya jawab</h2>${ai.faq.map(f=>`<details class="faq"><summary>${posEsc(f.q)}</summary><p>${posEsc(f.a)}</p></details>`).join('')}` : '';
+  return `<article class="art"><h1>${posEsc(a.title)}</h1><p class="meta">${posEsc(a.author || S.name)} · Diperbarui ${when} · ${mins} menit baca${a.category ? ' · ' + posEsc(a.category) : ''}</p>${ai.cover ? `<img class="cover" src="../../${posEsc(ai.cover.file)}" width="${ai.cover.w}" height="${ai.cover.h}" alt="${posEsc(a.title)}" fetchpriority="high">` : ''}${toc}${md.html}${faq}</article>`
+    + (rel.length ? `<h2>Produk dan unit terkait</h2><div class="grid">${rel.map(i=>seoItemCard(S, i, '../../')).join('')}</div>` : '')
+    + (others.length ? `<h2>Baca juga</h2><div class="grid">${others.map(o=>seoArticleCard(S, o, '../../')).join('')}</div>` : '');
+}
+function seoArticleLd(S, ai){
+  const a = ai.a; const ld = [{ '@context':'https://schema.org', '@type':'Article', headline:seoTrim(a.title, 110), description:ai.desc, inLanguage:'id-ID', image:ai.cover ? [ai.cover.abs] : undefined, datePublished:String(a.publishedAt || a.createdAt).slice(0, 10), dateModified:String(a.updatedAt || a.publishedAt || a.createdAt).slice(0, 10),
+    author:{ '@type':'Organization', name:a.author || S.name }, publisher:{ '@type':'Organization', name:S.name, logo:{ '@type':'ImageObject', url:S.base + '/favicon-512.png' } }, mainEntityOfPage:{ '@type':'WebPage', '@id':ai.url } },
+    seoBreadcrumbLd(S, [['Beranda', S.base + '/'], ['Panduan', S.base + '/panduan/'], [a.title, ai.url]])];
+  if(ai.faq.length) ld.push({ '@context':'https://schema.org', '@type':'FAQPage', mainEntity:ai.faq.map(f=>({ '@type':'Question', name:f.q, acceptedAnswer:{ '@type':'Answer', text:f.a } })) });
+  return JSON.parse(JSON.stringify(ld));
 }
 
 
