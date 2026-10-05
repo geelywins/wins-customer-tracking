@@ -1431,6 +1431,7 @@ tbody tr:hover{background:#FAFBFE;}
           <button class="growth-tab" data-ptab="reports">📊 Laporan</button>
           <button class="growth-tab" data-ptab="frozen">🧊 Frozen Food</button>
           <button class="growth-tab" data-ptab="props">🏠 Properti</button>
+          <button class="growth-tab" data-ptab="units">🚗 Mobil Baru &amp; Bekas</button>
           <button class="growth-tab" data-ptab="appts">📅 Janji Temu <span id="posApptBadge"></span></button>
           <button class="growth-tab" data-ptab="promos">🏷️ Kode Promo &amp; Deal</button>
           <button class="growth-tab" data-ptab="banners">🖼️ Banner</button>
@@ -1474,6 +1475,10 @@ tbody tr:hover{background:#FAFBFE;}
         <div class="pos-panel" id="ppanel-props" style="display:none">
           <div class="card"><div id="posPropCfg"></div></div>
           <div class="card"><div class="vd-head"><h2 style="margin:0">Katalog rumah</h2><button class="btn sm" onclick="posPropForm()">+ Tambah properti</button></div><div id="posPropList"></div></div>
+        </div>
+        <div class="pos-panel" id="ppanel-units" style="display:none">
+          <div class="card"><div id="posMobilCfg"></div></div>
+          <div class="card"><div class="vd-head"><h2 style="margin:0">Katalog mobil</h2><button class="btn sm" onclick="posUnitForm()">+ Tambah unit</button></div><div id="posUnitList"></div></div>
         </div>
         <div class="pos-panel" id="ppanel-appts" style="display:none">
           <div class="card"><div class="toolbar"><select id="posApptStatus"><option value="">Semua status</option><option value="baru">Menunggu konfirmasi</option><option value="dikonfirmasi">Dikonfirmasi</option><option value="selesai">Selesai</option><option value="batal">Dibatalkan</option></select>
@@ -6968,7 +6973,7 @@ function posDefaultFilmShades(name){
   return { depan: /\bLX\b/i.test(name) ? ['10%','20%','30%'] : ['30%','40%'], sampingDepan:['30%','40%','60%','80%'], sampingBelakang:['30%','40%','60%','80%'], belakang:['60%','80%'] };
 }
 const POS_SEGMENTS = [ { key:'otomotif', name:'Otomotif' }, { key:'frozen', name:'Frozen Food' } ];
-function posSegName(k){ return k==='frozen' ? (((state.settings.pos||{}).frozen||{}).name || 'Frozen Food') : k==='properti' ? (((state.settings.pos||{}).property||{}).name || 'Properti') : 'Otomotif'; }
+function posSegName(k){ return k==='frozen' ? (((state.settings.pos||{}).frozen||{}).name || 'Frozen Food') : k==='properti' ? (((state.settings.pos||{}).property||{}).name || 'Properti') : k==='mobil' ? (((state.settings.pos||{}).mobil||{}).name || 'Mobil') : 'Otomotif'; }
 const POS_WEEKDAYS = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const POS_FROZEN_CATS = [
   { id:'cat_fz_nugget', name:'Nugget & Sosis', icon:'🍗' },
@@ -6998,6 +7003,16 @@ const POS_APPT_STATUS = [['baru','Menunggu konfirmasi','#D97706'],['dikonfirmasi
 function posPropDefault(){
   return { enabled:false, name:'Properti', tagline:'Rumah pilihan: lihat katalog lalu buat janji survei', wa:'', slots:['09.00','10.30','13.00','15.00','16.30'], leadHours:3, horizonDays:14,
     closedWeekdays:[], closedDates:[], meetNote:'Bertemu di lokasi rumah.', kprRate:8, disclaimer:'Harga dan ketersediaan dapat berubah sewaktu-waktu. Simulasi cicilan hanya perkiraan, bukan penawaran bank.' };
+}
+/* ---- segmen Mobil (baru & bekas) ---- */
+const POS_CAR_BODY = ['SUV','MPV','Sedan','Hatchback','Crossover','Pickup','Van','Coupe','Wagon','Citycar'];
+const POS_CAR_TRANS = ['Otomatis (AT)','Manual (MT)','CVT','DCT','AMT'];
+const POS_CAR_FUEL = ['Bensin','Diesel','Hybrid','Listrik (EV)','PHEV'];
+const POS_CAR_BRANDS = ['Toyota','Honda','Daihatsu','Suzuki','Mitsubishi','Nissan','Mazda','Hyundai','Wuling','MG','Geely','Chery','BYD','Jetour','GWM','Isuzu','Kia','BMW','Mercedes-Benz','Lexus','Ford','Subaru','Volkswagen'];
+function posMobilDefault(){
+  return { enabled:false, name:'Mobil', tagline:'Mobil baru dan bekas pilihan: lihat unit, test drive, lalu hubungi kami', wa:'', slots:['09.00','10.30','13.00','15.00','16.30'], leadHours:3, horizonDays:14,
+    closedWeekdays:[], closedDates:[], meetNote:'Datang ke showroom atau lokasi unit yang disepakati.', address:'', mapUrl:'', kreditRate:6, tradeIn:true,
+    disclaimer:'Harga dan ketersediaan unit dapat berubah. Simulasi kredit hanya perkiraan: bunga, asuransi, dan provisi mengikuti perusahaan pembiayaan.' };
 }
 let posSegFilter = 'all';
 function posNewDefault(){
@@ -7066,6 +7081,7 @@ function posCfg(){
   p.categories.forEach(c=>{ if(!c.segment) c.segment = 'otomotif'; });
   const fzd = posFrozenDefault(); p.frozen = p.frozen || {}; Object.keys(fzd).forEach(k=>{ if(p.frozen[k]===undefined) p.frozen[k] = fzd[k]; });
   const pdd = posPropDefault(); p.property = p.property || {}; Object.keys(pdd).forEach(k=>{ if(p.property[k]===undefined) p.property[k] = pdd[k]; }); p.properties = p.properties || [];
+  const mdd = posMobilDefault(); p.mobil = p.mobil || {}; Object.keys(mdd).forEach(k=>{ if(p.mobil[k]===undefined) p.mobil[k] = mdd[k]; }); p.units = p.units || [];
   if(!p.frozenSeeded){
     POS_FROZEN_CATS.forEach(fc=>{ if(!p.categories.some(c=>c.id===fc.id)) p.categories.push({ id:fc.id, name:fc.name, icon:fc.icon, type:'generic', segment:'frozen', active:true }); });
     p.frozenSeeded = true;
@@ -7338,9 +7354,10 @@ function posBuildCatalog(){
   return {
     v:5, rev:Number(p.rev)||0, updatedAt:new Date().toISOString(),
     store: p.store,
-    segments: [{ key:'otomotif', name:'Otomotif', tagline:p.store.tagline||'' }].concat(p.frozen.enabled ? [{ key:'frozen', name:p.frozen.name||'Frozen Food', tagline:p.frozen.tagline||'' }] : []).concat(p.property.enabled ? [{ key:'properti', name:p.property.name||'Properti', tagline:p.property.tagline||'' }] : []),
+    segments: [{ key:'otomotif', name:'Otomotif', tagline:p.store.tagline||'' }].concat(p.frozen.enabled ? [{ key:'frozen', name:p.frozen.name||'Frozen Food', tagline:p.frozen.tagline||'' }] : []).concat(p.property.enabled ? [{ key:'properti', name:p.property.name||'Properti', tagline:p.property.tagline||'' }] : []).concat(p.mobil.enabled ? [{ key:'mobil', name:p.mobil.name||'Mobil', tagline:p.mobil.tagline||'' }] : []),
     frozen: p.frozen.enabled ? posFrozenOut(p.frozen) : null,
     properties: p.property.enabled ? posPropertiesOut() : [], property: p.property.enabled ? posPropertyOut(p.property) : null,
+    units: p.mobil.enabled ? posUnitsOut() : [], mobil: p.mobil.enabled ? posMobilOut(p.mobil) : null,
     refundPolicy: { returnDays:Number((p.refundPolicy||{}).returnDays) || 7, note:(p.refundPolicy||{}).note || '' },
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
@@ -7378,7 +7395,7 @@ function posRenderStatus(){
   const state_ = !posUser ? ['🔒','Login admin toko diperlukan','Buka tab Pengaturan untuk login.'] :
     !posIsAdmin ? ['🟠','Akun belum terdaftar sebagai admin','Ikuti langkah di tab Pengaturan.'+(posUnpublished?' Perubahan terakhir belum tampil di toko.':'')] :
     (posPublishError || posOrdersError) ? ['🟠','Firebase menolak akses','Pastikan Rules sudah memakai versi di tab Pengaturan.'] :
-    ['🟢','Toko tersambung', `${nProd} produk tampil${cat.properties && cat.properties.length ? ' · ' + cat.properties.length + ' properti' : ''} · ${cat.banners.length} banner · ${cat.promos.length} kode promo aktif${posLastPublish?` · update ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}`];
+    ['🟢','Toko tersambung', `${nProd} produk tampil${cat.properties && cat.properties.length ? ' · ' + cat.properties.length + ' properti' : ''}${cat.units && cat.units.length ? ' · ' + cat.units.length + ' mobil' : ''} · ${cat.banners.length} banner · ${cat.promos.length} kode promo aktif${posLastPublish?` · update ${posLastPublish.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}`:''}`];
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div><strong>${state_[0]} ${state_[1]}</strong><div class="ex-sub">${state_[2]}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -7411,6 +7428,7 @@ function renderToko(){
   if(t==='products') posRenderProducts();
   if(t==='frozen') posRenderFrozen();
   if(t==='props') posRenderProps();
+  if(t==='units') posRenderUnits();
   if(t==='appts') posRenderAppts();
   if(t==='reports') posRenderReports();
   if(t==='promos') posRenderPromos();
@@ -8175,7 +8193,7 @@ function posBannerForm(kind, id){
         <option value="page" ${b.link.type==='page'?'selected':''}>Buka halaman Promo / Deal</option>
         <option value="url" ${b.link.type==='url'?'selected':''}>Buka link luar</option></select></div>
       <div class="field" id="pb_lvwrap"></div>
-      <div class="field full"><label>Tampil di segmen</label><select id="pb_seg"><option value="all" ${(!b.segment||b.segment==='all')?'selected':''}>Semua segmen</option><option value="otomotif" ${b.segment==='otomotif'?'selected':''}>Otomotif saja</option><option value="frozen" ${b.segment==='frozen'?'selected':''}>${posEsc(posSegName('frozen'))} saja</option><option value="properti" ${b.segment==='properti'?'selected':''}>${posEsc(posSegName('properti'))} saja</option></select></div>
+      <div class="field full"><label>Tampil di segmen</label><select id="pb_seg"><option value="all" ${(!b.segment||b.segment==='all')?'selected':''}>Semua segmen</option><option value="otomotif" ${b.segment==='otomotif'?'selected':''}>Otomotif saja</option><option value="frozen" ${b.segment==='frozen'?'selected':''}>${posEsc(posSegName('frozen'))} saja</option><option value="properti" ${b.segment==='properti'?'selected':''}>${posEsc(posSegName('properti'))} saja</option><option value="mobil" ${b.segment==='mobil'?'selected':''}>${posEsc(posSegName('mobil'))} saja</option></select></div>
       <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="pb_active" ${b.active!==false?'checked':''}> Tampilkan di toko</label></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="pb_save">Simpan</button></div>`);
@@ -8711,17 +8729,162 @@ function posPropForm(id){
   };
 }
 
+/* ===================== MOBIL BARU & BEKAS ===================== */
+function posUnitTitle(x){ return [x.year || '', x.brand || '', x.model || '', x.variant || ''].filter(Boolean).join(' '); }
+function posCarBrandList(){ return [...new Set((posCfg().cars || []).map(c=>c.brand).filter(Boolean).concat(POS_CAR_BRANDS))]; }
+function posCarModelList(brand){ const c = (posCfg().cars || []).find(x=>String(x.brand).toLowerCase() === String(brand || '').toLowerCase()); return c ? (c.models || []) : []; }
+function posUnitsOut(){
+  const p = posCfg(); const s = v=>v == null ? '' : String(v); const n = v=>Number(v) || 0;
+  return p.units.filter(x=>x.active!==false && x.brand && x.model).map((x, i)=>({
+    id:x.id, title:posUnitTitle(x), cond:x.cond==='baru' ? 'baru' : 'bekas', status:x.status || 'tersedia', badge:s(x.badge), brand:s(x.brand), model:s(x.model), variant:s(x.variant), year:n(x.year), price:n(x.price), priceNote:s(x.priceNote),
+    body:s(x.body), trans:s(x.trans), fuel:s(x.fuel), cc:n(x.cc), seats:n(x.seats), doors:n(x.doors), color:s(x.color), km:n(x.km), owners:n(x.owners), plate:s(x.plate), taxUntil:s(x.taxUntil),
+    city:s(x.city), address:s(x.address), mapUrl:posSafeUrl(x.mapUrl), features:x.features || [], highlights:x.highlights || [], serviceHistory:s(x.serviceHistory), docs:s(x.docs), desc:s(x.desc),
+    images:x.images || [], videoUrl:posSafeUrl(x.videoUrl), agentName:s(x.agentName), agentWa:s(x.agentWa), createdAt:s(x.createdAt), order:i }));
+}
+function posMobilOut(f){
+  return { name:f.name || 'Mobil', tagline:f.tagline || '', wa:f.wa || '', slots:(f.slots || []).filter(Boolean), leadHours:Number(f.leadHours) || 0, horizonDays:Math.max(1, Number(f.horizonDays) || 14),
+    closedWeekdays:f.closedWeekdays || [], closedDates:f.closedDates || [], meetNote:f.meetNote || '', address:f.address || '', mapUrl:posSafeUrl(f.mapUrl), kreditRate:Number(f.kreditRate) || 0, tradeIn:f.tradeIn!==false, disclaimer:f.disclaimer || '' };
+}
+function posRenderUnits(){
+  const p = posCfg(); const f = p.mobil; const el = document.getElementById('posMobilCfg'); if(!el) return;
+  el.innerHTML = `<h2 style="margin:0 0 6px">Segmen Mobil</h2>
+    <p class="ex-sub" style="margin:0 0 12px">Katalog <b>mobil baru dan bekas</b> dengan spesifikasi, filter, dan simulasi kredit. Tidak ada pembayaran di toko: pembeli menekan <b>Hubungi WhatsApp</b> atau membuat <b>janji test drive / lihat unit</b>. Janji masuk ke tab <b>Janji Temu</b>.</p>
+    <label class="ex-check" style="width:max-content"><input type="checkbox" id="mb_enabled" ${f.enabled?'checked':''}> Tampilkan segmen Mobil di toko</label>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="field"><label>Nama segmen</label><input type="text" id="mb_name" value="${posEsc(f.name)}"></div>
+      <div class="field"><label>Tagline</label><input type="text" id="mb_tagline" value="${posEsc(f.tagline)}"></div>
+      <div class="field"><label>WhatsApp sales bawaan</label><input type="text" id="mb_wa" value="${posEsc(f.wa)}" placeholder="kosong = WhatsApp admin toko"></div>
+      <div class="field"><label>Bunga flat simulasi kredit (% per tahun)</label><input type="number" min="0" step="0.1" id="mb_rate" value="${f.kreditRate||''}"></div>
+      <div class="field full"><label>Alamat showroom <span class="muted">(bawaan, tampil di halaman unit)</span></label><input type="text" id="mb_addr" value="${posEsc(f.address)}"></div>
+      <div class="field full"><label>Link Google Maps showroom <span class="muted">(opsional)</span></label><input type="url" id="mb_map" value="${posEsc(f.mapUrl)}" placeholder="https://maps.app.goo.gl/..."></div>
+      <div class="field full"><label class="ex-check" style="width:max-content"><input type="checkbox" id="mb_trade" ${f.tradeIn!==false?'checked':''}> Tampilkan ajakan tukar tambah / jual mobil lewat WhatsApp</label></div>
+    </div>
+    <div class="section-title">Janji test drive / lihat unit</div>
+    <div class="form-grid">
+      <div class="field full"><label>Jam janji <span class="muted">— pisahkan koma</span></label><input type="text" id="mb_slots" value="${posEsc((f.slots||[]).join(', '))}" placeholder="09.00, 10.30, 13.00, 15.00"></div>
+      <div class="field"><label>Minimal pesan sebelum (jam)</label><input type="number" min="0" id="mb_lead" value="${f.leadHours??3}"></div>
+      <div class="field"><label>Jumlah hari pilihan tanggal</label><input type="number" min="1" max="60" id="mb_days" value="${f.horizonDays||14}"></div>
+      <div class="field full"><label>Hari libur rutin</label><div class="ex-checks">${POS_WEEKDAYS.map((d,i)=>`<label class="ex-check"><input type="checkbox" class="mb_wd" value="${i}" ${(f.closedWeekdays||[]).includes(i)?'checked':''}> ${d}</label>`).join('')}</div></div>
+      <div class="field full"><label>Tanggal libur khusus <span class="muted">— satu per baris, format 2026-10-17</span></label><textarea id="mb_closed" rows="2">${posEsc((f.closedDates||[]).join('\n'))}</textarea></div>
+      <div class="field full"><label>Catatan pertemuan <span class="muted">(tampil ke pembeli)</span></label><textarea id="mb_meet" rows="2">${posEsc(f.meetNote)}</textarea></div>
+      <div class="field full"><label>Catatan di halaman unit <span class="muted">(disclaimer)</span></label><textarea id="mb_disc" rows="2">${posEsc(f.disclaimer)}</textarea></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" id="mb_save">Simpan pengaturan</button></div>`;
+  document.getElementById('mb_save').onclick = async ()=>{
+    const slots = posSplitList(document.getElementById('mb_slots').value);
+    if(!slots.length || slots.some(x=>!/^\d{1,2}[.:]\d{2}/.test(x))){ toast('Isi jam janji, contoh: 09.00, 10.30, 13.00','err'); return; }
+    const closed = document.getElementById('mb_closed').value.split('\n').map(x=>x.trim()).filter(Boolean);
+    if(closed.some(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x))){ toast('Tanggal libur harus berformat 2026-10-17, satu per baris','err'); return; }
+    const map = document.getElementById('mb_map').value.trim(); if(map && !posSafeUrl(map)){ toast('Link Google Maps harus diawali https://','err'); return; }
+    Object.assign(f, { enabled:document.getElementById('mb_enabled').checked, name:document.getElementById('mb_name').value.trim() || 'Mobil', tagline:document.getElementById('mb_tagline').value.trim(),
+      wa:document.getElementById('mb_wa').value.trim(), kreditRate:Math.max(0, Number(document.getElementById('mb_rate').value) || 0), address:document.getElementById('mb_addr').value.trim(), mapUrl:map, tradeIn:document.getElementById('mb_trade').checked, slots,
+      leadHours:Math.max(0, Number(document.getElementById('mb_lead').value) || 0), horizonDays:Math.min(60, Math.max(1, Number(document.getElementById('mb_days').value) || 14)),
+      closedWeekdays:[...document.querySelectorAll('.mb_wd:checked')].map(i=>Number(i.value)), closedDates:closed, meetNote:document.getElementById('mb_meet').value.trim(), disclaimer:document.getElementById('mb_disc').value.trim() });
+    await posSaveAndPublish('Pengaturan mobil disimpan'); posRenderUnits(); posRenderStatus();
+  };
+  const list = document.getElementById('posUnitList'); const store = p.store || {};
+  list.innerHTML = p.units.length ? p.units.map(x=>{
+    const link = store.url ? String(store.url).replace(/\/+$/,'') + '/#/mobil/' + x.id : '';
+    const n = Object.values(posAppts).filter(a=>a && a.property && a.property.id===x.id && a.status!=='batal').length;
+    const sp = [x.cond==='baru' ? 'Baru' : (x.km ? Number(x.km).toLocaleString('id-ID') + ' km' : 'Bekas'), x.trans, x.fuel].filter(Boolean).join(' · ');
+    return `<div class="vd-vendor"><div class="vd-head"><div style="display:flex;gap:10px;align-items:center">${(x.images||[])[0] ? posThumb(x.images[0]) : '<div class="pos-thumb pos-thumb-empty">🚗</div>'}
+      <div><strong>${posEsc(posUnitTitle(x))}</strong> <span class="pill ${x.cond==='baru'?'lead':''}">${x.cond==='baru'?'Baru':'Bekas'}</span> <span class="pill ${x.status==='terjual'?'':'lead'}">${posEsc(posPropStatusLabel(x.status||'tersedia'))}</span>${x.active===false?' <span class="pill">disembunyikan</span>':''}
+        <div class="ex-sub">${posPropMoney(x.price)}${x.city?' · '+posEsc(x.city):''}</div><div class="ex-sub">${posEsc(sp)}${n?` · <b>${n} janji</b>`:''}</div></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${link?`<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${posEsc(link)}">Lihat di toko ↗</a>`:''}<button class="btn ghost sm" onclick="posUnitForm('${x.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posUnitToggle('${x.id}')">${x.active!==false?'Sembunyikan':'Tampilkan'}</button><button class="btn ghost sm" onclick="posUnitDelete('${x.id}')">🗑</button></div></div></div>`;
+  }).join('') : '<div class="empty">Belum ada unit. Tekan + Tambah unit.</div>';
+  posHydrateImages(list);
+}
+async function posUnitToggle(id){ const x = posCfg().units.find(y=>y.id===id); if(!x) return; x.active = x.active===false; await posSaveAndPublish(x.active ? 'Unit ditampilkan' : 'Unit disembunyikan'); posRenderUnits(); posRenderStatus(); }
+function posUnitDelete(id){
+  const x = posCfg().units.find(y=>y.id===id); if(!x) return;
+  confirmModal('Hapus unit', `Hapus "${posUnitTitle(x)}" dari katalog? Foto ikut dihapus. Janji temu yang sudah masuk tidak terhapus.`, async ()=>{ (x.images||[]).forEach(posDeleteImage); const p = posCfg(); p.units = p.units.filter(y=>y.id!==id); await posSaveAndPublish('Unit dihapus'); posRenderUnits(); posRenderStatus(); });
+}
+function posUnitForm(id){
+  const p = posCfg(); const x = p.units.find(y=>y.id===id) || { cond:'bekas', status:'tersedia', images:[], features:[], highlights:[], active:true, year:new Date().getFullYear() };
+  const opt = (list, cur, blank)=>(blank?`<option value="">${blank}</option>`:'') + list.map(v=>`<option ${v===cur?'selected':''}>${posEsc(v)}</option>`).join('');
+  openModal(`<div class="modal-head"><h3>${id?'Edit':'Tambah'} Unit Mobil</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Kondisi</label><div class="radio-row" id="un_condRow"><label class="radio-opt ${x.cond==='baru'?'checked':''}"><input type="radio" name="un_cond" value="baru" ${x.cond==='baru'?'checked':''}> Mobil baru</label><label class="radio-opt ${x.cond==='baru'?'':'checked'}"><input type="radio" name="un_cond" value="bekas" ${x.cond==='baru'?'':'checked'}> Mobil bekas</label></div></div>
+      <div class="field"><label>Merek *</label><input type="text" id="un_brand" list="un_brands" value="${posEsc(x.brand)}" placeholder="mis. Geely"><datalist id="un_brands">${posCarBrandList().map(b=>`<option value="${posEsc(b)}">`).join('')}</datalist></div>
+      <div class="field"><label>Model *</label><input type="text" id="un_model" list="un_models" value="${posEsc(x.model)}" placeholder="mis. EX5"><datalist id="un_models">${posCarModelList(x.brand).map(m=>`<option value="${posEsc(m)}">`).join('')}</datalist></div>
+      <div class="field"><label>Varian / tipe</label><input type="text" id="un_variant" value="${posEsc(x.variant)}" placeholder="mis. Pro AT"></div>
+      <div class="field"><label>Tahun *</label><input type="number" min="1980" max="2100" id="un_year" value="${x.year||''}"></div>
+      <div class="field"><label>Harga (Rp) *</label><input type="number" min="0" id="un_price" value="${x.price||''}" placeholder="mis. 385000000"></div>
+      <div class="field"><label>Keterangan harga</label><select id="un_pnote">${opt(['Nego','Harga pas','OTR Jakarta','Mulai dari'], x.priceNote, 'Tanpa keterangan')}</select></div>
+      <div class="field"><label>Status</label><select id="un_status">${POS_PROP_STATUS.map(s=>`<option value="${s[0]}" ${s[0]===x.status?'selected':''}>${s[1]}</option>`).join('')}</select></div>
+      <div class="field"><label>Label <span class="muted">(opsional)</span></label><input type="text" id="un_badge" value="${posEsc(x.badge)}" placeholder="mis. Promo, Hot deal"></div>
+    </div>
+    <div class="section-title">Spesifikasi</div>
+    <div class="form-grid">
+      <div class="field"><label>Tipe bodi</label><select id="un_body">${opt(POS_CAR_BODY, x.body, '-')}</select></div>
+      <div class="field"><label>Transmisi</label><select id="un_trans">${opt(POS_CAR_TRANS, x.trans, '-')}</select></div>
+      <div class="field"><label>Bahan bakar</label><select id="un_fuel">${opt(POS_CAR_FUEL, x.fuel, '-')}</select></div>
+      <div class="field"><label>Kapasitas mesin (cc)</label><input type="number" min="0" id="un_cc" value="${x.cc||''}" placeholder="kosong untuk EV"></div>
+      <div class="field"><label>Kapasitas penumpang</label><input type="number" min="0" id="un_seats" value="${x.seats||''}"></div>
+      <div class="field"><label>Jumlah pintu</label><input type="number" min="0" id="un_doors" value="${x.doors||''}"></div>
+      <div class="field full"><label>Warna</label><input type="text" id="un_color" value="${posEsc(x.color)}" placeholder="mis. Putih / pilihan: Putih, Hitam, Abu-abu"></div>
+    </div>
+    <div id="un_used"><div class="section-title">Khusus mobil bekas</div>
+      <div class="form-grid">
+        <div class="field"><label>Jarak tempuh (km)</label><input type="number" min="0" id="un_km" value="${x.km||''}"></div>
+        <div class="field"><label>Tangan ke-</label><input type="number" min="0" id="un_owners" value="${x.owners||''}" placeholder="mis. 1"></div>
+        <div class="field"><label>Plat nomor (wilayah)</label><input type="text" id="un_plate" value="${posEsc(x.plate)}" placeholder="mis. B"></div>
+        <div class="field"><label>Pajak (PKB) sampai</label><input type="text" id="un_tax" value="${posEsc(x.taxUntil)}" placeholder="mis. Mar 2027"></div>
+        <div class="field full"><label>Riwayat servis</label><textarea id="un_service" rows="2" placeholder="mis. Servis berkala di bengkel resmi, buku servis lengkap">${posEsc(x.serviceHistory)}</textarea></div>
+        <div class="field full"><label>Kelengkapan dokumen</label><input type="text" id="un_docs" value="${posEsc(x.docs)}" placeholder="mis. BPKB, STNK, faktur, buku servis, kunci serep"></div>
+      </div></div>
+    <div class="section-title">Lokasi & detail</div>
+    <div class="form-grid">
+      <div class="field"><label>Kota *</label><input type="text" id="un_city" value="${posEsc(x.city)}" placeholder="mis. Tangerang Selatan"></div>
+      <div class="field"><label>Lokasi unit <span class="muted">(kosong = alamat showroom)</span></label><input type="text" id="un_addr" value="${posEsc(x.address)}"></div>
+      <div class="field full"><label>Link Google Maps <span class="muted">(opsional)</span></label><input type="url" id="un_map" value="${posEsc(x.mapUrl)}" placeholder="https://maps.app.goo.gl/..."></div>
+      <div class="field full"><label>Fitur <span class="muted">— pisahkan koma</span></label><textarea id="un_feat" rows="2" placeholder="Sunroof, Kamera 360, Apple CarPlay, ADAS">${posEsc((x.features||[]).join(', '))}</textarea></div>
+      <div class="field full"><label>Kelebihan unit <span class="muted">— satu per baris</span></label><textarea id="un_high" rows="3" placeholder="Garansi resmi 5 tahun&#10;Cashback hingga Rp10 juta">${posEsc((x.highlights||[]).join('\n'))}</textarea></div>
+      <div class="field full"><label>Deskripsi</label><textarea id="un_desc" rows="4">${posEsc(x.desc)}</textarea></div>
+      <div class="field full"><label>Foto (maks. 10)</label><div id="posImgsWrap"></div></div>
+      <div class="field full"><label>Link video <span class="muted">(opsional, mis. YouTube)</span></label><input type="url" id="un_video" value="${posEsc(x.videoUrl)}" placeholder="https://youtu.be/..."></div>
+      <div class="field"><label>Nama sales <span class="muted">(opsional)</span></label><input type="text" id="un_agent" value="${posEsc(x.agentName)}"></div>
+      <div class="field"><label>WhatsApp sales <span class="muted">(kosong = bawaan)</span></label><input type="text" id="un_agwa" value="${posEsc(x.agentWa)}" placeholder="08xx"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Batal</button><button class="btn" id="un_save">Simpan</button></div>`, true);
+  posBindImages(x.images, 10);
+  const syncCond = ()=>{ const used = document.querySelector('input[name="un_cond"]:checked').value === 'bekas'; document.getElementById('un_used').style.display = used ? '' : 'none'; document.querySelectorAll('#un_condRow .radio-opt').forEach(o=>o.classList.toggle('checked', o.querySelector('input').checked)); };
+  document.querySelectorAll('input[name="un_cond"]').forEach(r=>r.onchange = syncCond); syncCond();
+  document.getElementById('un_brand').addEventListener('input', ()=>{ document.getElementById('un_models').innerHTML = posCarModelList(document.getElementById('un_brand').value).map(m=>`<option value="${posEsc(m)}">`).join(''); });
+  document.getElementById('un_save').onclick = async ()=>{
+    const v = n=>document.getElementById(n).value.trim(); const num = n=>{ const t = Number(v(n)); return t > 0 ? t : 0; };
+    const cond = document.querySelector('input[name="un_cond"]:checked').value; const year = num('un_year'), price = num('un_price');
+    if(!v('un_brand') || !v('un_model')){ toast('Isi merek dan model','err'); return; }
+    if(!year || year < 1980 || year > new Date().getFullYear() + 2){ toast('Isi tahun yang benar','err'); return; }
+    if(!price){ toast('Isi harga unit','err'); return; }
+    if(!v('un_city')){ toast('Isi kota','err'); return; }
+    const map = v('un_map'), video = v('un_video');
+    if(map && !posSafeUrl(map)){ toast('Link Google Maps harus diawali https://','err'); return; }
+    if(video && !posSafeUrl(video)){ toast('Link video harus diawali https://','err'); return; }
+    const used = cond === 'bekas';
+    const data = { cond, brand:v('un_brand'), model:v('un_model'), variant:v('un_variant'), year, price, priceNote:v('un_pnote'), status:v('un_status'), badge:v('un_badge'),
+      body:v('un_body'), trans:v('un_trans'), fuel:v('un_fuel'), cc:num('un_cc'), seats:num('un_seats'), doors:num('un_doors'), color:v('un_color'),
+      km:used ? num('un_km') : 0, owners:used ? num('un_owners') : 0, plate:used ? v('un_plate') : '', taxUntil:used ? v('un_tax') : '', serviceHistory:used ? v('un_service') : '', docs:used ? v('un_docs') : '',
+      city:v('un_city'), address:v('un_addr'), mapUrl:map, features:posSplitList(v('un_feat')), highlights:posSplitList(document.getElementById('un_high').value, '\n'),
+      desc:v('un_desc'), images:posCommitImages(x.images), videoUrl:video, agentName:v('un_agent'), agentWa:v('un_agwa') };
+    if(id) Object.assign(x, data); else p.units.unshift(Object.assign({ id:'un_'+uid(), active:true, createdAt:new Date().toISOString() }, data));
+    closeModal(); await posSaveAndPublish('Unit disimpan'); posRenderUnits(); posRenderStatus();
+  };
+}
+
 /* ---- janji temu ---- */
 function posApptDateLabel(iso){ const d = new Date(String(iso) + 'T00:00:00'); return isNaN(d) ? '-' : d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); }
+function posApptKindLabel(a){ return a.kind==='mobil' ? ((a.property||{}).cond==='baru' ? 'Test drive' : 'Lihat unit') : 'Lihat rumah'; }
 function posApptPill(k){ const s = POS_APPT_STATUS.find(x=>x[0]===k) || POS_APPT_STATUS[0]; return `<span class="pos-pill" style="--c:${s[2]}">${posEsc(s[1])}</span>`; }
 function posApptWaMsg(a){
   const P = posCfg(); const pr = a.property || {}; const when = `${posApptDateLabel(a.date)} pukul ${a.slot}`; const nm = (a.customer && a.customer.nama) || '';
-  const live = P.properties.find(x=>x.id===pr.id) || {}; const map = live.mapUrl ? ` Lokasi: ${live.mapUrl}` : '';
+  const car = a.kind === 'mobil'; const live = (car ? P.units : P.properties).find(x=>x.id===pr.id) || {}; const map = live.mapUrl ? ` Lokasi: ${live.mapUrl}` : (car && P.mobil.mapUrl ? ` Lokasi: ${P.mobil.mapUrl}` : '');
+  const verb = car ? (pr.cond === 'baru' ? 'test drive' : 'melihat unit') : 'melihat'; const meet = (car ? P.mobil : P.property).meetNote || '';
   const m = {
-    baru: `Halo ${nm}, terima kasih sudah membuat janji melihat ${pr.title} pada ${when}. Kami sedang mengecek jadwal dan segera mengonfirmasi.`,
-    dikonfirmasi: `Halo ${nm}, janji melihat ${pr.title} pada ${when} sudah kami KONFIRMASI. ${P.property.meetNote || ''}${map}`,
-    selesai: `Halo ${nm}, terima kasih sudah survei ${pr.title}. Kalau ada pertanyaan atau ingin lanjut, kabari kami ya.`,
-    batal: `Halo ${nm}, janji melihat ${pr.title} pada ${when} dibatalkan. Kalau ingin jadwal baru, kabari kami ya.` };
+    baru: `Halo ${nm}, terima kasih sudah membuat janji ${verb} ${pr.title} pada ${when}. Kami sedang mengecek jadwal dan segera mengonfirmasi.`,
+    dikonfirmasi: `Halo ${nm}, janji ${verb} ${pr.title} pada ${when} sudah kami KONFIRMASI. ${meet}${map}`,
+    selesai: `Halo ${nm}, terima kasih sudah ${car ? 'melihat' : 'survei'} ${pr.title}. Kalau ada pertanyaan atau ingin lanjut, kabari kami ya.`,
+    batal: `Halo ${nm}, janji ${verb} ${pr.title} pada ${when} dibatalkan. Kalau ingin jadwal baru, kabari kami ya.` };
   return (m[a.status] || m.baru).trim();
 }
 function posRenderAppts(){
@@ -8738,14 +8901,14 @@ function posRenderAppts(){
   el.innerHTML = rows.length ? rows.map(([k, a])=>{
     const c = a.customer || {}, pr = a.property || {}; const isToday = a.date === today;
     return `<div class="card pos-appt${isToday?' is-today':''}"><div class="vd-head"><div><div class="pos-appt-when">${posEsc(posApptDateLabel(a.date))} · <b>${posEsc(a.slot)}</b>${isToday?' <span class="pill lead">Hari ini</span>':''}</div>
-      <strong>${posEsc(pr.title || '-')}</strong><div class="ex-sub">${posEsc(c.nama || '-')} · ${posEsc(c.wa || '-')}${a.people?` · ${a.people} orang`:''}${a.payPlan?` · ${posEsc(a.payPlan)}`:''}</div>${a.note?`<div class="ex-sub">Catatan: ${posEsc(a.note)}</div>`:''}</div>
+      <span class="pill lead">${posEsc(posApptKindLabel(a))}</span> <strong>${posEsc(pr.title || '-')}</strong><div class="ex-sub">${posEsc(c.nama || '-')} · ${posEsc(c.wa || '-')}${a.people?` · ${a.people} orang`:''}${a.payPlan?` · ${posEsc(a.payPlan)}`:''}</div>${a.note?`<div class="ex-sub">Catatan: ${posEsc(a.note)}</div>`:''}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">${posApptPill(a.status)}<button class="btn sm" onclick="posApptDetail('${k}')">Detail</button></div></div></div>`;
   }).join('') : '<div class="card"><div class="empty">Belum ada janji temu yang cocok dengan filter.</div></div>';
 }
 function posApptDetail(k){
   const a = posAppts[k]; if(!a) return; const c = a.customer || {}, pr = a.property || {}; const P = posCfg(); const slots = (P.property.slots || []);
   openModal(`<div class="modal-head"><h3>Janji temu</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div class="pos-kv"><div class="k">Properti</div><div class="v">${posEsc(pr.title || '-')}${pr.city?` · ${posEsc(pr.city)}`:''}</div>
+    <div class="pos-kv"><div class="k">${a.kind==='mobil' ? 'Mobil' : 'Properti'}</div><div class="v">${posEsc(pr.title || '-')}${pr.city?` · ${posEsc(pr.city)}`:''}</div>
       <div class="k">Pembeli</div><div class="v">${posEsc(c.nama || '-')} · ${posEsc(c.wa || '-')}${c.email?` · ${posEsc(c.email)}`:''}</div>
       <div class="k">Jumlah orang / rencana beli</div><div class="v">${a.people || '-'} orang${a.payPlan?` · ${posEsc(a.payPlan)}`:''}</div>
       ${a.note?`<div class="k">Catatan pembeli</div><div class="v">${posEsc(a.note)}</div>`:''}
@@ -8785,7 +8948,7 @@ function posListenAppts(){
   posApptsRef = posDb.ref('pos/appointments').limitToLast(500);
   posApptsRef.on('value', snap=>{
     posAppts = snap.val() || {}; posApptsError = null; posUpdateBadge();
-    if(document.getElementById('view-toko').classList.contains('active')){ const t = posActiveTab(); if(t==='appts') posRenderAppts(); if(t==='props') posRenderProps(); }
+    if(document.getElementById('view-toko').classList.contains('active')){ const t = posActiveTab(); if(t==='appts') posRenderAppts(); if(t==='props') posRenderProps(); if(t==='units') posRenderUnits(); }
   }, err=>{ console.error(err); posApptsError = err.code || 'error'; posApptsRef = null; if(document.getElementById('view-toko').classList.contains('active') && posActiveTab()==='appts') posRenderAppts(); });
 }
 document.getElementById('posApptStatus').addEventListener('change', posRenderAppts);
