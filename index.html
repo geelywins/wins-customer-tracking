@@ -8737,7 +8737,13 @@ function posPropForm(id){
 }
 
 /* ===================== MOBIL BARU & BEKAS ===================== */
-function posUnitTitle(x){ return [x.year || '', x.brand || '', x.model || '', x.variant || ''].filter(Boolean).join(' '); }
+function posUnitTitle(x){
+  const brand = String(x.brand || '').trim(); let model = String(x.model || '').trim(); const variant = String(x.variant || '').trim();
+  if(brand && model.toLowerCase().startsWith(brand.toLowerCase() + ' ')) model = model.slice(brand.length).trim();   /* "Geely" + "Geely EX2" -> tidak ganda */
+  const words = t=>t.toLowerCase().split(/\s+/).filter(Boolean); const have = new Set(words(model));
+  const showVariant = variant && !words(variant).every(w=>have.has(w));                                                /* varian yang sudah ada di model tidak diulang */
+  return [x.year || '', brand, model, showVariant ? variant : ''].filter(Boolean).join(' ');
+}
 function posCarBrandList(){ return [...new Set((posCfg().cars || []).map(c=>c.brand).filter(Boolean).concat(POS_CAR_BRANDS))]; }
 function posCarModelList(brand){ const c = (posCfg().cars || []).find(x=>String(x.brand).toLowerCase() === String(brand || '').toLowerCase()); return c ? (c.models || []) : []; }
 function posUnitsOut(){
@@ -8887,7 +8893,7 @@ function posUnitForm(id){
 
 /* ===================== SEO: halaman statis untuk Google & iklan ===================== */
 function posSeoDefault(){ return { siteUrl:'https://lapakmu.store', name:'LapakMu', gh:{ owner:'geelywins', repo:'tokoacc', branch:'main' }, slugs:{}, lastBuild:null, lastPublish:null }; }
-function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, ''); }
+function seoSlugify(t){ return String(t || '').replace(/<[^>]*>/g, ' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, ' dan ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-').filter((w, i, a)=>w !== a[i - 1]).join('-').slice(0, 60).replace(/-+$/, ''); }
 function seoSlug(prefix, id, title){
   const m = posCfg().seo.slugs; const key = prefix + ':' + id; if(m[key]) return m[key];
   const base = seoSlugify(title) || 'item'; const used = new Set(Object.entries(m).filter(([k])=>k.startsWith(prefix + ':')).map(e=>e[1])); let slug = base, n = 2;
@@ -9119,6 +9125,11 @@ async function seoDownloadZip(){
   catch(e){ console.error(e); log('Gagal: ' + (e.message || e)); toast('Gagal membuat halaman SEO: ' + (e.message || ''), 'err'); }
   seoBusy(false); posRenderSeo(true);
 }
+function seoResetSlugs(){
+  confirmModal('Atur ulang alamat halaman', 'Alamat (URL) semua halaman dibuat ulang dari judul terbaru. Lakukan ini hanya sebelum Google mengindeks halamanmu, karena alamat lama akan hilang. Setelah ini tekan Terbitkan ke GitHub. Lanjutkan?', ()=>{
+    const p = posCfg(); p.seo.slugs = {}; if(p.seo.lastPublish) p.seo.lastPublish.rev = -1; saveSettings(); posUpdateBadge(); toast('Alamat diatur ulang. Tekan Terbitkan ke GitHub.'); posRenderSeo();
+  });
+}
 async function seoPublishGithub(){
   const log = seoLogger(); const p = posCfg(); const gh = p.seo.gh; const token = seoToken();
   if(!token){ log('Isi token GitHub dulu di pengaturan di atas, lalu tekan Simpan.'); toast('Isi token GitHub dulu','err'); return; }
@@ -9168,7 +9179,7 @@ function posRenderSeo(keepLog){
         <div class="field"><label>Token GitHub <span class="muted">${hasTok ? '(tersimpan di browser ini)' : '(belum diisi)'}</span></label><input type="password" id="seo_token" autocomplete="off" placeholder="${hasTok ? '•••••••• kosongkan kalau tidak diganti' : 'github_pat_...'}"></div>
       </div>
       <p class="ex-sub" style="margin:6px 0 0">Token hanya disimpan di browser ini, tidak ikut ke database atau katalog. Buat token <b>fine-grained</b> khusus repo toko dengan izin <b>Contents: Read and write</b>, dan beri masa berlaku.${hasTok ? ' <button class="link-btn" id="seo_deltok" type="button">Hapus token</button>' : ''}</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost seo-act" id="seo_save">Simpan pengaturan</button><button class="btn seo-act" id="seo_pub">Terbitkan ke GitHub</button><button class="btn ghost seo-act" id="seo_zip">Unduh ZIP</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost seo-act" id="seo_save">Simpan pengaturan</button><button class="btn seo-act" id="seo_pub">Terbitkan ke GitHub</button><button class="btn ghost seo-act" id="seo_zip">Unduh ZIP</button><button class="btn ghost seo-act" id="seo_reslug" type="button">Atur ulang alamat</button></div>
       <pre id="seoLog" class="seo-log" ${prevLog ? '' : 'hidden'}>${posEsc(prevLog)}</pre></div>
     <div class="card"><h2 style="margin:0 0 6px">Setelah terbit: daftarkan ke Google</h2>
       <ol class="pos-steps"><li>Buka <b>search.google.com/search-console</b> dan tambahkan properti <b>Domain</b> <code>lapakmu.store</code>.</li><li>Verifikasi dengan record <b>TXT</b> di DNS Hostinger (Google menunjukkan nilainya).</li><li>Di menu <b>Sitemap</b>, kirim <code>sitemap.xml</code>.</li><li>Di <b>Pemeriksaan URL</b>, tempel alamat beranda dan satu halaman rumah atau mobil, lalu tekan <b>Minta pengindeksan</b>.</li><li>Cek lagi beberapa hari kemudian di laporan <b>Halaman</b>. Google tidak menjamin waktunya.</li></ol></div>`;
@@ -9179,7 +9190,7 @@ function posRenderSeo(keepLog){
     saveSettings(); toast('Pengaturan SEO disimpan'); posRenderSeo();
   };
   const dt = document.getElementById('seo_deltok'); if(dt) dt.onclick = ()=>{ try{ localStorage.removeItem('dd_gh_token'); }catch(e){} toast('Token dihapus'); posRenderSeo(); };
-  document.getElementById('seo_pub').onclick = seoPublishGithub; document.getElementById('seo_zip').onclick = seoDownloadZip;
+  document.getElementById('seo_pub').onclick = seoPublishGithub; document.getElementById('seo_zip').onclick = seoDownloadZip; document.getElementById('seo_reslug').onclick = seoResetSlugs;
 }
 
 
