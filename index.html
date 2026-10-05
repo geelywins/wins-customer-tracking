@@ -7371,7 +7371,7 @@ function posBuildCatalog(){
     frozen: p.frozen.enabled ? posFrozenOut(p.frozen) : null,
     properties: p.property.enabled ? posPropertiesOut() : [], property: p.property.enabled ? posPropertyOut(p.property) : null,
     units: p.mobil.enabled ? posUnitsOut() : [], mobil: p.mobil.enabled ? posMobilOut(p.mobil) : null,
-    live: posLiveMap(p),
+    live: posLiveMap(p), articles: posArticlesOut(p),
     refundPolicy: { returnDays:Number((p.refundPolicy||{}).returnDays) || 7, note:(p.refundPolicy||{}).note || '' },
     auth:{ apiKey:fb.apiKey||'', authDomain: fb.authDomain || (fb.projectId ? fb.projectId+'.firebaseapp.com' : ''), projectId:fb.projectId||'', databaseURL:fb.databaseURL||'', appId:fb.appId||'' },
     cars: p.cars.filter(c=>c.brand && c.models.length).map(c=>({ brand:c.brand, models:c.models, sizes:c.sizes||{} })),
@@ -8764,6 +8764,11 @@ function posUnitsOut(){
     city:s(x.city), address:s(x.address), mapUrl:posSafeUrl(x.mapUrl), features:x.features || [], highlights:x.highlights || [], serviceHistory:s(x.serviceHistory), docs:s(x.docs), desc:s(x.desc),
     images:x.images || [], videoUrl:posSafeUrl(x.videoUrl), agentName:s(x.agentName), agentWa:s(x.agentWa), createdAt:s(x.createdAt), order:i }));
 }
+function posArticlesOut(p){
+  const map = (p.seo.lastPublish && p.seo.lastPublish.articles) || {};
+  return p.articles.filter(a=>a.status === 'published' && map[a.id]).sort((a, b)=>String(b.publishedAt || b.createdAt).localeCompare(String(a.publishedAt || a.createdAt))).slice(0, 12)
+    .map(a=>({ id:a.id, title:a.title, desc:seoTrim(a.desc || '', 140), category:a.category || '', slug:map[a.id], image:(a.images || [])[0] || '', date:String(a.updatedAt || a.createdAt).slice(0, 10) }));
+}
 function posLiveMap(p){
   const o = {};
   if(p.property.enabled) p.properties.filter(x=>x.active!==false && x.title).forEach(x=>{ o[x.id] = { s:x.status || 'tersedia', p:Number(x.price) || 0 }; });
@@ -9090,7 +9095,8 @@ async function seoBuild(log){
   files.push({ path:'robots.txt', text:`User-agent: *\nAllow: /\n\nSitemap: ${base}/sitemap.xml\n` });
   files.push({ path:'site.webmanifest', text:JSON.stringify({ name:S.name, short_name:S.name.slice(0, 12), description:'Aksesoris mobil, mobil baru dan bekas, serta properti.', start_url:'/', scope:'/', display:'standalone', background_color:'#ffffff', theme_color:'#16202B', lang:'id', icons:[{ src:'/favicon-192.png', sizes:'192x192', type:'image/png' }, { src:'/favicon-512.png', sizes:'512x512', type:'image/png' }] }) });
   p.seo.lastBuild = { at:new Date().toISOString(), rev:Number(p.rev) || 0, pages:items.length, indexable:items.filter(i=>!i.sold).length }; saveSettings();
-  return { files, items, urls, base, stats:{ articles:artItems.length, pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
+  const articleSlugs = {}; artItems.forEach(ai=>{ articleSlugs[ai.a.id] = ai.slug; });
+  return { files, items, urls, base, articleSlugs, stats:{ articles:artItems.length, pages:items.length, sections:S.sections.length, photos:files.filter(f=>f.bytes).length, indexable:urls.length } };
 }
 
 const SEO_CRC = (()=>{ const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
@@ -9166,9 +9172,11 @@ async function seoPublishGithub(){
   if(!gh.owner || !gh.repo || !gh.branch){ log('Isi pemilik, nama repo, dan branch GitHub.'); return; }
   seoBusy(true);
   try{ log('Membuat halaman…'); const r = await seoBuild(log); log(`Menghubungi GitHub (${gh.owner}/${gh.repo}, branch ${gh.branch})…`); const res = await seoPublish(r.files, gh, token, log);
+    const prev = p.seo.lastPublish || {};
+    p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit || prev.commit || '', pages:r.stats.pages, created:res.created, removed:res.removed, articles:r.articleSlugs }; saveSettings();
     if(!res.commit){ log('Tidak ada perubahan: semua file sudah sama dengan yang ada di GitHub.'); toast('Tidak ada perubahan untuk diterbitkan'); }
-    else { p.seo.lastPublish = { at:new Date().toISOString(), rev:Number(p.rev) || 0, commit:res.commit, pages:r.stats.pages, created:res.created, removed:res.removed }; saveSettings();
-      log(`Berhasil: ${res.created} file diunggah, ${res.same} tidak berubah, ${res.removed} file lama dihapus. GitHub Pages memperbarui situs dalam sekitar 1 menit.`); toast('Halaman SEO diterbitkan ke GitHub'); } }
+    else { log(`Berhasil: ${res.created} file diunggah, ${res.same} tidak berubah, ${res.removed} file lama dihapus. GitHub Pages memperbarui situs dalam sekitar 1 menit.`); toast('Halaman SEO diterbitkan ke GitHub'); }
+    if(posIsAdmin){ log('Memperbarui katalog toko (bagian Panduan di beranda)…'); await posPublish(false); log(posPublishError ? 'Katalog toko belum terbarui, tekan Update katalog di atas.' : `Beranda toko menampilkan ${Object.keys(r.articleSlugs).length} artikel terbit.`); } }
   catch(e){ console.error(e); log('Gagal: ' + seoGhMessage(e)); toast('Gagal menerbitkan: ' + seoGhMessage(e), 'err'); }
   seoBusy(false); posRenderSeo(true);
 }
@@ -9301,6 +9309,7 @@ function posRenderArticles(){
       <div style="display:flex;gap:6px;flex-wrap:wrap">${link ? `<a class="btn ghost sm" target="_blank" rel="noopener noreferrer" href="${link}">Lihat ↗</a>` : ''}<button class="btn ghost sm" onclick="posArticleForm('${a.id}')">✏️ Edit</button><button class="btn ghost sm" onclick="posArticleToggle('${a.id}')">${live ? 'Jadikan draf' : 'Terbitkan'}</button><button class="btn ghost sm" onclick="posArticleDelete('${a.id}')">🗑</button></div></div></div>`;
   }).join('') : `<div class="empty">Belum ada artikel.<div style="margin-top:10px"><button class="btn" onclick="posArticleSeed()">Tambah 3 contoh artikel (draf)</button></div></div>`;
 }
+async function artCommit(){ await posSave(); if(posIsAdmin) await posPublish(false); }
 function posArticleToggle(id){
   const a = posCfg().articles.find(x=>x.id === id); if(!a) return;
   if(a.status !== 'published'){
@@ -9308,12 +9317,12 @@ function posArticleToggle(id){
     if(!a.title || seoMd(a.body).words < 150){ toast('Isi artikel masih terlalu pendek untuk diterbitkan', 'err'); return; }
     a.status = 'published'; a.publishedAt = a.publishedAt || new Date().toISOString();
   } else a.status = 'draft';
-  a.updatedAt = new Date().toISOString(); posSave(); posRenderArticles(); posRenderStatus(); posUpdateBadge();
+  a.updatedAt = new Date().toISOString(); artCommit(); posRenderArticles(); posRenderStatus(); posUpdateBadge();
   toast(a.status === 'published' ? 'Artikel ditandai terbit. Tekan Terbitkan ke GitHub di tab SEO.' : 'Artikel dikembalikan jadi draf');
 }
 function posArticleDelete(id){
   const a = posCfg().articles.find(x=>x.id === id); if(!a) return;
-  confirmModal('Hapus artikel', `Hapus "${a.title}"? Halamannya ikut hilang dari situs saat kamu menerbitkan ulang.`, ()=>{ (a.images || []).forEach(posDeleteImage); const p = posCfg(); p.articles = p.articles.filter(x=>x.id !== id); posSave(); posRenderArticles(); posUpdateBadge(); });
+  confirmModal('Hapus artikel', `Hapus "${a.title}"? Halamannya ikut hilang dari situs saat kamu menerbitkan ulang.`, ()=>{ (a.images || []).forEach(posDeleteImage); const p = posCfg(); p.articles = p.articles.filter(x=>x.id !== id); artCommit(); posRenderArticles(); posUpdateBadge(); });
 }
 function artInsert(kind){
   const ta = document.getElementById('ar_body'); if(!ta) return; const s = ta.selectionStart, e = ta.selectionEnd; const sel = ta.value.slice(s, e);
@@ -9361,7 +9370,7 @@ function posArticleForm(id){
     }
     const now = new Date().toISOString(); if(data.status === 'published') data.publishedAt = x.publishedAt || now;
     if(id) Object.assign(x, data, { updatedAt:now }); else p.articles.unshift(Object.assign({ id:'ar_' + uid(), createdAt:now, updatedAt:now }, data));
-    p.rev = (Number(p.rev) || 0) + 1; closeModal(); posSave(); posRenderArticles(); posRenderStatus(); posUpdateBadge(); toast(data.status === 'published' ? 'Artikel disimpan. Tekan Terbitkan ke GitHub di tab SEO.' : 'Draf disimpan');
+    p.rev = (Number(p.rev) || 0) + 1; closeModal(); artCommit(); posRenderArticles(); posRenderStatus(); posUpdateBadge(); toast(data.status === 'published' ? 'Artikel disimpan. Tekan Terbitkan ke GitHub di tab SEO.' : 'Draf disimpan');
   };
 }
 
