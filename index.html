@@ -381,6 +381,18 @@ tbody tr:hover{background:#FAFBFE;}
 
 .confirm-box p{font-size:13.5px;color:var(--muted);margin:0 0 4px;}
 ::placeholder{color:#AAB2C8;}
+
+/* akses: admin toko hanya melihat menu Toko Online */
+body.role-toko .nav > button[data-view]:not([data-view="toko"]), body.role-toko .nav .nav-group, body.role-toko #bellBtn, body.role-toko .sidebar-foot{display:none !important;}
+.acc-out{margin-top:8px;display:none;} .acc-out.on{display:block;}
+.acc-out input{font-size:12px;} .acc-note{font-size:12.5px;color:var(--muted);line-height:1.5;margin:6px 0;}
+.acc-warn{background:#FFF4E5;border:1px solid #F2C27A;color:#7A4A00;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.5;margin:8px 0;}
+
+#ddAlert{position:fixed;left:50%;transform:translateX(-50%);top:10px;z-index:9999;width:min(94vw,440px);display:none;}
+#ddAlert.on{display:block;animation:in .25s;}
+#ddAlert .al{background:#1B2A4A;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.35);margin-bottom:8px;display:flex;gap:10px;align-items:center;}
+#ddAlert .al b{display:block;font-size:14px;} #ddAlert .al span{font-size:12.5px;opacity:.85;} #ddAlert .al .x{margin-left:auto;display:flex;gap:6px;flex-shrink:0;}
+#ddAlert .al button{border:0;border-radius:8px;padding:7px 10px;font-weight:700;font-size:12.5px;cursor:pointer;} #ddAlert .al .go{background:#FFB020;color:#222;} #ddAlert .al .cl{background:rgba(255,255,255,.15);color:#fff;}
 </style>
 </head>
 <body>
@@ -1668,6 +1680,26 @@ tbody tr:hover{background:#FAFBFE;}
         </div>
         <button class="btn sm" id="btnSaveAiFollowFirebase" style="margin-top:10px">Save &amp; Connect</button>
         <div id="aiFollowConnStatus" style="margin-top:10px;font-size:12.5px"></div>
+      </div>
+      <div class="card" id="accessCard">
+        <h2>Akses &amp; Link Pengguna</h2>
+        <p class="acc-note">Dua tingkat akses: <b>Super Admin</b> (semua menu, masuk lewat link tanpa login) dan <b>Admin Toko</b> (hanya menu Toko Online, login dengan email dan password sendiri). Isi Firebase di kartu di atas dulu dan tekan Save &amp; Connect.</p>
+        <div class="field full"><label>Alamat Drive Desk (untuk link)</label><input type="url" id="acc_base" placeholder="https://.../index.html"></div>
+        <h3 style="margin:14px 0 4px;font-size:14px">1. Super Admin</h3>
+        <div class="form-grid">
+          <div class="field"><label>Email akun Super Admin</label><input type="email" id="acc_sa_email" autocomplete="off" placeholder="superadmin@email.com"></div>
+          <div class="field"><label>Password (min. 8 karakter, acak dan panjang)</label><input type="text" id="acc_sa_pass" autocomplete="off"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="acc_sa_make">Buat akun</button><button class="btn sm ghost" type="button" id="acc_sa_gen">Password acak</button><button class="btn sm" type="button" id="acc_sa_link">Buat link Super Admin</button></div>
+        <div class="acc-out" id="acc_sa_out"></div>
+        <h3 style="margin:18px 0 4px;font-size:14px">2. Admin Toko (hanya menu Toko Online)</h3>
+        <div class="form-grid">
+          <div class="field"><label>Email akun Admin Toko</label><input type="email" id="acc_tk_email" autocomplete="off" placeholder="admintoko@email.com"></div>
+          <div class="field"><label>Password (min. 8 karakter)</label><input type="text" id="acc_tk_pass" autocomplete="off"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="acc_tk_make">Buat akun</button><button class="btn sm ghost" type="button" id="acc_tk_gen">Password acak</button><button class="btn sm" type="button" id="acc_tk_link">Buat link Admin Toko</button></div>
+        <div class="acc-out" id="acc_tk_out"></div>
+        <div class="acc-warn"><b>Penting:</b> link Super Admin memuat password akun itu. Siapa pun yang memegang link bisa mengelola toko. Kirim hanya ke dirimu sendiri, jangan ke grup. Kalau link bocor, ganti password akun itu di Firebase Console, Authentication, dan link lama langsung tidak berlaku. Link Admin Toko tidak memuat password.</div>
       </div>
       <div class="card">
         <h2>Reminder Settings</h2>
@@ -7155,9 +7187,9 @@ function posInitApp(){
       if(posOrdersRef){ try{ posOrdersRef.off(); }catch(e){} posOrdersRef = null; }
       if(posCustRef){ try{ posCustRef.off(); }catch(e){} posCustRef = null; }
       if(posApptsRef){ try{ posApptsRef.off(); }catch(e){} posApptsRef = null; }
-      posOrders = {}; posCustomers = {}; posAppts = {};
+      posOrders = {}; posCustomers = {}; posAppts = {}; ddSeen = { order:null, appt:null };
       if(u){
-        try{ const s = await posDb.ref('shop/admins/'+u.uid).once('value'); posIsAdmin = !!s.val(); }catch(e){ posIsAdmin = false; }
+        try{ const s = await posDb.ref('shop/admins/'+u.uid).once('value'); posIsAdmin = !!s.val(); if(posIsAdmin) ddOnAdminValue(s.val()); }catch(e){ posIsAdmin = false; }
         posAdminChecked = true;
         if(posIsAdmin){ posListenOrders(); posListenCustomers(); posListenAppts(); posSyncCatalogIfStale(); }
       } else posAdminChecked = true;
@@ -7217,7 +7249,7 @@ function posAuthErr(e){
 }
 async function posRecheckAdmin(){
   if(!posUser) return;
-  try{ const s = await posDb.ref('shop/admins/'+posUser.uid).once('value'); posIsAdmin = !!s.val(); }catch(e){ posIsAdmin = false; }
+  try{ const s = await posDb.ref('shop/admins/'+posUser.uid).once('value'); posIsAdmin = !!s.val(); if(posIsAdmin) ddOnAdminValue(s.val()); }catch(e){ posIsAdmin = false; }
   if(posIsAdmin){ posListenOrders(); posListenCustomers(); toast('Akun terdaftar sebagai admin'); posPublish(false); } else toast('Belum terdaftar — cek node shop/admins','err');
   renderToko();
 }
@@ -8346,7 +8378,7 @@ function posListenOrders(){
   if(!posDb || !posIsAdmin || posOrdersRef) return;
   posOrdersRef = posDb.ref('pos/orders').limitToLast(500);
   posOrdersRef.on('value', snap=>{
-    posOrders = snap.val() || {}; posOrdersError = null; posUpdateBadge();
+    posOrders = snap.val() || {}; posOrdersError = null; posUpdateBadge(); try{ ddNotifyNew('order', posOrders); }catch(e){}
     if(document.getElementById('view-toko').classList.contains('active')){ const t = posActiveTab(); if(t==='orders') posRenderOrders(); if(t==='customers') posRenderCustomers(); }
   }, err=>{ console.error(err); posOrdersError = err.code||'error'; posOrdersRef = null; if(document.getElementById('view-toko').classList.contains('active')) renderToko(); });
 }
@@ -10441,7 +10473,7 @@ function posListenAppts(){
   if(!posDb || !posIsAdmin || posApptsRef) return;
   posApptsRef = posDb.ref('pos/appointments').limitToLast(500);
   posApptsRef.on('value', snap=>{
-    posAppts = snap.val() || {}; posApptsError = null; posUpdateBadge();
+    posAppts = snap.val() || {}; posApptsError = null; posUpdateBadge(); try{ ddNotifyNew('appt', posAppts); }catch(e){}
     if(document.getElementById('view-toko').classList.contains('active')){ const t = posActiveTab(); if(t==='appts') posRenderAppts(); if(t==='props') posRenderProps(); if(t==='units') posRenderUnits(); }
   }, err=>{ console.error(err); posApptsError = err.code || 'error'; posApptsRef = null; if(document.getElementById('view-toko').classList.contains('active') && posActiveTab()==='appts') posRenderAppts(); });
 }
@@ -10818,12 +10850,130 @@ document.getElementById('btnSendAiFollowWa').addEventListener('click', async ()=
   renderPriorityLeads();
 });
 
+
+/* ============================= AKSES: peran & link ============================= */
+const DD_ROLE_KEY = 'dd_role';
+function ddRole(){ try{ return localStorage.getItem(DD_ROLE_KEY) || ''; }catch(e){ return ''; } }
+function ddSetRole(r){ try{ if(r) localStorage.setItem(DD_ROLE_KEY, r); else localStorage.removeItem(DD_ROLE_KEY); }catch(e){} }
+function ddRoleOf(v){ const t = String(v == null ? '' : v).replace(/["'\s]/g, '').toLowerCase(); return t === 'toko' ? 'toko' : (v ? 'super' : ''); }
+function ddApplyRole(r){
+  document.body.classList.toggle('role-toko', r === 'toko');
+  if(r === 'toko'){
+    const act = document.querySelector('.view.active');
+    if(!act || act.id !== 'view-toko') goTo('toko');
+    const sub = document.getElementById('topSub'); if(sub) sub.textContent = 'Akses Admin Toko';
+  }
+}
+const ddGoToOrig = goTo;
+goTo = function(view){ if(ddRole() === 'toko') view = 'toko'; return ddGoToOrig(view); };
+function ddOnAdminValue(v){
+  const r = ddRoleOf(v); if(!r) return;
+  ddSetRole(r === 'toko' ? 'toko' : ''); ddApplyRole(r === 'toko' ? 'toko' : '');
+}
+function ddB64e(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function ddB64d(t){ t = String(t).replace(/-/g, '+').replace(/_/g, '/'); while(t.length % 4) t += '='; return JSON.parse(decodeURIComponent(escape(atob(t)))); }
+async function ddAccessInit(){
+  let h = ''; try{ h = location.hash || ''; }catch(e){}
+  const m = /[#&]akses=([A-Za-z0-9_\-]+)/.exec(h);
+  if(m){
+    let d = null; try{ d = ddB64d(m[1]); }catch(e){ d = null; }
+    try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){ try{ location.hash = ''; }catch(_){} }
+    if(d && d.c && d.c.apiKey && d.c.databaseURL && d.c.projectId){
+      state.settings.aiFollowUpFirebase = d.c; await saveSettings();
+      if(d.r === 'toko'){ ddSetRole('toko'); }
+      else { ddSetRole(''); }
+      ddApplyRole(ddRole());
+      if(typeof initAiFollowFirebase === 'function') initAiFollowFirebase(false);
+      if(d.r === 'super' && d.e && d.p){
+        goTo('toko');
+        try{ if(posInitApp()){ await posAuth.signInWithEmailAndPassword(String(d.e), String(d.p)); toast('Masuk sebagai Super Admin'); } }
+        catch(e){ toast('Link tidak valid atau password sudah diganti', 'err'); }
+      } else if(d.r === 'toko'){ goTo('toko'); }
+    } else toast('Link akses tidak valid', 'err');
+    return;
+  }
+  ddApplyRole(ddRole());
+}
+function ddAccFb(){ return state.settings.aiFollowUpFirebase || {}; }
+function ddAccBase(){ const el = document.getElementById('acc_base'); return (el && el.value.trim()) || (location.origin + location.pathname); }
+function ddAccRand(){ const a = new Uint8Array(18); crypto.getRandomValues(a); return Array.from(a, b=>'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join(''); }
+function ddAccShow(id, html){ const o = document.getElementById(id); if(!o) return; o.innerHTML = html; o.classList.add('on'); }
+async function ddAccCreate(kind){
+  const pre = kind === 'sa' ? 'acc_sa' : 'acc_tk'; const email = document.getElementById(pre + '_email').value.trim(), pass = document.getElementById(pre + '_pass').value;
+  if(!email || pass.length < 8){ toast('Isi email dan password minimal 8 karakter', 'err'); return; }
+  if(!aiFollowIsConfigured() || typeof firebase === 'undefined'){ toast('Isi dan simpan config Firebase dulu', 'err'); return; }
+  const out = pre + '_out'; ddAccShow(out, 'Membuat akun…');
+  try{
+    const app2 = firebase.apps.find(a=>a.name === 'posCreate') || firebase.initializeApp(ddAccFb(), 'posCreate'); const au = app2.auth(); let cred, baru = true;
+    try{ cred = await au.createUserWithEmailAndPassword(email, pass); }
+    catch(e){ if(e && e.code === 'auth/email-already-in-use'){ cred = await au.signInWithEmailAndPassword(email, pass); baru = false; } else throw e; }
+    const uid = cred.user.uid; await au.signOut();
+    const val = kind === 'sa' ? 'true' : 'toko';
+    ddAccShow(out, `<div class="acc-note">${baru ? 'Akun dibuat.' : 'Akun sudah ada, password cocok.'} Satu langkah lagi agar akun ini diakui sebagai admin:</div>
+      <ol class="pos-steps"><li>Buka Firebase Console, proyek <b>drive-desk-ai</b>, <b>Realtime Database</b>, tab <b>Data</b>.</li><li>Buka node <code>shop</code>, lalu <code>admins</code>.</li><li>Tambah anak baru dengan key <code>${posEsc(uid)}</code> dan value <code>${val}</code>${kind === 'sa' ? ' (tanpa tanda kutip, boolean)' : ' (ketik toko saja)'}.</li></ol>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" readonly value="${posEsc(uid)}" onclick="this.select()" style="flex:1;min-width:200px"><button class="btn sm ghost" type="button" onclick="navigator.clipboard.writeText('${posEsc(uid)}').then(()=>toast('UID disalin'))">Salin UID</button></div>`);
+  }catch(e){ ddAccShow(out, `<div class="acc-note" style="color:#D6371F">Gagal: ${posEsc((e && (e.code || e.message)) || 'error')}. Pastikan metode Email/Password aktif di Firebase Authentication.</div>`); }
+}
+function ddAccLink(kind){
+  const pre = kind === 'sa' ? 'acc_sa' : 'acc_tk'; const out = pre + '_out'; const fb = ddAccFb();
+  if(!aiFollowIsConfigured()){ toast('Isi dan simpan config Firebase dulu', 'err'); return; }
+  const payload = { r:kind === 'sa' ? 'super' : 'toko', c:fb };
+  if(kind === 'sa'){ const e = document.getElementById('acc_sa_email').value.trim(), pw = document.getElementById('acc_sa_pass').value; if(!e || pw.length < 8){ toast('Isi email dan password Super Admin dulu', 'err'); return; } payload.e = e; payload.p = pw; }
+  const base = ddAccBase().replace(/#.*$/, ''); const link = base + '#akses=' + ddB64e(payload);
+  try{ state.settings.accessBase = base; saveSettings(); }catch(e){}
+  ddAccShow(out, `<div class="acc-note">${kind === 'sa' ? 'Buka link ini sekali di perangkat yang ingin dipakai. Setelah terbuka, alamatnya dibersihkan dan sesinya tetap masuk.' : 'Kirim link ini ke Admin Toko. Mereka login dengan email dan password akunnya. Hanya menu Toko Online yang tampil.'}</div>
+    <input type="text" readonly value="${posEsc(link)}" onclick="this.select()"><div style="margin-top:8px"><button class="btn sm" type="button" id="${pre}_copy">Salin link</button></div>`);
+  const cb = document.getElementById(pre + '_copy'); if(cb) cb.onclick = ()=>navigator.clipboard.writeText(link).then(()=>toast('Link disalin'), ()=>toast('Tekan lama pada kolom lalu salin', 'err'));
+}
+function ddAccBind(){
+  const b = document.getElementById('acc_base'); if(b && !b.value) b.value = state.settings.accessBase || (location.origin + location.pathname);
+  const on = (id, f)=>{ const e = document.getElementById(id); if(e) e.onclick = f; };
+  on('acc_sa_make', ()=>ddAccCreate('sa')); on('acc_tk_make', ()=>ddAccCreate('tk'));
+  on('acc_sa_link', ()=>ddAccLink('sa')); on('acc_tk_link', ()=>ddAccLink('tk'));
+  on('acc_sa_gen', ()=>{ document.getElementById('acc_sa_pass').value = ddAccRand(); });
+  on('acc_tk_gen', ()=>{ document.getElementById('acc_tk_pass').value = ddAccRand(); });
+}
+ddAccBind();
+
+
+/* ============================= NOTIFIKASI PESANAN MASUK ============================= */
+let ddSeen = { order:null, appt:null }, ddAudio = null, ddTitle0 = document.title, ddTitleTimer = null;
+function ddBeep(){
+  try{ ddAudio = ddAudio || new (window.AudioContext || window.webkitAudioContext)(); const c = ddAudio; if(c.state === 'suspended') c.resume();
+    [0, .22].forEach((t, i)=>{ const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = i ? 1175 : 880; g.gain.setValueAtTime(.0001, c.currentTime + t); g.gain.exponentialRampToValueAtTime(.25, c.currentTime + t + .02); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + t + .2); o.connect(g); g.connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + .22); }); }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([200, 100, 200]); }catch(e){}
+}
+function ddFlashTitle(txt){
+  clearInterval(ddTitleTimer); let on = false; ddTitleTimer = setInterval(()=>{ document.title = (on = !on) ? txt : ddTitle0; if(!document.hidden && !on){ clearInterval(ddTitleTimer); document.title = ddTitle0; } }, 1000);
+  setTimeout(()=>{ clearInterval(ddTitleTimer); document.title = ddTitle0; }, 60000);
+}
+function ddShowAlert(kind, title, sub){
+  let box = document.getElementById('ddAlert'); if(!box){ box = document.createElement('div'); box.id = 'ddAlert'; document.body.appendChild(box); }
+  const el = document.createElement('div'); el.className = 'al'; el.innerHTML = `<div><b>${posEsc(title)}</b><span>${posEsc(sub)}</span></div><div class="x"><button class="go" type="button">Lihat</button><button class="cl" type="button">Tutup</button></div>`;
+  el.querySelector('.cl').onclick = ()=>{ el.remove(); if(!box.children.length) box.classList.remove('on'); };
+  el.querySelector('.go').onclick = ()=>{ el.remove(); if(!box.children.length) box.classList.remove('on'); goTo('toko'); const b = document.querySelector('#posTabs [data-ptab="' + (kind === 'appt' ? 'appts' : 'orders') + '"]'); if(b) b.click(); };
+  box.appendChild(el); box.classList.add('on'); setTimeout(()=>{ if(el.parentNode){ el.remove(); if(!box.children.length) box.classList.remove('on'); } }, 30000);
+  try{ if('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification(title, { body:sub, tag:'dd-' + kind }); }catch(e){}
+}
+function ddNotifyNew(kind, data){
+  const keys = Object.keys(data || {});
+  if(ddSeen[kind] === null){ ddSeen[kind] = new Set(keys); return; }
+  const fresh = keys.filter(k=>!ddSeen[kind].has(k)); keys.forEach(k=>ddSeen[kind].add(k));
+  fresh.forEach(k=>{ const o = data[k]; if(!o || o.status !== 'baru') return;
+    const nm = (o.customer || {}).nama || 'Pembeli';
+    if(kind === 'order') ddShowAlert('order', 'Pesanan baru ' + (o.orderNo || ''), nm + ' · ' + exRp(o.grandTotal || 0));
+    else ddShowAlert('appt', 'Janji temu baru', nm + ' · ' + ((o.property || {}).title || '') + ' · ' + (o.date || '') + ' ' + (o.slot || '')); });
+  if(fresh.length){ ddBeep(); ddFlashTitle('🔔 Pesanan baru!'); }
+}
+function ddNotifPerm(){ try{ if('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }catch(e){} }
+document.addEventListener('click', ddNotifPerm, { once:true });
 /* ============================= INIT ============================= */
 (async function init(){
   await loadState();
   populateSourceFilter();
   renderDashboard();
   if(aiFollowIsConfigured()) initAiFollowFirebase(false);
+  try{ await ddAccessInit(); }catch(e){ console.error(e); }
 })();
 </script>
 </body>
