@@ -45,6 +45,36 @@ h1,h2,h3,.brand,.stat-num{font-family:'Manrope',sans-serif;}
 button{font-family:inherit;cursor:pointer;}
 input,select,textarea{font-family:inherit;}
 a{color:inherit;}
+/* Funnel */
+.fn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.fn-kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px}
+.fn-kpi b{display:block;font:800 22px 'Manrope',sans-serif}
+.fn-kpi span{font-size:12px;color:var(--muted)}
+.fn-kpi.warn b{color:var(--red)}
+.fn-box{padding:16px;margin-bottom:14px}
+.fn-box h3{margin:0 0 12px;font-size:15px}
+.fn-bar-row{display:grid;grid-template-columns:140px 1fr 110px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+.fn-bar-track{background:#EEF1F8;border-radius:8px;height:22px;overflow:hidden}
+.fn-bar{height:100%;border-radius:8px;min-width:3px}
+.fn-bar-row small{color:var(--muted)}
+.fn-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;margin-bottom:14px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.fn-col{flex:0 0 255px;background:#E9EDF6;border-radius:var(--radius);padding:10px;scroll-snap-align:start;max-height:78vh;overflow-y:auto}
+.fn-col.over{outline:2px dashed var(--blue)}
+.fn-col h4{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.fn-col h4 i{font-style:normal;background:#fff;border-radius:99px;padding:1px 9px;font-size:12px;color:var(--muted)}
+.fn-lead{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(15,27,61,.08);border-left:4px solid var(--blue);font-size:12.5px}
+.fn-lead.stuck{border-left-color:var(--red)}
+.fn-lead strong{display:block;font-size:13.5px;margin-bottom:2px}
+.fn-meta{color:var(--muted);margin:2px 0}
+.fn-badges{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.fn-badge{border-radius:99px;padding:1px 8px;font-size:11px;background:#EEF1F8;color:var(--muted)}
+.fn-badge.red{background:#FDE8E8;color:var(--red)}
+.fn-badge.amber{background:#FFF3DC;color:#A8700A}
+.fn-act{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.fn-act select,.fn-act input{font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;max-width:100%}
+.fn-more{text-align:center;color:var(--muted);font-size:12px;padding:4px}
+@media(max-width:600px){.fn-bar-row{grid-template-columns:96px 1fr 84px}.fn-col{flex-basis:82vw}}
+
 
 /* Layout */
 .app{display:flex;min-height:100vh;}
@@ -409,6 +439,7 @@ body.role-toko .nav > button[data-view]:not([data-view="toko"]), body.role-toko 
       <button data-view="dashboard" class="active"><span class="nav-ico">◧</span> Dashboard</button>
       <button data-view="schedule"><span class="nav-ico">🗓️</span> Jadwal Harian</button>
       <button data-view="leads"><span class="nav-ico">☰</span> Leads</button>
+      <button data-view="funnel"><span class="nav-ico">▽</span> Sales Funnel</button>
       <button data-view="spk"><span class="nav-ico">▣</span> SPK &amp; Delivery</button>
       <div class="nav-group">
         <button class="nav-group-toggle" id="finGroupToggle" type="button"><span class="nav-ico">🏦</span> Financial <span class="nav-caret">▾</span></button>
@@ -558,6 +589,32 @@ body.role-toko .nav > button[data-view]:not([data-view="toko"]), body.role-toko 
           </table>
         </div>
         <div class="pagination" id="leadsPagination"></div>
+      </div>
+    </div>
+
+    <!-- SALES FUNNEL -->
+    <div class="view" id="view-funnel">
+      <div class="toolbar">
+        <input type="search" id="funnelSearch" placeholder="Cari nama, telepon...">
+        <select id="funnelSource"><option value="">Semua sumber</option></select>
+        <select id="funnelPeriod">
+          <option value="all">Semua waktu</option>
+          <option value="month">Bulan ini</option>
+          <option value="30">30 hari terakhir</option>
+          <option value="90">90 hari terakhir</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn" onclick="openLeadModal(null)">+ Add Lead</button>
+      </div>
+      <div class="fn-kpis" id="funnelKpis"></div>
+      <div class="card fn-box"><h3>Funnel konversi</h3><div id="funnelBars"></div></div>
+      <div class="fn-board" id="funnelBoard"></div>
+      <div class="card fn-box">
+        <h3>Konversi per sumber lead</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Sumber</th><th>Lead</th><th>Aktif</th><th>SPK</th><th>Lost</th><th>Konversi</th></tr></thead>
+          <tbody id="funnelSrcTbody"></tbody>
+        </table></div>
       </div>
     </div>
 
@@ -2016,7 +2073,7 @@ function openModal(html, wide){
   document.getElementById('modalBox').innerHTML = html;
   document.getElementById('overlay').classList.add('active');
 }
-function closeModal(){ document.getElementById('overlay').classList.remove('active'); document.getElementById('modalBox').innerHTML=''; }
+function closeModal(){ setTimeout(()=>{ const v=document.getElementById('view-funnel'); if(v && v.classList.contains('active')) renderSalesFunnel(); }, 60); document.getElementById('overlay').classList.remove('active'); document.getElementById('modalBox').innerHTML=''; }
 document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
 
 function confirmModal(title, msg, onYes){
@@ -2211,6 +2268,7 @@ const titles = {
   dashboard:['Dashboard','Overview of leads, SPK and reminders'],
   schedule:['Jadwal Harian','Briefing, kerja sales, dan agenda malam'],
   leads:['Leads','All prospective customers, editable at any time'],
+  funnel:['Sales Funnel','Pantau tiap lead dari New Lead sampai Delivery'],
   spk:['SPK & Delivery','Customers with a signed SPK and their delivery plan'],
   adspend:['Ad Spend','Track advertising cost per platform and SPK results'],
   income:['Income','Track earnings, compare to ad spend, and forecast budget'],
@@ -2249,6 +2307,7 @@ function goTo(view){
   if(view==='dashboard') renderDashboard();
   if(view==='schedule') openSchedule();
   if(view==='leads') renderLeads();
+  if(view==='funnel') renderSalesFunnel();
   if(view==='spk') renderSpk();
   if(view==='adspend') renderAdSpend();
   if(view==='income') renderIncome();
@@ -2935,7 +2994,7 @@ function renderLeads(){
       <td>${escapeHtml(vehicleLabel(l))}</td>
       <td>${paymentLabel(spk)}</td>
       <td>${sourceLabel(l)}</td>
-      <td><span class="pill ${l.status==='spk'?'spk':'lead'}">${l.status==='spk'?'SPK':'Lead'}</span></td>
+      <td>${funnelPill(l)}</td>
       <td>${fmtDate(l.createdAt)}</td>
       <td class="row-actions">
         <button class="btn ghost sm" onclick="viewLead('${l.id}')">View</button>
@@ -2954,6 +3013,252 @@ document.getElementById('leadFilterStatus').addEventListener('change', ()=>{ pag
 document.getElementById('btnAddLead').addEventListener('click', ()=>openLeadModal(null));
 document.getElementById('btnImportLeads').addEventListener('click', openImportLeadsModal);
 
+
+/* ============================= SALES FUNNEL ============================= */
+const FUNNEL_STAGES = [
+  {k:'new',n:'New Lead',c:'#6B7590'},
+  {k:'contacted',n:'Contacted',c:'#2E6BE6'},
+  {k:'qualified',n:'Qualified',c:'#0EA5C9'},
+  {k:'testdrive',n:'Test Drive / Visit',c:'#7C5CE0'},
+  {k:'offer',n:'Penawaran',c:'#F5A524'},
+  {k:'credit',n:'Proses Leasing',c:'#E0578C'},
+  {k:'spk',n:'SPK',c:'#1AA971'},
+  {k:'delivery',n:'Delivery',c:'#0B8A5A'}
+];
+const FUNNEL_SIDE = [ {k:'hold',n:'Hold / Nurture',c:'#8A94AD'}, {k:'lost',n:'Lost',c:'#DC4C4C'} ];
+const FUNNEL_ALL = FUNNEL_STAGES.concat(FUNNEL_SIDE);
+const FUNNEL_RANK = {}; FUNNEL_STAGES.forEach((s,i)=>FUNNEL_RANK[s.k]=i);
+const LOST_REASONS = ['Harga / diskon kurang','Pindah ke brand lain','Belum siap beli','Ditolak leasing','Tidak bisa dihubungi','Beli di dealer lain','Lainnya'];
+const FUNNEL_STUCK_DAYS = 7;
+const FUNNEL_COL_LIMIT = 30;
+function funnelInfo(k){ return FUNNEL_ALL.find(s=>s.k===k) || FUNNEL_ALL[0]; }
+
+function funnelStage(l){
+  const spk = getSpkByLead(l.id);
+  if(spk) return spk.doStatus==='done' ? 'delivery' : 'spk';
+  if(l.status==='spk') return 'spk';
+  if(l.stage && funnelInfo(l.stage).k===l.stage && l.stage!=='spk' && l.stage!=='delivery') return l.stage;
+  if(state.testDrives.some(t=>t.leadId===l.id)) return 'testdrive';
+  if(getFollowupsByLead(l.id).length) return 'contacted';
+  return 'new';
+}
+function funnelStageAt(l){
+  if(l.stage && l.stageAt && funnelStage(l)===l.stage) return l.stageAt;
+  const spk = getSpkByLead(l.id);
+  if(spk) return (spk.doStatus==='done' ? spk.tglRealisasi : (spk.tglSPK||spk.createdAt)) || spk.createdAt || l.createdAt;
+  const tds = state.testDrives.filter(t=>t.leadId===l.id).map(t=>t.date).sort();
+  if(tds.length && funnelStage(l)==='testdrive') return tds[tds.length-1];
+  const fus = getFollowupsByLead(l.id);
+  if(fus.length && funnelStage(l)==='contacted') return fus[0].createdAt;
+  return l.stageAt || l.createdAt || l.addedAt;
+}
+function funnelDaysIn(l){
+  const d = parseDate(funnelStageAt(l)); if(!d) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime())/86400000));
+}
+function funnelRank(l){
+  const st = funnelStage(l);
+  if(st==='lost' || st==='hold') return FUNNEL_RANK[l.stageFrom] !== undefined ? FUNNEL_RANK[l.stageFrom] : 0;
+  return FUNNEL_RANK[st];
+}
+function funnelIsActive(st){ return st!=='lost' && st!=='hold' && st!=='delivery' && st!=='spk'; }
+function funnelPill(l){
+  const st = funnelStage(l), i = funnelInfo(st);
+  return `<span class="pill" style="background:${i.c}1A;color:${i.c}">${escapeHtml(i.n)}</span>`;
+}
+
+/* lead form fields */
+function leadStageFieldsHtml(l){
+  l = l || {};
+  const hasSpk = l.id && (getSpkByLead(l.id) || l.status==='spk');
+  if(hasSpk){
+    return `<div class="field full"><label>Stage Funnel</label><input value="${escapeHtml(funnelInfo(funnelStage(l)).n)} (otomatis dari SPK & Delivery)" disabled></div>`;
+  }
+  const cur = l.stage || '';
+  const opts = ['<option value="">Otomatis (dari aktivitas lead)</option>']
+    .concat(FUNNEL_STAGES.filter(s=>s.k!=='spk' && s.k!=='delivery').concat(FUNNEL_SIDE).map(s=>`<option value="${s.k}" ${cur===s.k?'selected':''}>${s.n}</option>`)).join('');
+  const reasons = LOST_REASONS.map(r=>`<option ${l.lostReason===r?'selected':''}>${r}</option>`).join('');
+  return `
+    <div class="field"><label>Stage Funnel</label><select id="f_stage">${opts}</select></div>
+    <div class="field"><label>Follow-up berikutnya</label><input type="date" id="f_nextFU" value="${escapeHtml(l.nextFU||'')}"></div>
+    <div class="field full" id="lostBlock" style="display:${cur==='lost'?'block':'none'}">
+      <div class="conditional"><div class="field"><label>Alasan Lost</label><select id="f_lostReason">${reasons}</select></div></div>
+    </div>`;
+}
+function readLeadStageFields(id){
+  const stEl = document.getElementById('f_stage');
+  if(!stEl) return {};
+  const old = id ? getLead(id) : null;
+  const stage = stEl.value;
+  const out = { nextFU: document.getElementById('f_nextFU').value || '' };
+  const prev = old ? (old.stage || '') : '';
+  if(stage !== prev){
+    out.stage = stage;
+    out.stageAt = new Date().toISOString();
+    if(stage==='lost' || stage==='hold') out.stageFrom = old ? funnelStage(old) : 'new';
+  }
+  out.lostReason = stage==='lost' ? document.getElementById('f_lostReason').value : '';
+  return out;
+}
+
+/* actions */
+async function funnelSetStage(id, to, extra){
+  const l = getLead(id); if(!l) return;
+  const from = funnelStage(l);
+  if(to==='lost' || to==='hold') l.stageFrom = FUNNEL_RANK[from]!==undefined ? from : (l.stageFrom||'new');
+  l.stage = to; l.stageAt = new Date().toISOString();
+  l.lostReason = to==='lost' ? ((extra&&extra.reason)||'') : '';
+  if(extra && extra.note) l.notes = ((l.notes?l.notes+'\n':'') + '[Lost] ' + extra.note);
+  await saveLeads();
+  toast('Dipindah ke ' + funnelInfo(to).n);
+  renderSalesFunnel();
+  if(document.getElementById('view-leads').classList.contains('active')) renderLeads();
+}
+function funnelMove(id, to){
+  const l = getLead(id); if(!l || !to) { renderSalesFunnel(); return; }
+  const cur = funnelStage(l);
+  if(cur===to) { renderSalesFunnel(); return; }
+  if(cur==='spk' || cur==='delivery'){ toast('Lead sudah SPK. Ubah dari menu SPK & Delivery.','err'); renderSalesFunnel(); return; }
+  if(to==='delivery'){ toast('Delivery otomatis saat DO selesai di menu SPK & Delivery','err'); renderSalesFunnel(); return; }
+  if(to==='spk'){ openSpkForm(id); return; }
+  if(to==='lost'){ funnelLostModal(id); return; }
+  funnelSetStage(id, to);
+}
+function funnelLostModal(id){
+  const l = getLead(id);
+  const reasons = LOST_REASONS.map(r=>`<option>${r}</option>`).join('');
+  openModal(`
+    <div class="modal-head"><h3>Lead Lost: ${escapeHtml(displayName(l))}</h3><button class="modal-close" onclick="closeModal();renderSalesFunnel()">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Alasan</label><select id="lost_reason">${reasons}</select></div>
+      <div class="field full"><label>Catatan (opsional)</label><textarea id="lost_note" placeholder="Misal: ambil Hyundai karena diskon lebih besar"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal();renderSalesFunnel()">Batal</button><button class="btn danger" id="lostSaveBtn">Simpan sebagai Lost</button></div>
+  `);
+  document.getElementById('lostSaveBtn').onclick = async ()=>{
+    const reason = document.getElementById('lost_reason').value;
+    const note = document.getElementById('lost_note').value.trim();
+    document.getElementById('overlay').classList.remove('active'); document.getElementById('modalBox').innerHTML='';
+    await funnelSetStage(id, 'lost', {reason, note});
+  };
+}
+async function funnelSetFU(id, val){
+  const l = getLead(id); if(!l) return;
+  l.nextFU = val || '';
+  await saveLeads(); toast(val ? 'Follow-up dijadwalkan' : 'Jadwal follow-up dihapus');
+  renderSalesFunnel();
+}
+/* drag & drop (desktop) */
+function funnelDragStart(e, id){ e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed='move'; }
+function funnelDragOver(e){ e.preventDefault(); e.currentTarget.classList.add('over'); }
+function funnelDragLeave(e){ e.currentTarget.classList.remove('over'); }
+function funnelDrop(e, to){ e.preventDefault(); e.currentTarget.classList.remove('over'); const id = e.dataTransfer.getData('text/plain'); if(id) funnelMove(id, to); }
+
+/* render */
+function funnelFilteredLeads(){
+  const q = document.getElementById('funnelSearch').value.trim().toLowerCase();
+  const src = document.getElementById('funnelSource').value;
+  const per = document.getElementById('funnelPeriod').value;
+  const now = new Date(); let from = null;
+  if(per==='month') from = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if(per==='30' || per==='90') from = new Date(Date.now() - Number(per)*86400000);
+  return state.leads.filter(l=>{
+    if(q && !((l.nama||'').toLowerCase().includes(q) || (l.noTlpn||'').toLowerCase().includes(q))) return false;
+    if(src && l.sumber!==src) return false;
+    if(from){ const d = parseDate(l.createdAt||l.addedAt); if(!d || d<from) return false; }
+    return true;
+  });
+}
+function funnelLeadCard(l){
+  const st = funnelStage(l), days = funnelDaysIn(l);
+  const stuck = funnelIsActive(st) && days >= FUNNEL_STUCK_DAYS;
+  const today = todayISO();
+  const fuBadge = l.nextFU ? `<span class="fn-badge ${l.nextFU<today?'red':(l.nextFU===today?'amber':'')}">📅 ${fmtDate(l.nextFU)}${l.nextFU<today?' (lewat)':''}</span>` : '';
+  const fixed = (st==='spk' || st==='delivery');
+  const moveOpts = ['<option value="">Pindah ke…</option>'].concat(FUNNEL_ALL.filter(s=>s.k!==st && s.k!=='delivery').map(s=>`<option value="${s.k}">${s.n}</option>`)).join('');
+  return `
+  <div class="fn-lead ${stuck?'stuck':''}" style="border-left-color:${stuck?'var(--red)':funnelInfo(st).c}" ${fixed?'':`draggable="true" ondragstart="funnelDragStart(event,'${l.id}')"`}>
+    <strong>${escapeHtml(displayName(l))}</strong>
+    <div class="fn-meta">${escapeHtml(vehicleLabel(l))} · ${escapeHtml(l.sumber||'—')}</div>
+    <div class="fn-badges">
+      ${categoryPill(l)}
+      <span class="fn-badge ${stuck?'red':''}">${days} hari di tahap ini</span>
+      ${fuBadge}
+      ${st==='lost' && l.lostReason ? `<span class="fn-badge red">${escapeHtml(l.lostReason)}</span>` : ''}
+    </div>
+    <div class="fn-act">
+      <a class="btn whatsapp sm" href="${waLink(l.noTlpn)}" target="_blank" rel="noopener">WA</a>
+      <button class="btn ghost sm" onclick="openFollowUpModal('${l.id}')">Follow Up</button>
+      <button class="btn ghost sm" onclick="openLeadModal('${l.id}')">Edit</button>
+    </div>
+    ${fixed ? '' : `<div class="fn-act">
+      <select onchange="funnelMove('${l.id}', this.value)">${moveOpts}</select>
+      <input type="date" value="${escapeHtml(l.nextFU||'')}" title="Follow-up berikutnya" onchange="funnelSetFU('${l.id}', this.value)">
+    </div>`}
+  </div>`;
+}
+function renderSalesFunnel(){
+  const srcSel = document.getElementById('funnelSource');
+  const prev = srcSel.value;
+  srcSel.innerHTML = '<option value="">Semua sumber</option>' + state.settings.sumberList.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if(prev && state.settings.sumberList.includes(prev)) srcSel.value = prev;
+
+  const leads = funnelFilteredLeads();
+  const today = todayISO();
+  const byStage = {}; FUNNEL_ALL.forEach(s=>byStage[s.k]=[]);
+  leads.forEach(l=>byStage[funnelStage(l)].push(l));
+
+  // KPIs
+  const total = leads.length;
+  const active = leads.filter(l=>funnelIsActive(funnelStage(l))).length;
+  const stuck = leads.filter(l=>funnelIsActive(funnelStage(l)) && funnelDaysIn(l)>=FUNNEL_STUCK_DAYS).length;
+  const overdue = leads.filter(l=>funnelIsActive(funnelStage(l)) && l.nextFU && l.nextFU<today).length;
+  const won = byStage.spk.length + byStage.delivery.length;
+  const rate = total ? Math.round(won/total*1000)/10 : 0;
+  document.getElementById('funnelKpis').innerHTML = `
+    <div class="fn-kpi"><b>${total}</b><span>Total lead</span></div>
+    <div class="fn-kpi"><b>${active}</b><span>Masih diproses</span></div>
+    <div class="fn-kpi ${stuck?'warn':''}"><b>${stuck}</b><span>Mandek ≥ ${FUNNEL_STUCK_DAYS} hari</span></div>
+    <div class="fn-kpi ${overdue?'warn':''}"><b>${overdue}</b><span>Follow-up lewat jadwal</span></div>
+    <div class="fn-kpi"><b>${won}</b><span>Jadi SPK</span></div>
+    <div class="fn-kpi"><b>${rate}%</b><span>Konversi lead → SPK</span></div>`;
+
+  // Funnel bars (cumulative: lead counted at every stage it has reached)
+  const reached = FUNNEL_STAGES.map(()=>0);
+  leads.forEach(l=>{ const r = funnelRank(l); for(let i=0;i<=r;i++) reached[i]++; });
+  document.getElementById('funnelBars').innerHTML = FUNNEL_STAGES.map((s,i)=>{
+    const w = reached[0] ? Math.max(reached[i]/reached[0]*100, reached[i]?2:0) : 0;
+    const pPrev = i>0 && reached[i-1] ? Math.round(reached[i]/reached[i-1]*100) : null;
+    return `<div class="fn-bar-row"><div>${s.n}</div><div class="fn-bar-track"><div class="fn-bar" style="width:${w}%;background:${s.c}"></div></div><div><b>${reached[i]}</b> <small>${pPrev===null?'':'('+pPrev+'% dari tahap sebelumnya)'}</small></div></div>`;
+  }).join('') + `<p style="font-size:12px;color:var(--muted);margin:10px 0 0">Lead yang sudah lewat suatu tahap tetap dihitung di tahap itu. Lost dan Hold dihitung sampai tahap terakhir sebelum keluar.</p>`;
+
+  // Kanban
+  document.getElementById('funnelBoard').innerHTML = FUNNEL_ALL.map(s=>{
+    const list = byStage[s.k].slice().sort((a,b)=> funnelDaysIn(b)-funnelDaysIn(a));
+    const shown = list.slice(0, FUNNEL_COL_LIMIT);
+    const droppable = s.k!=='delivery';
+    return `<div class="fn-col" ${droppable?`ondragover="funnelDragOver(event)" ondragleave="funnelDragLeave(event)" ondrop="funnelDrop(event,'${s.k}')"`:''}>
+      <h4><span style="color:${s.c}">● ${s.n}</span><i>${list.length}</i></h4>
+      ${shown.map(funnelLeadCard).join('') || '<div class="fn-more">Kosong</div>'}
+      ${list.length>shown.length ? `<div class="fn-more">+${list.length-shown.length} lead lainnya (pakai filter untuk mempersempit)</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Source conversion
+  const srcMap = {};
+  leads.forEach(l=>{
+    const k = l.sumber || '—';
+    const o = srcMap[k] || (srcMap[k] = {n:0, act:0, won:0, lost:0});
+    const st = funnelStage(l); o.n++;
+    if(st==='spk'||st==='delivery') o.won++; else if(st==='lost') o.lost++; else if(funnelIsActive(st)) o.act++;
+  });
+  const rows = Object.entries(srcMap).sort((a,b)=>b[1].n-a[1].n);
+  document.getElementById('funnelSrcTbody').innerHTML = rows.length ? rows.map(([k,o])=>
+    `<tr><td>${escapeHtml(k)}</td><td>${o.n}</td><td>${o.act}</td><td>${o.won}</td><td>${o.lost}</td><td><strong>${o.n?Math.round(o.won/o.n*1000)/10:0}%</strong></td></tr>`
+  ).join('') : '<tr><td colspan="6"><div class="empty">Belum ada lead.</div></td></tr>';
+}
+['funnelSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderSalesFunnel));
+['funnelSource','funnelPeriod'].forEach(id=>document.getElementById(id).addEventListener('change', renderSalesFunnel));
 
 /* ---- shared file/import helpers ---- */
 function readWorkbook(file, callback){
@@ -3085,6 +3390,7 @@ function leadFormHtml(l){
       <div class="conditional"><div class="field"><label>Referred by (customer name)</label><input id="f_referral" value="${l.sumber==='Referral'?escapeHtml(l.sumberDetail||''):''}" placeholder="Name of the referring customer"></div></div>
     </div>
 
+    ${leadStageFieldsHtml(l)}
     <div class="field full"><label>Notes</label><textarea id="f_notes" placeholder="Optional notes...">${escapeHtml(l.notes||'')}</textarea></div>
   </div>
   <p style="font-size:12px;color:var(--muted);margin:10px 0 0">Email, ID number, date of birth and payment/insurance details are captured when this lead becomes an SPK.</p>`;
@@ -3098,6 +3404,8 @@ function wireLeadForm(){
     document.getElementById('movexBlock').style.display = srcSel.value==='MOVEX' ? 'block':'none';
     document.getElementById('referralBlock').style.display = srcSel.value==='Referral' ? 'block':'none';
   });
+  const stSel = document.getElementById('f_stage');
+  if(stSel) stSel.addEventListener('change', ()=>{ document.getElementById('lostBlock').style.display = stSel.value==='lost' ? 'block':'none'; });
 }
 function openLeadModal(id){
   const l = id ? getLead(id) : null;
@@ -3130,6 +3438,7 @@ async function saveLeadForm(id){
     sumber, sumberDetail,
     notes: document.getElementById('f_notes').value.trim()
   };
+  Object.assign(data, readLeadStageFields(id));
 
   const normPhone = String(noTlpn).replace(/[^0-9]/g,'');
   const duplicate = state.leads.find(l => l.id!==id && String(l.noTlpn||'').replace(/[^0-9]/g,'')===normPhone && normPhone.length>0);
