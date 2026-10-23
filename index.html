@@ -7470,7 +7470,7 @@ function posNewDefault(){
     shipping:[
       { id:'ship_home', name:'Pemasangan di alamat kamu', fee:0, applies:'all', needsAddress:true, install:true, note:'Teknisi datang ke rumah / kantor sesuai jadwal' },
       { id:'ship_kurir', name:'Kirim via kurir (tanpa pemasangan)', fee:50000, applies:'cat_karpet', needsAddress:true, install:false, note:'Estimasi 2–4 hari kerja' },
-      { id:'ship_other', name:'Pengiriman kurir (ongkir dihitung admin)', fee:0, feeMode:'admin', applies:'other', needsAddress:true, install:false, note:'Ongkos kirim dihitung admin setelah pesanan masuk' }
+      { id:'ship_other', name:'Pengiriman kurir (flat Rp 18.000)', fee:18000, feeMode:'fixed', applies:'other', needsAddress:true, install:false, note:'Ongkos kirim flat Rp 18.000' }
     ], shipOtherSeeded:true
   };
 }
@@ -7537,6 +7537,13 @@ function posCfg(){
   if(!p.shipOtherSeeded){
     if(!p.shipping.some(x=>x.applies==='other')) p.shipping.push({ id:'ship_other', name:'Pengiriman kurir (ongkir dihitung admin)', fee:0, feeMode:'admin', applies:'other', needsAddress:true, install:false, note:'Ongkos kirim dihitung admin setelah pesanan masuk' });
     p.shipOtherSeeded = true;
+  }
+  /* sekali jalan: ongkir produk selain kaca film & karpet dibuat flat Rp 18.000 (tanpa hitung manual admin). Setelah ini tetap bisa diubah lewat tombol ✏️ */
+  if(!p.shipOtherFlat18k){
+    p.shipping.forEach(x=>{
+      if(x.applies==='other' && x.feeMode==='admin'){ x.fee = 18000; x.feeMode = 'fixed'; x.name = 'Pengiriman kurir (flat Rp 18.000)'; x.note = 'Ongkos kirim flat Rp 18.000'; }
+    });
+    p.shipOtherFlat18k = true;
   }
   return p;
 }
