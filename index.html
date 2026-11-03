@@ -45,6 +45,15 @@ h1,h2,h3,.brand,.stat-num{font-family:'Manrope',sans-serif;}
 button{font-family:inherit;cursor:pointer;}
 input,select,textarea{font-family:inherit;}
 a{color:inherit;}
+/* Stat & Chart */
+.st-chart-wrap{position:relative;height:320px}
+.st-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin:0 0 10px}
+.st-legend span{display:inline-flex;align-items:center;gap:5px}
+.st-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.st-legend i.line{height:0;width:16px;border-top:2px dashed #6250D6;border-radius:0}
+.st-up{color:var(--green);font-weight:700}.st-down{color:var(--red);font-weight:700}
+.st-note{font-size:12px;color:var(--muted);margin:8px 0 0}
+@media(max-width:600px){.st-chart-wrap{height:260px}}
 /* Funnel */
 .fn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
 .fn-kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px}
@@ -468,6 +477,7 @@ body.role-toko .brand-tabs{display:none !important;}
       <button data-view="schedule"><span class="nav-ico">🗓️</span> Jadwal Harian</button>
       <button data-view="leads"><span class="nav-ico">☰</span> Leads</button>
       <button data-view="funnel"><span class="nav-ico">▽</span> Sales Funnel</button>
+      <button data-view="stats"><span class="nav-ico">📈</span> Stat &amp; Chart</button>
       <button data-view="spk"><span class="nav-ico">▣</span> SPK &amp; Delivery</button>
       <div class="nav-group">
         <button class="nav-group-toggle" id="finGroupToggle" type="button"><span class="nav-ico">🏦</span> Financial <span class="nav-caret">▾</span></button>
@@ -644,6 +654,34 @@ body.role-toko .brand-tabs{display:none !important;}
         <div class="table-wrap"><table>
           <thead><tr><th>Sumber</th><th>Lead</th><th>Aktif</th><th>SPK</th><th>Lost</th><th>Konversi</th></tr></thead>
           <tbody id="funnelSrcTbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- STAT & CHART -->
+    <div class="view" id="view-stats">
+      <div class="toolbar">
+        <select id="statPeriod" title="Periode"></select>
+        <select id="statGroup" title="Rincian per">
+          <option value="sumber">Per sumber lead</option>
+          <option value="kategori">Per kategori (Hot/Warm/Cold)</option>
+          <option value="model">Per model mobil</option>
+          <option value="none">Total saja</option>
+        </select>
+        <select id="statScope" title="Brand"></select>
+      </div>
+      <div class="fn-kpis" id="statKpis"></div>
+      <div class="card fn-box">
+        <h3>Tren leads per bulan</h3>
+        <div class="st-legend" id="statLegend"></div>
+        <div class="st-chart-wrap"><canvas id="chartLeadTrend" role="img" aria-label="Jumlah leads per bulan"></canvas></div>
+        <p class="st-note">Bulan dihitung dari tanggal lead dibuat. Garis putus-putus = lead dari bulan itu yang sudah jadi SPK.</p>
+      </div>
+      <div class="card fn-box">
+        <h3>Rincian per bulan</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Bulan</th><th>Leads</th><th>vs bulan lalu</th><th>Jadi SPK</th><th>Konversi</th><th>Sumber terbanyak</th></tr></thead>
+          <tbody id="statTbody"></tbody>
         </table></div>
       </div>
     </div>
@@ -2319,6 +2357,7 @@ const titles = {
   schedule:['Jadwal Harian','Briefing, kerja sales, dan agenda malam'],
   leads:['Leads','All prospective customers, editable at any time'],
   funnel:['Sales Funnel','Pantau tiap lead dari New Lead sampai Delivery'],
+  stats:['Stat & Chart','Tren leads per bulan dan rinciannya'],
   spk:['SPK & Delivery','Customers with a signed SPK and their delivery plan'],
   adspend:['Ad Spend','Track advertising cost per platform and SPK results'],
   income:['Income','Track earnings, compare to ad spend, and forecast budget'],
@@ -2358,6 +2397,7 @@ function goTo(view){
   if(view==='schedule') openSchedule();
   if(view==='leads') renderLeads();
   if(view==='funnel') renderSalesFunnel();
+  if(view==='stats') renderStats();
   if(view==='spk') renderSpk();
   if(view==='adspend') renderAdSpend();
   if(view==='income') renderIncome();
@@ -3004,6 +3044,162 @@ function drawConvChart(canvasId, leads){
     });
   }catch(e){ console.error('Chart error', e); }
 }
+
+/* ============================= STAT & CHART ============================= */
+const ST_PALETTE = ['#2E6BE6','#EB6834','#1AA971','#EDA100','#E87BA4','#008300','#6250D6','#E34948'];
+const ST_OTHER = '#9AA3AF';
+const ST_KAT_COLORS = { Hot:'#E34948', Warm:'#EDA100', Cold:'#2E6BE6', Lost:'#9AA3AF' };
+const ST_MONTHS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function stLeadDate(l){ return parseDate(l.createdAt || l.addedAt); }
+function stMonthKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+function stMonthLabel(k, withYear){ const [y,m] = k.split('-'); return ST_MONTHS[Number(m)-1] + (withYear ? ' ' + y.slice(2) : ''); }
+async function stLeadsInScope(){
+  const scope = (document.getElementById('statScope')||{}).value || 'brand';
+  if(scope !== 'all') return state.leads.slice();
+  if(!otherCache){ try{ await loadOtherBrand(); }catch(e){} }
+  return state.leads.concat(otherCache ? otherCache.leads : []);
+}
+function stFillControls(leads){
+  const per = document.getElementById('statPeriod');
+  const prev = per.value || '12m';
+  const years = Array.from(new Set(leads.map(stLeadDate).filter(Boolean).map(d=>d.getFullYear()))).sort((a,b)=>b-a);
+  per.innerHTML = '<option value="12m">12 bulan terakhir</option>' + years.map(y=>`<option value="${y}">Tahun ${y}</option>`).join('') + '<option value="all">Semua waktu</option>';
+  per.value = Array.from(per.options).some(o=>o.value===prev) ? prev : '12m';
+  const sc = document.getElementById('statScope');
+  const prevSc = sc.value || 'brand';
+  sc.innerHTML = `<option value="brand">${escapeHtml(BRANDS[BRAND].name)} saja</option><option value="all">Gabungan semua brand</option>`;
+  sc.value = prevSc;
+}
+function stMonthRange(period, leads){
+  const today = todayDate();
+  let start, end;
+  if(period === '12m'){ end = new Date(today.getFullYear(), today.getMonth(), 1); start = new Date(end.getFullYear(), end.getMonth()-11, 1); }
+  else if(period === 'all'){
+    const ds = leads.map(stLeadDate).filter(Boolean);
+    if(!ds.length) return [];
+    const mn = new Date(Math.min(...ds)), mx = new Date(Math.max(...ds, today));
+    start = new Date(mn.getFullYear(), mn.getMonth(), 1); end = new Date(mx.getFullYear(), mx.getMonth(), 1);
+  } else {
+    const y = Number(period);
+    start = new Date(y, 0, 1);
+    end = (y === today.getFullYear()) ? new Date(y, today.getMonth(), 1) : new Date(y, 11, 1);
+  }
+  const keys = [];
+  for(let d = new Date(start); d <= end; d = new Date(d.getFullYear(), d.getMonth()+1, 1)) keys.push(stMonthKey(d));
+  return keys;
+}
+function stGroupOf(l, group){
+  if(group === 'sumber') return l.sumber || 'Tidak diketahui';
+  if(group === 'kategori') return l.kategori || 'Warm';
+  if(group === 'model') return l.jenisKendaraan || 'Tidak diketahui';
+  return 'Leads';
+}
+async function renderStats(){
+  try{
+    const all = await stLeadsInScope();
+    stFillControls(all);
+    const period = document.getElementById('statPeriod').value;
+    const group = document.getElementById('statGroup').value;
+    const months = stMonthRange(period, all);
+    const inSet = new Set(months);
+    const leads = all.filter(l=>{ const d = stLeadDate(l); return d && inSet.has(stMonthKey(d)); });
+    const noDate = all.filter(l=>!stLeadDate(l)).length;
+
+    // hitung per bulan & per grup
+    const perMonth = {}, spkMonth = {}, cell = {}, groupTotal = {}, srcMonth = {};
+    months.forEach(k=>{ perMonth[k]=0; spkMonth[k]=0; cell[k]={}; srcMonth[k]={}; });
+    leads.forEach(l=>{
+      const k = stMonthKey(stLeadDate(l));
+      const g = stGroupOf(l, group);
+      perMonth[k]++;
+      if(l.status === 'spk') spkMonth[k]++;
+      cell[k][g] = (cell[k][g]||0) + 1;
+      groupTotal[g] = (groupTotal[g]||0) + 1;
+      const s = l.sumber || 'Tidak diketahui';
+      srcMonth[k][s] = (srcMonth[k][s]||0) + 1;
+    });
+
+    // grup: urut terbesar, maks 7 + "Lainnya" (warna ikut entitas, bukan urutan bulan)
+    let groups = Object.keys(groupTotal);
+    if(group === 'kategori') groups = CUSTOMER_CATEGORIES.filter(c=>groupTotal[c]).concat(groups.filter(g=>!CUSTOMER_CATEGORIES.includes(g)));
+    else groups.sort((a,b)=>groupTotal[b]-groupTotal[a] || a.localeCompare(b));
+    let folded = [];
+    if(groups.length > 8){ folded = groups.slice(7); groups = groups.slice(0,7).concat(['Lainnya']); }
+    const valOf = (k,g)=> g==='Lainnya' && folded.length ? folded.reduce((s,f)=>s+(cell[k][f]||0),0) : (cell[k][g]||0);
+    const colorOf = (g,i)=> g==='Lainnya' ? ST_OTHER : (group==='kategori' ? (ST_KAT_COLORS[g]||ST_PALETTE[i%8]) : (group==='none' ? '#2E6BE6' : ST_PALETTE[i%8]));
+    const totOf = g=> g==='Lainnya' && folded.length ? folded.reduce((s,f)=>s+groupTotal[f],0) : groupTotal[g];
+
+    // KPI
+    const total = leads.length;
+    const spkTot = leads.filter(l=>l.status==='spk').length;
+    const activeMonths = months.length || 1;
+    let best = null; months.forEach(k=>{ if(!best || perMonth[k] > perMonth[best]) best = k; });
+    const cur = months[months.length-1], prev = months[months.length-2];
+    const curIsNow = cur === stMonthKey(todayDate());
+    const delta = (!curIsNow && cur && prev && perMonth[prev]) ? Math.round((perMonth[cur]-perMonth[prev])/perMonth[prev]*100) : null;
+    document.getElementById('statKpis').innerHTML = `
+      <div class="fn-kpi"><b>${total}</b><span>Total leads</span></div>
+      <div class="fn-kpi"><b>${(total/activeMonths).toFixed(1).replace('.',',')}</b><span>Rata-rata per bulan</span></div>
+      <div class="fn-kpi"><b>${best && perMonth[best] ? stMonthLabel(best,true) : '—'}</b><span>Bulan tertinggi${best && perMonth[best] ? ' ('+perMonth[best]+' leads)' : ''}</span></div>
+      <div class="fn-kpi"><b>${total ? Math.round(spkTot/total*100) : 0}%</b><span>Jadi SPK (${spkTot} dari ${total})</span></div>
+      <div class="fn-kpi${delta!==null && delta<0 ? ' warn' : ''}"><b>${cur ? perMonth[cur] : 0}</b><span>${cur ? stMonthLabel(cur,true) : 'Bulan ini'}${curIsNow ? ' · bulan berjalan (bln lalu '+(prev?perMonth[prev]:0)+')' : ''}${delta!==null ? ' · '+(delta>=0?'+':'')+delta+'% vs bln lalu' : ''}</span></div>`;
+
+    // legend
+    document.getElementById('statLegend').innerHTML = (group==='none' ? '' : groups.map((g,i)=>`<span><i style="background:${colorOf(g,i)}"></i>${escapeHtml(g)} ${totOf(g)}</span>`).join(''))
+      + `<span><i class="line"></i>Jadi SPK ${spkTot}</span>`;
+
+    // chart
+    const multiYear = new Set(months.map(k=>k.slice(0,4))).size > 1;
+    const labels = months.map(k=>stMonthLabel(k, multiYear));
+    const canvas = document.getElementById('chartLeadTrend');
+    if(charts.chartLeadTrend){ charts.chartLeadTrend.destroy(); delete charts.chartLeadTrend; }
+    const wrap = canvas.parentElement; wrap.querySelectorAll('.empty').forEach(n=>n.remove());
+    canvas.setAttribute('aria-label', 'Leads per bulan: ' + months.map((k,i)=>labels[i]+' '+perMonth[k]).join(', '));
+    if(!total){ canvas.style.display='none'; wrap.insertAdjacentHTML('beforeend','<div class="empty">Belum ada lead di periode ini.</div>'); }
+    else if(typeof Chart === 'undefined'){ canvas.style.display='none'; wrap.insertAdjacentHTML('beforeend','<div class="empty">Chart library unavailable — check your internet connection.</div>'); }
+    else {
+      canvas.style.display='';
+      const bars = (group==='none' ? ['Leads'] : groups).map((g,i)=>({
+        type:'bar', label: g==='Leads' ? 'Leads' : g, data: months.map(k=> g==='Leads' ? perMonth[k] : valOf(k,g)),
+        backgroundColor: colorOf(g,i), stack:'leads', maxBarThickness:34, borderRadius:3, borderSkipped:false, order:2
+      }));
+      charts.chartLeadTrend = new Chart(canvas.getContext('2d'), {
+        data:{ labels, datasets:[
+          { type:'line', label:'Jadi SPK', data: months.map(k=>spkMonth[k]), borderColor:'#6250D6', backgroundColor:'#6250D6', borderDash:[5,4], borderWidth:2, pointRadius:3, tension:0.25, order:1 },
+          ...bars
+        ]},
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          interaction:{ mode:'index', intersect:false },
+          plugins:{
+            legend:{ display:false },
+            tooltip:{
+              filter: it => it.raw > 0 || it.dataset.type === 'line',
+              callbacks:{ footer: items => { const k = months[items[0].dataIndex]; return 'Total: ' + perMonth[k] + ' leads'; } }
+            }
+          },
+          scales:{ x:{ stacked:true, grid:{ display:false }, ticks:{ autoSkip:false, maxRotation:45 } }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } }
+        }
+      });
+    }
+
+    // tabel (bulan terbaru di atas)
+    const rows = months.slice().reverse().map((k, idx, arr)=>{
+      const n = perMonth[k];
+      const pk = months[months.indexOf(k)-1];
+      let vs = '<span class="muted">—</span>';
+      if(pk !== undefined){
+        const d = n - perMonth[pk];
+        vs = d > 0 ? `<span class="st-up">▲ ${d}</span>` : d < 0 ? `<span class="st-down">▼ ${Math.abs(d)}</span>` : '<span class="muted">0</span>';
+      }
+      const top = Object.entries(srcMonth[k]).sort((a,b)=>b[1]-a[1])[0];
+      return `<tr><td><strong>${stMonthLabel(k,true)}</strong></td><td>${n}</td><td>${vs}</td><td>${spkMonth[k]}</td><td>${n ? Math.round(spkMonth[k]/n*100)+'%' : '—'}</td><td>${top ? escapeHtml(top[0])+' ('+top[1]+')' : '<span class="muted">—</span>'}</td></tr>`;
+    });
+    document.getElementById('statTbody').innerHTML = rows.join('') || '<tr><td colspan="6" class="empty">Belum ada data.</td></tr>';
+    if(noDate) document.getElementById('statTbody').insertAdjacentHTML('beforeend', `<tr><td colspan="6" class="muted" style="font-size:12px">${noDate} lead tanpa tanggal dibuat tidak ikut dihitung.</td></tr>`);
+  }catch(e){ console.error('Stat chart error', e); }
+}
+document.addEventListener('change', e=>{ if(e.target && ['statPeriod','statGroup','statScope'].includes(e.target.id)) renderStats(); });
 
 /* ============================= LEADS ============================= */
 function populateSourceFilter(){
