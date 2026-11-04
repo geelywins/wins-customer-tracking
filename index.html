@@ -1848,6 +1848,24 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
         <button class="btn sm" id="btnSaveAiFollowFirebase" style="margin-top:10px">Save &amp; Connect</button>
         <div id="aiFollowConnStatus" style="margin-top:10px;font-size:12.5px"></div>
       </div>
+      <div class="card" id="syncCard">
+        <h2>Sinkron Laptop &amp; HP</h2>
+        <p class="acc-note">Semua data (Geely dan XPeng: leads, SPK, follow up, test drive, kontak, Database Leasing, pengaturan) otomatis disimpan ke database Firebase dan dibagikan ke semua perangkat yang login sebagai admin. Setiap perubahan terkirim beberapa detik setelah disimpan, dan perangkat lain ikut terbarui sendiri.</p>
+        <div id="syncStatus" style="font-size:13px;line-height:1.55;margin:8px 0"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn sm" id="syncNow">Sinkron sekarang</button>
+          <button class="btn ghost sm" id="syncPush">Paksa unggah dari perangkat ini</button>
+          <button class="btn ghost sm" id="syncPull">Paksa ambil dari cloud</button>
+        </div>
+        <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;font-weight:700">Aturan Firebase yang dibutuhkan (sekali saja)</summary>
+          <p class="ex-sub" style="margin:6px 0">Firebase Console, Realtime Database, tab Rules. Tambahkan blok <code>drivedesk_sync</code> di dalam <code>"rules": { ... }</code>, lalu Publish:</p>
+          <div class="pos-code" id="syncRules" style="white-space:pre-wrap">"drivedesk_sync": {
+  ".read": "auth != null &amp;&amp; root.child('shop/admins').child(auth.uid).exists() &amp;&amp; root.child('shop/admins').child(auth.uid).val() !== 'toko'",
+  ".write": "auth != null &amp;&amp; root.child('shop/admins').child(auth.uid).exists() &amp;&amp; root.child('shop/admins').child(auth.uid).val() !== 'toko'"
+}</div>
+          <button class="btn ghost sm" style="margin-top:6px" onclick="posCopy('syncRules')">Salin aturan</button>
+        </details>
+      </div>
       <div class="card" id="accessCard">
         <h2>Akses &amp; Link Pengguna</h2>
         <p class="acc-note">Dua tingkat akses: <b>Super Admin</b> (semua menu, masuk lewat link tanpa login) dan <b>Admin Toko</b> (hanya menu Toko Online, login dengan email dan password sendiri). Isi Firebase di kartu di atas dulu dan tekan Save &amp; Connect.</p>
@@ -7835,8 +7853,9 @@ function posInitApp(){
       if(u){
         try{ const s = await posDb.ref('shop/admins/'+u.uid).once('value'); posIsAdmin = !!s.val(); if(posIsAdmin) ddOnAdminValue(s.val()); }catch(e){ posIsAdmin = false; }
         posAdminChecked = true;
+        try{ ddSyncOnAuth(); }catch(e){}
         if(posIsAdmin){ posListenOrders(); posListenCustomers(); posListenAppts(); posSyncCatalogIfStale(); }
-      } else posAdminChecked = true;
+      } else { posAdminChecked = true; try{ ddSyncOnAuth(); }catch(e){} }
       posUpdateBadge();
       if(document.getElementById('view-toko').classList.contains('active')) renderToko();
     });
@@ -11914,6 +11933,124 @@ function prospekTplModal(){
     else if(act === 'edit') prospekEditModal(p.id);
     else if(act === 'del') confirmModal('Hapus kontak?', escapeHtml(prospekTitle(p.nama)) + ' akan dihapus dari database.', async ()=>{ state.prospects = state.prospects.filter(x=>x.id !== p.id); await saveProspects(); closeModal(); renderProspek(); });
   });
+})();
+
+
+/* ============================= SINKRON CLOUD (laptop & HP) ============================= */
+const DD_SYNC_ROOT = 'drivedesk_sync';
+let ddSyncReady = false, ddSyncApplying = false, ddSyncRef = null, ddSyncMsg = '', ddSyncLast = '';
+const ddSyncTimers = {}, ddTsMem = {};
+function ddSyncKeys(){ const ks = []; ['geely','xpeng'].forEach(b=>BRAND_SCOPED_KEYS.forEach(k=>ks.push(brandStoreKey(k, b)))); ks.push('settings-db','xpeng-settings-brand'); return Array.from(new Set(ks)); }
+function ddDevice(){ try{ let d = localStorage.getItem('dd_device'); if(!d){ d = 'd' + Math.random().toString(36).slice(2, 9); localStorage.setItem('dd_device', d); } return d; }catch(e){ return 'dx'; } }
+function ddGetTs(k){ try{ return Number(localStorage.getItem('drivedesk:__ts:' + k)) || ddTsMem[k] || 0; }catch(e){ return ddTsMem[k] || 0; } }
+function ddSetTs(k, t){ ddTsMem[k] = t; try{ localStorage.setItem('drivedesk:__ts:' + k, String(t)); }catch(e){} }
+function ddSyncStatus(msg, bad){
+  ddSyncMsg = msg || ddSyncMsg;
+  const el = document.getElementById('syncStatus'); if(!el) return;
+  const col = bad ? 'var(--red)' : (ddSyncReady ? 'var(--green)' : 'var(--muted)');
+  el.innerHTML = `<span style="color:${col};font-weight:700">${ddSyncReady ? '✅ ' : ''}${escapeHtml(ddSyncMsg)}</span>${ddSyncLast ? `<div class="ex-sub">Terakhir sinkron: ${escapeHtml(ddSyncLast)}</div>` : ''}`;
+}
+function ddSyncPushKey(k, value, t){
+  if(!ddSyncReady || !posDb) return Promise.resolve();
+  if(String(value).length > 8000000){ ddSyncStatus('Data "' + k + '" terlalu besar (lebih dari 8 MB) sehingga tidak disinkronkan.', true); return Promise.resolve(); }
+  return posDb.ref(DD_SYNC_ROOT + '/' + k).set({ v:String(value), t:t, d:ddDevice() }).then(()=>{ ddSyncLast = new Date().toLocaleTimeString('id-ID'); ddSyncStatus('Terhubung dan tersinkron'); }).catch(e=>{ console.error('sync push', k, e); ddSyncStatus(/permission/i.test(String(e && e.message)) ? 'Ditolak Firebase: pasang aturan "drivedesk_sync" (lihat di bawah) lalu klik Sinkron sekarang.' : 'Gagal mengirim ke cloud, akan dicoba lagi saat ada perubahan.', true); });
+}
+const ddStorageSetOrig = storageSet;
+storageSet = async function(key, value, brand){
+  const ok = await ddStorageSetOrig(key, value, brand);
+  if(ok && !ddSyncApplying){
+    const k = brandStoreKey(key, brand);
+    if(ddSyncKeys().includes(k)){
+      const t = Date.now(); ddSetTs(k, t);
+      if(ddSyncReady){ clearTimeout(ddSyncTimers[k]); ddSyncTimers[k] = setTimeout(()=>ddSyncPushKey(k, value, t), 1500); }
+    }
+  }
+  return ok;
+};
+function ddMergeById(localArr, remoteArr){
+  const out = remoteArr.slice(), ids = new Set(remoteArr.map(x=>x && x.id).filter(Boolean));
+  localArr.forEach(x=>{ if(x && x.id && !ids.has(x.id)) out.push(x); else if(x && !x.id) out.push(x); });
+  return out;
+}
+async function ddApplyRemote(k, rem){
+  let val = rem.v;
+  if(k === 'settings-db'){
+    try{ const loc = await storageGet(k); const lo = loc && loc.value ? JSON.parse(loc.value) : null; const ro = JSON.parse(val);
+      if(lo && lo.aiFollowUpFirebase && lo.aiFollowUpFirebase.apiKey) ro.aiFollowUpFirebase = lo.aiFollowUpFirebase; val = JSON.stringify(ro); }catch(e){}
+  }
+  ddSyncApplying = true;
+  try{ await ddStorageSetOrig(k, val); ddSetTs(k, rem.t || Date.now()); }finally{ ddSyncApplying = false; }
+}
+let ddReloadTimer = null;
+function ddSyncReload(){
+  clearTimeout(ddReloadTimer);
+  ddReloadTimer = setTimeout(async ()=>{
+    try{
+      await loadState(); applyBrandUI();
+      const act = document.querySelector('.view.active'); const v = act ? act.id.replace('view-', '') : 'dashboard';
+      goTo(v);
+    }catch(e){ console.error('sync reload', e); }
+  }, 500);
+}
+async function ddSyncRun(mode){
+  if(!ddSyncReady || !posDb) return;
+  ddSyncStatus('Menyinkronkan...');
+  let remote = {};
+  try{ const snap = await posDb.ref(DD_SYNC_ROOT).once('value'); remote = snap.val() || {}; }
+  catch(e){ console.error(e); ddSyncStatus(/permission/i.test(String(e && e.message)) ? 'Ditolak Firebase: pasang aturan "drivedesk_sync" (lihat di bawah) lalu klik Sinkron sekarang.' : 'Gagal membaca cloud. Cek koneksi internet.', true); return; }
+  let applied = 0, pushed = 0;
+  for(const k of ddSyncKeys()){
+    const rem = remote[k]; const loc = await storageGet(k); const lv = loc && loc.value ? loc.value : null; const lt = ddGetTs(k);
+    if(mode === 'push'){ if(lv != null){ const t = Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; } continue; }
+    if(!rem || rem.v == null){ if(lv != null){ const t = lt || Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; } continue; }
+    if(mode === 'pull'){ await ddApplyRemote(k, rem); applied++; continue; }
+    if(lv == null){ await ddApplyRemote(k, rem); applied++; continue; }
+    if(!lt){
+      // perangkat ini belum pernah sinkron: gabungkan daftar berdasarkan id supaya data lokal tidak hilang
+      try{ const la = JSON.parse(lv), ra = JSON.parse(rem.v);
+        if(Array.isArray(la) && Array.isArray(ra)){ const merged = ddMergeById(la, ra); const t = Date.now(); const mv = JSON.stringify(merged);
+          ddSyncApplying = true; try{ await ddStorageSetOrig(k, mv); ddSetTs(k, t); }finally{ ddSyncApplying = false; }
+          await ddSyncPushKey(k, mv, t); applied++; if(merged.length !== ra.length) pushed++; continue; } }catch(e){}
+      await ddApplyRemote(k, rem); applied++; continue;
+    }
+    if((rem.t || 0) > lt){ await ddApplyRemote(k, rem); applied++; }
+    else if(lt > (rem.t || 0)){ await ddSyncPushKey(k, lv, lt); pushed++; }
+  }
+  ddSyncLast = new Date().toLocaleTimeString('id-ID');
+  ddSyncStatus('Terhubung dan tersinkron' + (applied ? ' (' + applied + ' data diperbarui dari cloud)' : '') + (pushed ? ' (' + pushed + ' data dikirim)' : ''));
+  if(applied) ddSyncReload();
+}
+function ddSyncStop(){
+  if(ddSyncRef){ try{ ddSyncRef.off(); }catch(e){} ddSyncRef = null; }
+  ddSyncReady = false;
+}
+function ddSyncOnAuth(){
+  if(posUser && posIsAdmin && ddRole() !== 'toko'){
+    if(ddSyncReady) return;
+    ddSyncReady = true;
+    ddSyncRun().then(()=>{
+      if(!ddSyncReady || ddSyncRef) return;
+      ddSyncRef = posDb.ref(DD_SYNC_ROOT);
+      const h = async snap=>{
+        const k = snap.key, rem = snap.val(); if(!rem || rem.v == null || !ddSyncKeys().includes(k)) return;
+        if(rem.d === ddDevice() || (rem.t || 0) <= ddGetTs(k)) return;
+        await ddApplyRemote(k, rem); ddSyncLast = new Date().toLocaleTimeString('id-ID'); ddSyncStatus('Data terbaru dari perangkat lain sudah masuk'); ddSyncReload();
+      };
+      ddSyncRef.on('child_changed', h); ddSyncRef.on('child_added', h);
+    });
+  } else {
+    ddSyncStop();
+    if(!aiFollowIsConfigured()) ddSyncStatus('Firebase belum disetel di Settings.', true);
+    else if(ddRole() === 'toko') ddSyncStatus('Akun Admin Toko tidak ikut sinkron data CRM.');
+    else ddSyncStatus('Belum login. Login admin di menu Toko Online (atau buka lewat link Super Admin) agar data tersinkron.', true);
+  }
+}
+(function ddSyncBind(){
+  const $ = id=>document.getElementById(id);
+  $('syncNow').onclick = ()=>{ if(!ddSyncReady){ ddSyncOnAuth(); toast('Login admin dulu', 'err'); return; } ddSyncRun(); };
+  $('syncPush').onclick = ()=>{ if(!ddSyncReady){ toast('Login admin dulu', 'err'); return; } confirmModal('Timpa data cloud?', 'Semua data di cloud diganti dengan data di perangkat ini. Perangkat lain akan mengikuti.', async ()=>{ closeModal(); await ddSyncRun('push'); }); };
+  $('syncPull').onclick = ()=>{ if(!ddSyncReady){ toast('Login admin dulu', 'err'); return; } confirmModal('Timpa data perangkat ini?', 'Data di perangkat ini diganti dengan data dari cloud.', async ()=>{ closeModal(); await ddSyncRun('pull'); }); };
+  ddSyncStatus('Menunggu login admin...');
 })();
 
 /* ============================= INIT ============================= */
