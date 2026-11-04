@@ -1858,7 +1858,7 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
           <button class="btn ghost sm" id="syncPull">Paksa ambil dari cloud</button>
         </div>
         <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;font-weight:700">Aturan Firebase yang dibutuhkan (sekali saja)</summary>
-          <p class="ex-sub" style="margin:6px 0">Firebase Console, Realtime Database, tab Rules. Tambahkan blok <code>drivedesk_sync</code> di dalam <code>"rules": { ... }</code>, lalu Publish:</p>
+          <p class="ex-sub" style="margin:6px 0">Cara termudah: buka menu <b>Toko Online</b>, cari kotak Rules lengkap, salin semuanya dan tempel di Firebase Console, Realtime Database, tab Rules, lalu Publish. Blok di bawah sudah termasuk di sana. Kalau memilih manual, tambahkan blok ini di dalam <code>"rules": { ... }</code>:</p>
           <div class="pos-code" id="syncRules" style="white-space:pre-wrap">"drivedesk_sync": {
   ".read": "auth != null &amp;&amp; root.child('shop/admins').child(auth.uid).exists() &amp;&amp; root.child('shop/admins').child(auth.uid).val() !== 'toko'",
   ".write": "auth != null &amp;&amp; root.child('shop/admins').child(auth.uid).exists() &amp;&amp; root.child('shop/admins').child(auth.uid).val() !== 'toko'"
@@ -7929,6 +7929,7 @@ function posRulesJson(){
     "reminders_sync": { ".read": true, ".write": true },
     "dashboard_snapshot": { ".read": true, ".write": true },
     "xpeng": { ".read": true, ".write": true },
+    "drivedesk_sync": { ".read": "auth != null && root.child('shop/admins').child(auth.uid).exists() && root.child('shop/admins').child(auth.uid).val() !== 'toko'", ".write": "auth != null && root.child('shop/admins').child(auth.uid).exists() && root.child('shop/admins').child(auth.uid).val() !== 'toko'" },
     "pos": {
       "catalog": { ".read": true, ".write": A },
       "images": { ".read": true, ".write": A },
