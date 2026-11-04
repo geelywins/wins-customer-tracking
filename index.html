@@ -11949,7 +11949,7 @@ function ddSyncStatus(msg, bad){
   ddSyncMsg = msg || ddSyncMsg;
   const el = document.getElementById('syncStatus'); if(!el) return;
   const col = bad ? 'var(--red)' : (ddSyncReady ? 'var(--green)' : 'var(--muted)');
-  el.innerHTML = `<span style="color:${col};font-weight:700">${ddSyncReady ? '✅ ' : ''}${escapeHtml(ddSyncMsg)}</span>${ddSyncLast ? `<div class="ex-sub">Terakhir sinkron: ${escapeHtml(ddSyncLast)}</div>` : ''}`;
+  el.innerHTML = `<span style="color:${col};font-weight:700">${ddSyncReady && !bad ? '✅ ' : (bad ? '⚠️ ' : '')}${escapeHtml(ddSyncMsg)}</span>${ddSyncLast ? `<div class="ex-sub">Terakhir sinkron: ${escapeHtml(ddSyncLast)}</div>` : ''}`;
 }
 function ddSyncPushKey(k, value, t){
   if(!ddSyncReady || !posDb) return Promise.resolve();
