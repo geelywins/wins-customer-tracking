@@ -1497,6 +1497,7 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
           <div class="toolbar" style="margin-bottom:0">
             <label class="chip" style="cursor:pointer"><input type="checkbox" id="bc_selectAll" style="display:inline;margin:0"> Pilih semua</label>
             <div class="spacer"></div>
+            <button class="btn whatsapp" id="btnBcWaSender" title="Butuh program WA Sender berjalan di laptop (start.bat)">🤖 Kirim Otomatis (WA Sender)</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -7638,6 +7639,26 @@ async function sendBroadcastOne(leadId){
   await saveFollowups();
   renderPriorityLeads();
 }
+
+/* ---- Kirim otomatis lewat WA Sender (program lokal di laptop, http://127.0.0.1:8765) ---- */
+const WA_SENDER_URL = 'http://127.0.0.1:8765';
+async function sendBroadcastToWaSender(){
+  const leads = [...document.querySelectorAll('.bc-check:checked')].map(cb=>getLead(cb.dataset.id)).filter(l=>l && l.noTlpn);
+  if(!leads.length){ toast('Pilih minimal satu kontak', 'err'); return; }
+  const contacts = leads.map(l=>({ nama: displayName(l), nomor: l.noTlpn, kendaraan: vehicleLabel(l) }));
+  try{
+    const r = await fetch(WA_SENDER_URL+'/api/import', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contacts, message: document.getElementById('bc_template').value })
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    window.open(WA_SENDER_URL+'/', '_blank');
+    toast(contacts.length+' kontak dikirim ke WA Sender');
+  }catch(e){
+    toast('WA Sender belum berjalan di laptop ini. Jalankan start.bat lalu coba lagi.', 'err');
+  }
+}
+document.getElementById('btnBcWaSender').addEventListener('click', sendBroadcastToWaSender);
 
 /* ============================= TOKO ONLINE (backend POS) v2 =============================
    Toko independen: data produk, pelanggan dan pesanan terpisah dari leads/SPK Drive Desk.
