@@ -442,7 +442,7 @@ body[data-brand="xpeng"] .brand-tabs::before{transform:translateX(100%);}
 .brand-tabs button:hover{color:var(--navy);}
 .brand-tabs button.active,.brand-tabs button.active:hover{color:#fff;}
 .brand-tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
-body.hide-geely #statScope,body.hide-geely .brand-tabs,body.hide-geely .scope-toggle,body.hide-geely .scope-bar{display:none !important;}
+body[data-brand="xpeng"] .geely-only,body.hide-geely #statScope,body.hide-geely .brand-tabs,body.hide-geely .scope-toggle,body.hide-geely .scope-bar{display:none !important;}
 .brand-tabs .bt-dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;transition:opacity .2s;}
 .brand-tabs button.active .bt-dot{opacity:1;}
 @media (prefers-reduced-motion:reduce){.brand-tabs::before,.brand-tabs button,.brand-tabs .bt-dot{transition:none;}}
@@ -501,7 +501,7 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
         <div class="nav-sub" id="finGroupSub">
           <button data-view="adspend"><span class="nav-ico">💰</span> Ad Spend</button>
           <button data-view="income"><span class="nav-ico">💵</span> Income</button>
-          <button data-view="incentive"><span class="nav-ico">🏆</span> Incentive</button>
+          <button data-view="incentive" class="geely-only"><span class="nav-ico">🏆</span> Incentive</button>
           <button data-view="purchase"><span class="nav-ico">🛒</span> Purchase</button>
         </div>
       </div>
@@ -1857,7 +1857,7 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
       </div>
       <div class="card" id="syncCard">
         <h2>Sinkron Laptop &amp; HP</h2>
-        <p class="acc-note">Semua data (Geely dan XPeng: leads, SPK, follow up, test drive, kontak, Database Leasing, pengaturan) otomatis disimpan ke database Firebase dan dibagikan ke semua perangkat yang login sebagai admin. Setiap perubahan terkirim beberapa detik setelah disimpan, dan perangkat lain ikut terbarui sendiri.</p>
+        <p class="acc-note">Semua data (leads, SPK, follow up, test drive, kontak, Database Leasing, pengaturan) otomatis disimpan ke database Firebase dan dibagikan ke semua perangkat yang login sebagai admin. Setiap perubahan terkirim beberapa detik setelah disimpan, dan perangkat lain ikut terbarui sendiri.</p>
         <div id="syncStatus" style="font-size:13px;line-height:1.55;margin:8px 0"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn sm" id="syncNow">Sinkron sekarang</button>
@@ -11760,7 +11760,7 @@ async function switchBrand(b){
   applyBrandUI();
   populateSourceFilter();
   const active = document.querySelector('.nav button.active');
-  goTo(active ? active.dataset.view : 'dashboard');
+  goTo(active && !(BRAND==='xpeng' && active.dataset.view==='incentive') ? active.dataset.view : 'dashboard');
   if(aiFollowDb) scheduleFirebaseSync_();
   toast('Brand aktif: ' + BRANDS[BRAND].name);
 }
