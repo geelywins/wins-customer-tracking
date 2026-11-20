@@ -442,7 +442,7 @@ body[data-brand="xpeng"] .brand-tabs::before{transform:translateX(100%);}
 .brand-tabs button:hover{color:var(--navy);}
 .brand-tabs button.active,.brand-tabs button.active:hover{color:#fff;}
 .brand-tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
-body.hide-geely .brand-tabs,body.hide-geely .scope-toggle,body.hide-geely .scope-bar{display:none !important;}
+body.hide-geely #statScope,body.hide-geely .brand-tabs,body.hide-geely .scope-toggle,body.hide-geely .scope-bar{display:none !important;}
 .brand-tabs .bt-dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;transition:opacity .2s;}
 .brand-tabs button.active .bt-dot{opacity:1;}
 @media (prefers-reduced-motion:reduce){.brand-tabs::before,.brand-tabs button,.brand-tabs .bt-dot{transition:none;}}
@@ -535,6 +535,7 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
         </div>
       </div>
       <div class="brand-tabs" id="brandTabs" role="tablist"><button type="button" data-brand="geely" class="active"><span class="bt-dot"></span>Geely</button><button type="button" data-brand="xpeng"><span class="bt-dot"></span>XPeng</button></div>
+      <button type="button" class="btn ghost sm" id="geelyEyeBtn" title="Sembunyikan / tampilkan Geely" style="white-space:nowrap"></button>
       <div class="bell" id="bellBtn" title="Reminders"><span>🔔</span><span class="dot" id="bellDot" style="display:none"></span></div>
     </div>
 
@@ -3124,7 +3125,7 @@ function stMonthKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).pa
 function stMonthLabel(k, withYear){ const [y,m] = k.split('-'); return ST_MONTHS[Number(m)-1] + (withYear ? ' ' + y.slice(2) : ''); }
 async function stLeadsInScope(){
   const scope = (document.getElementById('statScope')||{}).value || 'brand';
-  if(scope !== 'all') return state.leads.slice();
+  if(scope !== 'all' || HIDE_GEELY) return state.leads.slice();
   if(!otherCache){ try{ await loadOtherBrand(); }catch(e){} }
   return state.leads.concat(otherCache ? otherCache.leads : []);
 }
@@ -11715,6 +11716,7 @@ let HIDE_GEELY = true; // default: Geely disembunyikan (hanya tampilan; data & r
 function applyHideGeely(){
   document.body.classList.toggle('hide-geely', HIDE_GEELY);
   const t = document.getElementById('hideGeelyToggle'); if(t) t.checked = HIDE_GEELY;
+  const e = document.getElementById('geelyEyeBtn'); if(e) e.textContent = HIDE_GEELY ? '👁 Tampilkan Geely' : '🙈 Sembunyikan Geely';
 }
 async function setHideGeely(v){
   HIDE_GEELY = !!v;
@@ -12105,6 +12107,7 @@ function ddSyncOnAuth(){
   try{ const ab = await storageGet('active-brand'); if(ab && ab.value && BRANDS[ab.value]) BRAND = ab.value; }catch(e){}
   if(HIDE_GEELY && BRAND === 'geely') BRAND = 'xpeng';
   applyHideGeely();
+  { const e = document.getElementById('geelyEyeBtn'); if(e) e.addEventListener('click', ()=>setHideGeely(!HIDE_GEELY)); }
   { const t = document.getElementById('hideGeelyToggle'); if(t) t.addEventListener('change', ()=>setHideGeely(t.checked)); }
   await loadState();
   applyBrandUI();
