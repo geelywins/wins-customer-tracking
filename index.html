@@ -1853,6 +1853,7 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
       <div class="card" id="hideGeelyCard">
         <h2>Tampilan Brand</h2>
         <label style="display:flex;gap:10px;align-items:center;cursor:pointer;font-size:14px"><input type="checkbox" id="hideGeelyToggle" style="width:18px;height:18px"> Sembunyikan Geely (hanya tampil XPeng)</label>
+        <button class="btn ghost sm" id="mixCleanBtn" style="margin:6px 0 4px">Bersihkan data Geely yang tercampur di XPeng</button>
         <p class="acc-note" style="margin-top:8px">Hanya menyembunyikan tab dan tampilan Geely. Data Geely tetap tersimpan, dan reminder, notifikasi serta pengingat Telegram Geely tetap berjalan seperti biasa.</p>
       </div>
       <div class="card" id="syncCard">
@@ -11712,6 +11713,42 @@ function applyBrandLogos(){
   if(li && b.logoLight){ li.src = b.logoLight; li.alt = b.name; }
   if(di && b.logoDark){ di.src = b.logoDark; di.alt = b.name; }
 }
+/* ===== Perbaikan data tercampur Geely -> XPeng (akibat bug sinkron lama) ===== */
+const MIX_KEYS = ['leads-db','spk-db','testdrives-db','followups-db','adspend-db','income-db','purchases-db','leasing-contacts-db','insurance-contacts-db'];
+async function mixScan(){
+  const rd = async (k, b)=>{ try{ const r = await storageGet(k, b); return (r && r.value) ? JSON.parse(r.value) : []; }catch(e){ return []; } };
+  const geely = {}, xp = {};
+  for(const k of MIX_KEYS){ geely[k] = await rd(k, 'geely'); xp[k] = await rd(k, 'xpeng'); }
+  const gLeadIds = new Set(geely['leads-db'].map(x=>x.id));
+  const isXpVehicle = l => /xpeng/i.test(String(l.jenisKendaraan || ''));
+  const badLeadIds = new Set();
+  xp['leads-db'].forEach(l=>{ if(gLeadIds.has(l.id) && !isXpVehicle(l)) badLeadIds.add(l.id); else if(l.jenisKendaraan && !isXpVehicle(l) && /geely|ex2|ex5|starray|coolray|emgrand|monjaro|galaxy/i.test(l.jenisKendaraan)) badLeadIds.add(l.id); });
+  const remove = {}; let total = 0;
+  for(const k of MIX_KEYS){
+    const gIds = new Set(geely[k].map(x=>x.id));
+    remove[k] = xp[k].filter(x=> k==='leads-db' ? badLeadIds.has(x.id) : ((x.leadId && badLeadIds.has(x.leadId)) || (x.id && gIds.has(x.id))));
+    total += remove[k].length;
+  }
+  return { xp, remove, total, leads: remove['leads-db'].length };
+}
+async function mixClean(scan){
+  const bk = {}; 
+  for(const k of MIX_KEYS){
+    const rm = new Set(scan.remove[k].map(x=>x.id)); if(!rm.size) continue;
+    bk[k] = scan.remove[k];
+    await storageSet(k, JSON.stringify(scan.xp[k].filter(x=>!rm.has(x.id))), 'xpeng');
+  }
+  try{ localStorage.setItem('drivedesk:mix-backup-' + Date.now(), JSON.stringify(bk)); }catch(e){}
+  await loadState(); applyBrandUI(); populateSourceFilter();
+  const a = document.querySelector('.nav button.active'); goTo(a ? a.dataset.view : 'dashboard');
+}
+async function mixCheck(manual){
+  try{
+    const sc = await mixScan();
+    if(!sc.total){ if(manual) toast('Data XPeng sudah bersih, tidak ada data Geely yang tercampur.'); return; }
+    confirmModal('Bersihkan data Geely dari XPeng?', 'Ditemukan ' + sc.leads + ' lead dan ' + (sc.total - sc.leads) + ' data lain (SPK, follow up, dll.) milik Geely yang tercampur ke data XPeng. Data Geely sendiri tidak diubah. Hapus dari XPeng sekarang?', async ()=>{ closeModal(); await mixClean(sc); toast('Data Geely dihapus dari XPeng: ' + sc.total + ' item'); });
+  }catch(e){ console.error('mixCheck', e); }
+}
 let HIDE_GEELY = true; // default: Geely disembunyikan (hanya tampilan; data & reminder tetap jalan)
 function applyHideGeely(){
   document.body.classList.toggle('hide-geely', HIDE_GEELY);
@@ -12019,11 +12056,11 @@ function ddMergeById(localArr, remoteArr){
 async function ddApplyRemote(k, rem){
   let val = rem.v;
   if(k === 'settings-db'){
-    try{ const loc = await storageGet(k); const lo = loc && loc.value ? JSON.parse(loc.value) : null; const ro = JSON.parse(val);
+    try{ const loc = await storageGet(k, 'geely'); const lo = loc && loc.value ? JSON.parse(loc.value) : null; const ro = JSON.parse(val);
       if(lo && lo.aiFollowUpFirebase && lo.aiFollowUpFirebase.apiKey) ro.aiFollowUpFirebase = lo.aiFollowUpFirebase; val = JSON.stringify(ro); }catch(e){}
   }
   ddSyncApplying = true;
-  try{ await ddStorageSetOrig(k, val); ddSetTs(k, rem.t || Date.now()); }finally{ ddSyncApplying = false; }
+  try{ await ddStorageSetOrig(k, val, 'geely'); ddSetTs(k, rem.t || Date.now()); }finally{ ddSyncApplying = false; }
 }
 let ddReloadTimer = null;
 function ddSyncReload(){
@@ -12044,7 +12081,7 @@ async function ddSyncRun(mode){
   catch(e){ console.error(e); ddSyncStatus(/permission/i.test(String(e && e.message)) ? 'Ditolak Firebase: pasang aturan "drivedesk_sync" (lihat di bawah) lalu klik Sinkron sekarang.' : 'Gagal membaca cloud. Cek koneksi internet.', true); return; }
   let applied = 0, pushed = 0;
   for(const k of ddSyncKeys()){
-    const rem = remote[k]; const loc = await storageGet(k); const lv = loc && loc.value ? loc.value : null; const synced = ddHasSynced(k); const lt = synced ? ddGetTs(k) : 0;
+    const rem = remote[k]; const loc = await storageGet(k, 'geely'); const lv = loc && loc.value ? loc.value : null; const synced = ddHasSynced(k); const lt = synced ? ddGetTs(k) : 0;
     const pushLocal = async ()=>{ const t = (synced && lt) ? lt : Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; };
     if(mode === 'push'){ if(lv != null){ const t = Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; } ddMarkSynced(k); continue; }
     if(!rem || rem.v == null){ if(lv != null) await pushLocal(); ddMarkSynced(k); continue; }
@@ -12054,7 +12091,7 @@ async function ddSyncRun(mode){
       // perangkat ini belum pernah sinkron untuk data ini
       try{ const la = JSON.parse(lv), ra = JSON.parse(rem.v);
         if(Array.isArray(la) && Array.isArray(ra)){ const merged = ddMergeById(la, ra); const t = Date.now(); const mv = JSON.stringify(merged);
-          ddSyncApplying = true; try{ await ddStorageSetOrig(k, mv); ddSetTs(k, t); }finally{ ddSyncApplying = false; }
+          ddSyncApplying = true; try{ await ddStorageSetOrig(k, mv, 'geely'); ddSetTs(k, t); }finally{ ddSyncApplying = false; }
           await ddSyncPushKey(k, mv, t); applied++; if(merged.length !== ra.length) pushed++; ddMarkSynced(k); continue; } }catch(e){}
       if(ddPoorer(k, rem.v, lv)){ await pushLocal(); } else { await ddApplyRemote(k, rem); applied++; }
       ddMarkSynced(k); continue;
@@ -12081,7 +12118,7 @@ function ddSyncOnAuth(){
       const h = async snap=>{
         const k = snap.key, rem = snap.val(); if(!rem || rem.v == null || !ddSyncKeys().includes(k)) return;
         if(rem.d === ddDevice() || (rem.t || 0) <= ddGetTs(k)) return;
-        try{ const cur = await storageGet(k); if(cur && ddPoorer(k, rem.v, cur.value)) return; }catch(e){}
+        try{ const cur = await storageGet(k, 'geely'); if(cur && ddPoorer(k, rem.v, cur.value)) return; }catch(e){}
         await ddApplyRemote(k, rem); ddSyncLast = new Date().toLocaleTimeString('id-ID'); ddSyncStatus('Data terbaru dari perangkat lain sudah masuk'); ddSyncReload();
       };
       ddSyncRef.on('child_changed', h); ddSyncRef.on('child_added', h);
@@ -12107,6 +12144,7 @@ function ddSyncOnAuth(){
   try{ const ab = await storageGet('active-brand'); if(ab && ab.value && BRANDS[ab.value]) BRAND = ab.value; }catch(e){}
   if(HIDE_GEELY && BRAND === 'geely') BRAND = 'xpeng';
   applyHideGeely();
+  { const m = document.getElementById('mixCleanBtn'); if(m) m.addEventListener('click', ()=>mixCheck(true)); }
   { const e = document.getElementById('geelyEyeBtn'); if(e) e.addEventListener('click', ()=>setHideGeely(!HIDE_GEELY)); }
   { const t = document.getElementById('hideGeelyToggle'); if(t) t.addEventListener('change', ()=>setHideGeely(t.checked)); }
   await loadState();
@@ -12115,6 +12153,7 @@ function ddSyncOnAuth(){
   renderDashboard();
   if(aiFollowIsConfigured()) initAiFollowFirebase(false);
   try{ await ddAccessInit(); }catch(e){ console.error(e); }
+  setTimeout(()=>{ if(BRAND==='xpeng') mixCheck(false); }, 2500);
 })();
 </script>
 </body>
