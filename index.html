@@ -442,6 +442,7 @@ body[data-brand="xpeng"] .brand-tabs::before{transform:translateX(100%);}
 .brand-tabs button:hover{color:var(--navy);}
 .brand-tabs button.active,.brand-tabs button.active:hover{color:#fff;}
 .brand-tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+body.hide-geely .brand-tabs,body.hide-geely .scope-toggle,body.hide-geely .scope-bar{display:none !important;}
 .brand-tabs .bt-dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;transition:opacity .2s;}
 .brand-tabs button.active .bt-dot{opacity:1;}
 @media (prefers-reduced-motion:reduce){.brand-tabs::before,.brand-tabs button,.brand-tabs .bt-dot{transition:none;}}
@@ -1497,7 +1498,6 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
           <div class="toolbar" style="margin-bottom:0">
             <label class="chip" style="cursor:pointer"><input type="checkbox" id="bc_selectAll" style="display:inline;margin:0"> Pilih semua</label>
             <div class="spacer"></div>
-            <button class="btn whatsapp" id="btnBcWaSender" title="Butuh program WA Sender berjalan di laptop (start.bat)">🤖 Kirim Otomatis (WA Sender)</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -1848,6 +1848,11 @@ body:not([data-brand="xpeng"]) .xp-only{display:none !important;}
         </div>
         <button class="btn sm" id="btnSaveAiFollowFirebase" style="margin-top:10px">Save &amp; Connect</button>
         <div id="aiFollowConnStatus" style="margin-top:10px;font-size:12.5px"></div>
+      </div>
+      <div class="card" id="hideGeelyCard">
+        <h2>Tampilan Brand</h2>
+        <label style="display:flex;gap:10px;align-items:center;cursor:pointer;font-size:14px"><input type="checkbox" id="hideGeelyToggle" style="width:18px;height:18px"> Sembunyikan Geely (hanya tampil XPeng)</label>
+        <p class="acc-note" style="margin-top:8px">Hanya menyembunyikan tab dan tampilan Geely. Data Geely tetap tersimpan, dan reminder, notifikasi serta pengingat Telegram Geely tetap berjalan seperti biasa.</p>
       </div>
       <div class="card" id="syncCard">
         <h2>Sinkron Laptop &amp; HP</h2>
@@ -7640,26 +7645,6 @@ async function sendBroadcastOne(leadId){
   renderPriorityLeads();
 }
 
-/* ---- Kirim otomatis lewat WA Sender (program lokal di laptop, http://127.0.0.1:8765) ---- */
-const WA_SENDER_URL = 'http://127.0.0.1:8765';
-async function sendBroadcastToWaSender(){
-  const leads = [...document.querySelectorAll('.bc-check:checked')].map(cb=>getLead(cb.dataset.id)).filter(l=>l && l.noTlpn);
-  if(!leads.length){ toast('Pilih minimal satu kontak', 'err'); return; }
-  const contacts = leads.map(l=>({ nama: displayName(l), nomor: l.noTlpn, kendaraan: vehicleLabel(l) }));
-  try{
-    const r = await fetch(WA_SENDER_URL+'/api/import', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contacts, message: document.getElementById('bc_template').value })
-    });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    window.open(WA_SENDER_URL+'/', '_blank');
-    toast(contacts.length+' kontak dikirim ke WA Sender');
-  }catch(e){
-    toast('WA Sender belum berjalan di laptop ini. Jalankan start.bat lalu coba lagi.', 'err');
-  }
-}
-document.getElementById('btnBcWaSender').addEventListener('click', sendBroadcastToWaSender);
-
 /* ============================= TOKO ONLINE (backend POS) v2 =============================
    Toko independen: data produk, pelanggan dan pesanan terpisah dari leads/SPK Drive Desk.
    Semua akses tulis dilindungi login admin (Firebase Auth + shop/admins/{uid}).          */
@@ -8116,9 +8101,16 @@ function schedulePosPublish_(){
   if(!posIsAdmin || !state.settings.pos) return;
   clearTimeout(posPublishTimer); posPublishTimer = setTimeout(()=>posPublish(false), 1500);
 }
-async function posPublish(showToast){
+function posCatCount(c){ return ((c.film && c.film.brands) || []).length + (c.carpets || []).length + (c.products || []).length + (c.units || []).length + (c.properties || []).length + (c.banners || []).length; }
+async function posPublish(showToast, forced){
   if(!posDb || !posIsAdmin){ if(showToast) toast('Login sebagai admin toko dulu','err'); return; }
   clearTimeout(posPublishTimer);
+  /* pengaman: katalog kosong tidak boleh menimpa katalog toko yang sedang tayang */
+  if(!forced && posCatCount(posBuildCatalog()) === 0){
+    if(!showToast){ console.warn('posPublish dibatalkan: katalog lokal kosong'); return; }
+    confirmModal('Katalog di perangkat ini kosong', 'Perangkat ini belum punya produk toko. Kalau diterbitkan, toko yang sedang tayang di LapakMu akan menjadi kosong. Sebaiknya batalkan, lalu Sinkron sekarang dulu di Settings.', ()=>{ closeModal(); posPublish(true, true); });
+    return;
+  }
   try{ await Promise.all(posCfg().categories.filter(c=>c.iconImg).map(c=>posImgSrc(c.iconImg)));
     await posDb.ref('pos/catalog').set(JSON.parse(JSON.stringify(posBuildCatalog()))); posLastPublish = new Date(); posPublishError = null; posUnpublished = false; if(showToast) toast('Katalog toko diperbarui'); }
   catch(e){ console.error(e); posPublishError = e.code||'error'; if(showToast || document.getElementById('view-toko').classList.contains('active')) toast('Gagal update katalog — cek rules Firebase','err'); }
@@ -11719,6 +11711,21 @@ function applyBrandLogos(){
   if(li && b.logoLight){ li.src = b.logoLight; li.alt = b.name; }
   if(di && b.logoDark){ di.src = b.logoDark; di.alt = b.name; }
 }
+let HIDE_GEELY = true; // default: Geely disembunyikan (hanya tampilan; data & reminder tetap jalan)
+function applyHideGeely(){
+  document.body.classList.toggle('hide-geely', HIDE_GEELY);
+  const t = document.getElementById('hideGeelyToggle'); if(t) t.checked = HIDE_GEELY;
+}
+async function setHideGeely(v){
+  HIDE_GEELY = !!v;
+  try{ await storageSet('hide-geely', HIDE_GEELY ? '1' : '0'); }catch(e){}
+  if(HIDE_GEELY){ viewScope = { leads:'brand', contacts:'brand' }; if(BRAND === 'geely'){ await switchBrandForce_('xpeng'); } }
+  applyHideGeely();
+  try{ applyBrandUI(); }catch(e){}
+  try{ const a = document.querySelector('.nav button.active'); goTo(a ? a.dataset.view : 'dashboard'); }catch(e){}
+  toast(HIDE_GEELY ? 'Geely disembunyikan (reminder tetap jalan)' : 'Geely ditampilkan');
+}
+async function switchBrandForce_(b){ const k = HIDE_GEELY; HIDE_GEELY = false; try{ await switchBrand(b); } finally { HIDE_GEELY = k; } }
 function applyBrandUI(){
   try{ prospekBadge(); }catch(e){}
   captureGeelyLogos();
@@ -11739,6 +11746,7 @@ function applyBrandUI(){
 }
 async function switchBrand(b){
   if(!BRANDS[b] || b === BRAND) return;
+  if(HIDE_GEELY && b === 'geely') return;
   closeModal();
   BRAND = b;
   try{ await storageSet('active-brand', b); }catch(e){}
@@ -11966,6 +11974,18 @@ function ddSyncKeys(){ const ks = []; ['geely','xpeng'].forEach(b=>BRAND_SCOPED_
 function ddDevice(){ try{ let d = localStorage.getItem('dd_device'); if(!d){ d = 'd' + Math.random().toString(36).slice(2, 9); localStorage.setItem('dd_device', d); } return d; }catch(e){ return 'dx'; } }
 function ddGetTs(k){ try{ return Number(localStorage.getItem('drivedesk:__ts:' + k)) || ddTsMem[k] || 0; }catch(e){ return ddTsMem[k] || 0; } }
 function ddSetTs(k, t){ ddTsMem[k] = t; try{ localStorage.setItem('drivedesk:__ts:' + k, String(t)); }catch(e){} }
+function ddHasSynced(k){ try{ return localStorage.getItem('drivedesk:__syn:' + k) === '1'; }catch(e){ return false; } }
+function ddMarkSynced(k){ try{ localStorage.setItem('drivedesk:__syn:' + k, '1'); }catch(e){} }
+function ddRichness(k, str){
+  try{
+    const o = JSON.parse(str);
+    if(Array.isArray(o)) return o.length;
+    if(k === 'settings-db'){ const p = o.pos || {}; let n = (p.store && p.store.wa) ? 3 : 0; Object.keys(p).forEach(x=>{ if(Array.isArray(p[x]) && !['cars','categories','shipping'].includes(x)) n += p[x].length; }); if(p.payments && Array.isArray(p.payments.banks)) n += p.payments.banks.length; return n; }
+    return 1;
+  }catch(e){ return 1; }
+}
+/* a lebih miskin dari b: jangan biarkan data yang lebih sedikit menimpa data yang lebih banyak */
+function ddPoorer(k, a, b){ if(a == null || b == null) return false; return ddRichness(k, a) < ddRichness(k, b); }
 function ddSyncStatus(msg, bad){
   ddSyncMsg = msg || ddSyncMsg;
   const el = document.getElementById('syncStatus'); if(!el) return;
@@ -11983,8 +12003,8 @@ storageSet = async function(key, value, brand){
   if(ok && !ddSyncApplying){
     const k = brandStoreKey(key, brand);
     if(ddSyncKeys().includes(k)){
-      const t = Date.now(); ddSetTs(k, t);
-      if(ddSyncReady){ clearTimeout(ddSyncTimers[k]); ddSyncTimers[k] = setTimeout(()=>ddSyncPushKey(k, value, t), 1500); }
+      const t = Date.now(); if(ddHasSynced(k)) ddSetTs(k, t);
+      if(ddSyncReady && ddHasSynced(k)){ clearTimeout(ddSyncTimers[k]); ddSyncTimers[k] = setTimeout(()=>ddSyncPushKey(k, value, t), 1500); }
     }
   }
   return ok;
@@ -12022,21 +12042,24 @@ async function ddSyncRun(mode){
   catch(e){ console.error(e); ddSyncStatus(/permission/i.test(String(e && e.message)) ? 'Ditolak Firebase: pasang aturan "drivedesk_sync" (lihat di bawah) lalu klik Sinkron sekarang.' : 'Gagal membaca cloud. Cek koneksi internet.', true); return; }
   let applied = 0, pushed = 0;
   for(const k of ddSyncKeys()){
-    const rem = remote[k]; const loc = await storageGet(k); const lv = loc && loc.value ? loc.value : null; const lt = ddGetTs(k);
-    if(mode === 'push'){ if(lv != null){ const t = Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; } continue; }
-    if(!rem || rem.v == null){ if(lv != null){ const t = lt || Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; } continue; }
-    if(mode === 'pull'){ await ddApplyRemote(k, rem); applied++; continue; }
-    if(lv == null){ await ddApplyRemote(k, rem); applied++; continue; }
+    const rem = remote[k]; const loc = await storageGet(k); const lv = loc && loc.value ? loc.value : null; const synced = ddHasSynced(k); const lt = synced ? ddGetTs(k) : 0;
+    const pushLocal = async ()=>{ const t = (synced && lt) ? lt : Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; };
+    if(mode === 'push'){ if(lv != null){ const t = Date.now(); ddSetTs(k, t); await ddSyncPushKey(k, lv, t); pushed++; } ddMarkSynced(k); continue; }
+    if(!rem || rem.v == null){ if(lv != null) await pushLocal(); ddMarkSynced(k); continue; }
+    if(mode === 'pull'){ await ddApplyRemote(k, rem); applied++; ddMarkSynced(k); continue; }
+    if(lv == null){ await ddApplyRemote(k, rem); applied++; ddMarkSynced(k); continue; }
     if(!lt){
-      // perangkat ini belum pernah sinkron: gabungkan daftar berdasarkan id supaya data lokal tidak hilang
+      // perangkat ini belum pernah sinkron untuk data ini
       try{ const la = JSON.parse(lv), ra = JSON.parse(rem.v);
         if(Array.isArray(la) && Array.isArray(ra)){ const merged = ddMergeById(la, ra); const t = Date.now(); const mv = JSON.stringify(merged);
           ddSyncApplying = true; try{ await ddStorageSetOrig(k, mv); ddSetTs(k, t); }finally{ ddSyncApplying = false; }
-          await ddSyncPushKey(k, mv, t); applied++; if(merged.length !== ra.length) pushed++; continue; } }catch(e){}
-      await ddApplyRemote(k, rem); applied++; continue;
+          await ddSyncPushKey(k, mv, t); applied++; if(merged.length !== ra.length) pushed++; ddMarkSynced(k); continue; } }catch(e){}
+      if(ddPoorer(k, rem.v, lv)){ await pushLocal(); } else { await ddApplyRemote(k, rem); applied++; }
+      ddMarkSynced(k); continue;
     }
-    if((rem.t || 0) > lt){ await ddApplyRemote(k, rem); applied++; }
-    else if(lt > (rem.t || 0)){ await ddSyncPushKey(k, lv, lt); pushed++; }
+    if((rem.t || 0) > lt){ if(ddPoorer(k, rem.v, lv)) await pushLocal(); else { await ddApplyRemote(k, rem); applied++; } }
+    else if(lt > (rem.t || 0)){ if(ddPoorer(k, lv, rem.v)){ await ddApplyRemote(k, rem); applied++; } else await pushLocal(); }
+    ddMarkSynced(k);
   }
   ddSyncLast = new Date().toLocaleTimeString('id-ID');
   ddSyncStatus('Terhubung dan tersinkron' + (applied ? ' (' + applied + ' data diperbarui dari cloud)' : '') + (pushed ? ' (' + pushed + ' data dikirim)' : ''));
@@ -12056,6 +12079,7 @@ function ddSyncOnAuth(){
       const h = async snap=>{
         const k = snap.key, rem = snap.val(); if(!rem || rem.v == null || !ddSyncKeys().includes(k)) return;
         if(rem.d === ddDevice() || (rem.t || 0) <= ddGetTs(k)) return;
+        try{ const cur = await storageGet(k); if(cur && ddPoorer(k, rem.v, cur.value)) return; }catch(e){}
         await ddApplyRemote(k, rem); ddSyncLast = new Date().toLocaleTimeString('id-ID'); ddSyncStatus('Data terbaru dari perangkat lain sudah masuk'); ddSyncReload();
       };
       ddSyncRef.on('child_changed', h); ddSyncRef.on('child_added', h);
@@ -12077,7 +12101,11 @@ function ddSyncOnAuth(){
 
 /* ============================= INIT ============================= */
 (async function init(){
+  try{ const hg = await storageGet('hide-geely'); if(hg && hg.value != null) HIDE_GEELY = hg.value !== '0'; }catch(e){}
   try{ const ab = await storageGet('active-brand'); if(ab && ab.value && BRANDS[ab.value]) BRAND = ab.value; }catch(e){}
+  if(HIDE_GEELY && BRAND === 'geely') BRAND = 'xpeng';
+  applyHideGeely();
+  { const t = document.getElementById('hideGeelyToggle'); if(t) t.addEventListener('change', ()=>setHideGeely(t.checked)); }
   await loadState();
   applyBrandUI();
   populateSourceFilter();
