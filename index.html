@@ -2510,6 +2510,16 @@ function waLink(phone, message){
   return `https://wa.me/${waNumber(phone)}${message?('?text='+encodeURIComponent(message)):''}`;
 }
 function vehicleLabel(l){ return l.jenisKendaraan || '—'; }
+/* WA sapaan khusus lead dari Major Exhibition (Booth XPENG) */
+function exhibitionWaMsg(l){
+  const sal = (l.salutation && l.salutation!=='—') ? l.salutation : 'Kak';
+  const nama = String(l.nama||'').trim();
+  return `Halo ${sal} ${nama} terima kasih sudah berkunjung ke Booth XPENG, ini aku Edwin yang tadi berbincang dengan ${sal} di Booth XPENG. aku ijin save no ${sal} ya ^^`;
+}
+function exhibitionWaBtn(l){
+  if(l.sumber!=='Major Exhibition' || !l.noTlpn) return '';
+  return `<a class="btn whatsapp sm" href="${waLink(l.noTlpn, exhibitionWaMsg(l))}" target="_blank" rel="noopener noreferrer" title="Kirim sapaan Booth XPENG via WhatsApp">💬 WA Booth</a>`;
+}
 function displayName(l){ return (l.salutation && l.salutation!=='—') ? `${l.salutation} ${l.nama}` : l.nama; }
 function categoryPill(l){
   const cat = l.kategori || 'Warm';
@@ -3340,6 +3350,7 @@ function leadRowHtml(l){
       <td class="row-actions">
         <button class="btn ghost sm" onclick="viewLead('${l.id}')">View</button>
         <button class="btn ghost sm" onclick="openLeadModal('${l.id}')">Edit</button>
+        ${exhibitionWaBtn(l)}
         ${l.status!=='spk' ? `<button class="btn whatsapp sm" onclick="openFollowUpModal('${l.id}')">Follow Up${getFollowupsByLead(l.id).length ? ' ('+getFollowupsByLead(l.id).length+')' : ''}</button>` : ''}
         <button class="btn danger sm" onclick="deleteLead('${l.id}')">Delete</button>
         ${l.status!=='spk' ? `<button class="btn green sm" onclick="openSpkForm('${l.id}')">Make SPK</button>` : ''}
