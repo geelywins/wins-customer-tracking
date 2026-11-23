@@ -7484,9 +7484,23 @@ const LEASING_DATA = {"cimb": {"label": "CIMB Niaga Finance", "period": "Juni 20
 Object.keys(LEASING_DATA).forEach(k=>{ LEASING_DATA[k].brand = 'geely'; });
 LEASING_DATA.cimb_gaw = {"label": "CIMB Niaga Finance — XPENG (GAW)", "brand": "xpeng", "period": "20–29 November 2026 (Program Regular Khusus GAW)", "vehicles": {"XPENG G6 PRO RWD": {"otr": 679000000, "irreg": [[6, 0, 373610000, 339500000], [9, 0, 388888000, 339500000], [12, 0, 404165000, 339500000]], "gaw15": [[11, 49049000, 179931000], [23, 25385000, 162650000], [35, 17370000, 158477500], [47, 13842000, 159595000], [59, 11774000, 161414500]]}, "XPENG G6 PRO AWD": {"otr": 769000000, "irreg": [[6, 0, 422502000, 384500000], [9, 0, 439805000, 384500000], [12, 0, 457107000, 384500000]], "gaw15": [[11, 55550000, 203144000], [23, 28750000, 183347000], [35, 19672000, 178435500], [47, 15677000, 179480000], [59, 13335000, 181385500]]}, "XPENG X9 PRO": {"otr": 1219000000, "irreg": [[6, 0, 660516000, 609500000], [9, 0, 687944000, 609500000], [12, 0, 715371000, 609500000]], "gaw15": [[11, 88056000, 317378000], [23, 45574000, 284479000], [35, 31183000, 275421500], [47, 24851000, 275676000], [59, 21138000, 278012500]]}, "XPENG X9 PRO+": {"otr": 1259000000, "irreg": [[6, 0, 681929000, 629500000], [9, 0, 710257000, 629500000], [12, 0, 738584000, 629500000]], "gaw15": [[11, 90945000, 327634000], [23, 47069000, 293600000], [35, 32206000, 284199500], [47, 25666000, 284408000], [59, 21832000, 286374500]]}, "XPENG X9 PRO+ AWD": {"otr": 1339000000, "irreg": [[6, 0, 724942000, 669500000], [9, 0, 755070000, 669500000], [12, 0, 785197000, 669500000]], "gaw15": [[11, 96724000, 348148000], [23, 50060000, 311842000], [35, 34252000, 301755500], [47, 27297000, 301871000], [59, 23219000, 303888500]]}, "XPENG G9L ULTRA AWD": {"otr": 1289000000, "irreg": [[6, 0, 698059000, 644500000], [9, 0, 727062000, 644500000], [12, 0, 756064000, 644500000]], "gaw15": [[11, 93112000, 335327000], [23, 48191000, 300442000], [35, 32973000, 290783500], [47, 26278000, 290957000], [59, 22352000, 292942500]]}}};
 
+LEASING_DATA.maybank_xp = {"label": "Maybank Finance — XPENG", "period": "wilayah Jakarta", "brand": "xpeng", "vehicles": {"XPENG G6 PRO": {"otr": 679000000, "bunga0": [[11, 39609000, 259310000], [23, 19805000, 247754000], [35, 13203000, 249400000]], "regular": [[11, 44144000, 245419500], [23, 22760000, 232283500], [35, 15546000, 233317500], [47, 11507000, 270708000], [59, 9689000, 277388000]]}, "XPENG X9 LONG RANGE PRO": {"otr": 1219000000, "regular": [[11, 79250000, 433668000], [23, 40861000, 409519500], [35, 27909000, 410808000], [47, 20657000, 477168000], [59, 17393000, 488394000]]}, "XPENG X9 LONG RANGE PRO+": {"otr": 1259000000, "regular": [[11, 81851000, 447633000], [23, 42202000, 422688500], [35, 28825000, 424016000], [47, 21335000, 492542000], [59, 17964000, 504125000]]}, "XPENG G9L ULTRA AWD": {"otr": 1289000000, "regular": [[11, 83801000, 458106000], [23, 43207000, 432564500], [35, 29512000, 433922000], [47, 21843000, 504072000], [59, 18392000, 515923000]]}}};
+LEASING_DATA.mandiri_xp = {"label": "Mandiri — XPENG", "period": "November 2026", "brand": "xpeng", "vehicles": {"XPENG G6 PRO": {"otr": 679000000, "addm": [[12, 52334000, 156988000], [24, 26950000, 133480000], [36, 18499000, 126684000], [48, 14820000, 124550000], [60, 12734000, 123898000]]}, "XPENG G6 PRO AWD": {"otr": 769000000, "addm": [[12, 59271000, 176615000], [24, 30522000, 149991000], [36, 20951000, 142294000], [48, 16785000, 139878000], [60, 14422000, 139139000]]}, "XPENG X9 STANDARD RANGE PRO": {"otr": 1140000000, "addm": [[12, 87865000, 256910000], [24, 45247000, 216957000], [36, 31058000, 205119000], [48, 24882000, 201537000], [60, 21379000, 200442000]]}, "XPENG X9 LONG RANGE PRO": {"otr": 1219000000, "addm": [[12, 93954000, 274020000], [24, 48383000, 231298000], [36, 33210000, 218640000], [48, 26607000, 214383000], [60, 22861000, 213212000]]}, "XPENG X9 LONG RANGE PRO+": {"otr": 1259000000, "addm": [[12, 97037000, 282683000], [24, 49970000, 238559000], [36, 34300000, 225486000], [48, 27480000, 221089000], [60, 23611000, 219471000]]}}};
+LEASING_DATA.imfi_xp = {"label": "IMFI — XPENG", "period": "November 2026", "brand": "xpeng", "vehicles": {"XPENG G6 PRO": {"otr": 679000000, "kombinasi_bunga_ringan": [[11, 41070000, 271700500], [23, 21452000, 254212100], [35, 15001000, 249287000], [47, 11903000, 247511200], [59, 10113000, 247389690]], "kombinasi_dp_ringan": [[12, 47004000, 170650000], [24, 25185000, 170650000], [36, 17980000, 170650000], [48, 14415000, 170650000], [60, 12681000, 170650000]], "comp_bunga_ringan": [[11, 41070000, 271700500], [23, 21452000, 254212100], [35, 15001000, 249287000], [47, 11903000, 247511200], [59, 10113000, 247389690]], "comp_dp_ringan": [[12, 47004000, 170650000], [24, 25185000, 170650000], [36, 17980000, 170650000], [48, 14415000, 170650000], [60, 12681000, 170650000]], "bunga_0": [[5, 84875000, 281334500], [11, 42438000, 249082500]], "cash_bertahap": [0, 0, 385951750, 339500000]}, "XPENG G6 PRO AWD": {"otr": 769000000, "kombinasi_bunga_ringan": [[11, 46514000, 307199500], [23, 24296000, 286927100], [35, 16990000, 281336000], [47, 13480000, 279310200], [59, 11453000, 278652050]], "kombinasi_dp_ringan": [[12, 53160000, 193150000], [24, 28482000, 193150000], [36, 20333000, 193150000], [48, 16301000, 193150000], [60, 14329000, 193150000]], "comp_bunga_ringan": [[11, 46514000, 307199500], [23, 24296000, 286927100], [35, 16990000, 281336000], [47, 13480000, 279310200], [59, 11453000, 278652050]], "comp_dp_ringan": [[12, 53160000, 193150000], [24, 28482000, 193150000], [36, 20333000, 193150000], [48, 16301000, 193150000], [60, 14329000, 193150000]], "bunga_0": [[5, 96125000, 317829500], [11, 48063000, 281302500]], "cash_bertahap": [0, 0, 436194250, 384500000]}, "XPENG X9 LR PRO": {"otr": 1219000000, "kombinasi_bunga_ringan": [[11, 73733000, 480865000], [23, 38513000, 448085480], [35, 26932000, 438652400], [47, 21369000, 436483600], [59, 18154000, 435379950]], "kombinasi_dp_ringan": [[12, 83774000, 306750000], [24, 44855000, 306750000], [36, 32003000, 306750000], [48, 25656000, 306750000], [60, 22551000, 306750000]], "comp_bunga_ringan": [[11, 73733000, 480865000], [23, 38513000, 448085480], [35, 26932000, 438652400], [47, 21369000, 436483600], [59, 18154000, 435379950]], "comp_dp_ringan": [[12, 83774000, 306750000], [24, 44855000, 306750000], [36, 32003000, 306750000], [48, 25656000, 306750000], [60, 22551000, 306750000]], "bunga_0": [[5, 152375000, 499776000], [11, 76188000, 441874000]], "cash_bertahap": [0, 0, 685978250, 609500000]}, "XPENG X9 LR PRO PLUS": {"otr": 1259000000, "kombinasi_bunga_ringan": [[11, 76152000, 496404000], [23, 39777000, 462546280], [35, 27815000, 453899400], [47, 22070000, 450520600], [59, 18750000, 449377950]], "kombinasi_dp_ringan": [[12, 86504000, 316750000], [24, 46317000, 316750000], [36, 33046000, 316750000], [48, 26492000, 316750000], [60, 23285000, 316750000]], "comp_bunga_ringan": [[11, 76152000, 496404000], [23, 39777000, 462546280], [35, 27815000, 453899400], [47, 22070000, 450520600], [59, 18750000, 449377950]], "comp_dp_ringan": [[12, 86504000, 316750000], [24, 46317000, 316750000], [36, 33046000, 316750000], [48, 26492000, 316750000], [60, 23285000, 316750000]], "bunga_0": [[5, 157375000, 515936000], [11, 78688000, 456134000]], "cash_bertahap": [0, 0, 708248250, 629500000]}, "XPENG G9L": {"otr": 1289000000, "kombinasi_bunga_ringan": [[11, 77967000, 508059000], [23, 40724000, 473390880], [35, 28478000, 464510400], [47, 22596000, 461048600], [59, 19197000, 459876450]], "kombinasi_dp_ringan": [[12, 88552000, 324250000], [24, 47413000, 324250000], [36, 33828000, 324250000], [48, 27119000, 324250000], [60, 23836000, 324250000]], "comp_bunga_ringan": [[11, 77967000, 508059000], [23, 40724000, 473390880], [35, 28478000, 464510400], [47, 22596000, 461048600], [59, 19197000, 459876450]], "comp_dp_ringan": [[12, 88552000, 324250000], [24, 47413000, 324250000], [36, 33828000, 324250000], [48, 27119000, 324250000], [60, 23836000, 324250000]], "bunga_0": [[5, 161125000, 528056000], [11, 80563000, 466829000]], "cash_bertahap": [0, 0, 724950750, 644500000]}}};
+
 const LEASING_PACKAGE_LABELS = {
   cimb: { addb:'ADDB - Asuransi Kombinasi', addm:'ADDM - Asuransi Kombinasi' },
   cimb_gaw: { irreg:'Skema Irreguler 50:50', gaw15:'Selected Special — DP 15% (angsuran dibayar di depan)' },
+  maybank_xp: { bunga0:'Bunga 0% (tenor s.d. 3 thn)', regular:'Regular' },
+  mandiri_xp: { addm:'ADDM — Asuransi All Risk + Banjir' },
+  imfi_xp: {
+    kombinasi_bunga_ringan:'Asuransi Kombinasi - Bunga Ringan',
+    kombinasi_dp_ringan:'Asuransi Kombinasi - DP Ringan',
+    comp_bunga_ringan:'Asuransi Comprehensive - Bunga Ringan',
+    comp_dp_ringan:'Asuransi Comprehensive - DP Ringan',
+    bunga_0:'Bunga 0% (Asuransi All Risk)',
+    cash_bertahap:'Cash Bertahap (2x bayar)'
+  },
   imfi: {
     kombinasi_bunga_ringan:'Asuransi Kombinasi - Bunga Ringan',
     kombinasi_dp_ringan:'Asuransi Kombinasi - DP Ringan',
@@ -7506,6 +7520,21 @@ const LEASING_PACKAGE_LABELS = {
 };
 
 const LEASING_PACKAGE_NOTES = {
+  maybank_xp: {
+    bunga0:'Promo Bunga 0% Jakarta khusus XPENG G6 Pro (tenor 11, 23, 35 bulan).',
+    regular:'Pricelist XPENG Regular wilayah Jakarta. Harga dapat berubah sewaktu-waktu.'
+  },
+  mandiri_xp: {
+    addm:'Bayar pertama ADDM meliputi DP, administrasi, fidusia, dan angsuran 1. Asuransi kendaraan all risk + perluasan banjir. Paket dapat berubah sewaktu-waktu tanpa pemberitahuan.'
+  },
+  imfi_xp: {
+    kombinasi_bunga_ringan:'Asuransi Kombinasi. Perorangan: wajib SLIK Kol 1 lancar, tempat tinggal milik sendiri, angsuran wajib autodebet (Mandiri, BCA atau BRI).',
+    kombinasi_dp_ringan:'Asuransi Kombinasi. Perorangan: wajib SLIK Kol 1 lancar, tempat tinggal milik sendiri, angsuran wajib autodebet (Mandiri, BCA atau BRI).',
+    comp_bunga_ringan:'Asuransi Comprehensive. Perorangan: wajib SLIK Kol 1 lancar, tempat tinggal milik sendiri, angsuran wajib autodebet (Mandiri, BCA atau BRI).',
+    comp_dp_ringan:'Asuransi Comprehensive. Perorangan: wajib SLIK Kol 1 lancar, tempat tinggal milik sendiri, angsuran wajib autodebet (Mandiri, BCA atau BRI).',
+    bunga_0:'Asuransi All Risk. Wajib Kol 1 lancar, angsuran wajib autodebet (Mandiri, BRI atau BCA).',
+    cash_bertahap:'Asuransi Comprehensive + Banjir + TJH. Pembayaran ke-1 di muka, pembayaran ke-2 di bulan ke-12.'
+  },
   cimb_gaw: {
     irreg:'Khusus pengajuan perorangan dengan asuransi jiwa, DP min. 50%. Asuransi all risk wilayah DKI Jakarta. Harga OTR dapat berubah sewaktu-waktu.',
     gaw15:'Khusus pengajuan perorangan, DP 15%, angsuran dibayar di depan, asuransi kombinasi wilayah DKI Jakarta. Biaya asuransi sudah termasuk asuransi kendaraan, perluasan banjir & asuransi jiwa. Harga OTR dapat berubah sewaktu-waktu.'
@@ -7575,7 +7604,9 @@ function populateCicilanTenors(){
   const pkgKey = document.getElementById('cc_package').value;
   const rows = vehicle[pkgKey];
   const tenorSel = document.getElementById('cc_tenor_lookup');
-  if(pkgKey==='p5050'){
+  if(pkgKey==='cash_bertahap'){
+    tenorSel.innerHTML = `<option value="0">2x bayar (bulan ke-1 dan bulan ke-12)</option>`;
+  } else if(pkgKey==='p5050'){
     tenorSel.innerHTML = `<option value="0">Skema 50:50 (tanpa angsuran bulanan)</option>`;
   } else {
     tenorSel.innerHTML = rows.map((r,i)=>`<option value="${i}">${r[0]} bulan</option>`).join('');
@@ -7595,7 +7626,17 @@ function renderLookupResult(){
   let html = '';
   let waSummary = '';
 
-  if(pkgKey==='irreg'){
+  if(pkgKey==='cash_bertahap'){
+    const [, , bayar1, bayar2] = vehicle.cash_bertahap;
+    html = `
+      <div class="stat-grid">
+        ${statCard('Harga OTR', fmtRupiah(vehicle.otr), 'var(--blue)')}
+        ${statCard('Pembayaran ke-1', fmtRupiah(bayar1), 'var(--cyan)')}
+        ${statCard('Pembayaran ke-2 (bulan ke-12)', fmtRupiah(bayar2), 'var(--green)')}
+      </div>
+      <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">*Simulasi dari pricelist ${escapeHtml(leasing.label)} (${escapeHtml(leasing.period)}). Angka final tergantung hasil approval &amp; survey leasing.</p>${lpNote(leasingKey,pkgKey)}`;
+    waSummary = `Leasing: ${leasing.label}\nPaket: ${pkgLabel}\nHarga OTR: ${fmtRupiah(vehicle.otr)}\nPembayaran ke-1: ${fmtRupiah(bayar1)}\nPembayaran ke-2 (bulan ke-12): ${fmtRupiah(bayar2)}`;
+  } else if(pkgKey==='irreg'){
     const row = vehicle.irreg[Number(document.getElementById('cc_tenor_lookup').value)||0];
     const [tenor, , tdp, last] = row;
     html = `
